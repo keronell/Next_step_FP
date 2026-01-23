@@ -14,6 +14,24 @@ CORS(app)
 PORT = int(os.getenv('PORT', 3001))
 
 
+@app.route('/', methods=['GET'])
+def index():
+    """Root endpoint - API information"""
+    return jsonify({
+        'message': 'NextStep Career Matcher API',
+        'status': 'running',
+        'version': '1.0.0',
+        'endpoints': {
+            'sessions': '/api/sessions',
+            'questions': '/api/questions',
+            'answers': '/api/sessions/<session_id>/answers',
+            'compute': '/api/sessions/<session_id>/compute',
+            'roadmap': '/api/sessions/<session_id>/roadmap',
+            'roadmap_items': '/api/roadmap-items/<item_id>'
+        }
+    })
+
+
 def compute_skill_vector(answers, db):
     """Compute skill vector from answers"""
     skill_vector = {}
