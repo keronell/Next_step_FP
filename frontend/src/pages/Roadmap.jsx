@@ -56,6 +56,9 @@ function Roadmap({ sessionId }) {
     <div className="roadmap">
       <div className="roadmap-container">
         <div className="roadmap-header">
+          <Link to="/results" className="roadmap-back-button">
+            ← Back to Results
+          </Link>
           <h1>Your Learning Roadmap</h1>
           <div className="roadmap-role">
             <h2>{roadmap.role_name}</h2>
@@ -68,8 +71,13 @@ function Roadmap({ sessionId }) {
                 className="progress-fill-large" 
                 style={{ width: `${roadmap.progress}%` }}
               >
-                {roadmap.progress}%
+                {roadmap.progress > 5 ? `${roadmap.progress}%` : ''}
               </div>
+              {roadmap.progress <= 5 && (
+                <div className="progress-text-overlay">
+                  {roadmap.progress}%
+                </div>
+              )}
             </div>
           </div>
         </div>
