@@ -1,12 +1,15 @@
 {
   "name": "nextstep-career-matcher",
   "version": "1.0.0",
+  "type": "module",
   "description": "Career matching and roadmap generation prototype",
   "scripts": {
+    "start": "node start.js",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "seed": "cd backend && npm run seed"
+    "seed": "cd backend && npm run seed",
+    "generate-data": "cd backend && node scripts/generate-data.js"
   },
   "keywords": ["career", "matching", "roadmap"],
   "author": "",

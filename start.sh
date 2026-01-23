@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# NextStep Career Matcher - One-Click Start Script
+# This script sets up and starts the entire application
+
+set -e  # Exit on error
+
+echo "🚀 Starting NextStep Career Matcher..."
+echo ""
+
+# Get the project root directory
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$PROJECT_ROOT"
+
+# Colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Check prerequisites
+echo -e "${BLUE}Checking prerequisites...${NC}"
+if ! command_exists node; then
+    echo "❌ Node.js is not installed. Please install Node.js 18+ first."
+    exit 1
+fi
+
+if ! command_exists npm; then
+    echo "❌ npm is not installed. Please install npm first."
+    exit 1
+fi
+
+NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+if [ "$NODE_VERSION" -lt 18 ]; then
+    echo "❌ Node.js version 18+ is required. Current version: $(node -v)"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Prerequisites check passed${NC}"
+echo ""
+
+# Install dependencies if needed
+echo -e "${BLUE}Checking dependencies...${NC}"
+if [ ! -d "backend/node_modules" ]; then
+    echo "Installing backend dependencies..."
+    cd backend && npm install && cd ..
+fi
+
+if [ ! -d "frontend/node_modules" ]; then
+    echo "Installing frontend dependencies..."
+    cd frontend && npm install && cd ..
+fi
+
+echo -e "${GREEN}✓ Dependencies installed${NC}"
+echo ""
+
+# Generate data files if they don't exist
+echo -e "${BLUE}Checking data files...${NC}"
+if [ ! -f "backend/data/questions.json" ] || [ ! -f "backend/data/roles.json" ] || [ ! -f "backend/data/resources.json" ]; then
+    echo "Generating data files..."
+    cd backend && node scripts/generate-data.js && cd ..
+fi
+
+echo -e "${GREEN}✓ Data files ready${NC}"
+echo ""
+
+# Seed database
+echo -e "${BLUE}Seeding database...${NC}"
+cd backend
+npm run seed
+cd ..
+echo -e "${GREEN}✓ Database seeded${NC}"
+echo ""
+
+# Function to cleanup on exit
+cleanup() {
+    echo ""
+    echo -e "${YELLOW}Shutting down servers...${NC}"
+    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+    exit 0
+}
+
+# Trap Ctrl+C and call cleanup
+trap cleanup INT TERM
+
+# Start backend server
+echo -e "${BLUE}Starting backend server...${NC}"
+cd backend
+npm run dev > ../backend.log 2>&1 &
+BACKEND_PID=$!
+cd ..
+
+# Wait a bit for backend to start
+sleep 2
+
+# Start frontend server
+echo -e "${BLUE}Starting frontend server...${NC}"
+cd frontend
+npm run dev > ../frontend.log 2>&1 &
+FRONTEND_PID=$!
+cd ..
+
+# Wait a bit for frontend to start
+sleep 3
+
+echo ""
+echo -e "${GREEN}✅ Application is running!${NC}"
+echo ""
+echo -e "${BLUE}Backend:${NC}  http://localhost:3001"
+echo -e "${BLUE}Frontend:${NC} http://localhost:3000"
+echo ""
+echo -e "${YELLOW}Press Ctrl+C to stop all servers${NC}"
+echo ""
+
+# Wait for user interrupt
+wait
