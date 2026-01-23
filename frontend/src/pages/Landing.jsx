@@ -30,7 +30,7 @@ function Landing({ setSessionId }) {
           with the top 5 tech roles that fit you best, plus a personalized learning roadmap.
         </p>
         <button className="start-button" onClick={handleStart}>
-          Start Assessment
+          <span>Start Assessment</span>
         </button>
       </div>
     </div>

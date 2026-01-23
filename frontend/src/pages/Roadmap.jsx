@@ -95,7 +95,7 @@ function Roadmap({ sessionId }) {
                   className={`complete-button ${item.status === 'completed' ? 'completed' : ''}`}
                   onClick={() => handleCompleteStep(item.id, item.status)}
                 >
-                  {item.status === 'completed' ? '✓ Completed' : 'Mark Complete'}
+                  <span>{item.status === 'completed' ? '✓ Completed' : 'Mark Complete'}</span>
                 </button>
               </div>
 

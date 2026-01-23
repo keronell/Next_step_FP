@@ -80,7 +80,7 @@ function Results({ sessionId }) {
                 onClick={() => handleSelectRole(role.id)}
                 disabled={selectedRole === role.id}
               >
-                {selectedRole === role.id ? 'Generating Roadmap...' : 'Select This Role'}
+                <span>{selectedRole === role.id ? 'Generating Roadmap...' : 'Select This Role'}</span>
               </button>
             </div>
           ))}

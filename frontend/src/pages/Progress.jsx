@@ -110,7 +110,7 @@ function Progress({ sessionId }) {
 
         <div className="progress-footer">
           <Link to="/roadmap" className="back-to-roadmap-link">
-            ← Back to Roadmap
+            <span>← Back to Roadmap</span>
           </Link>
         </div>
       </div>
