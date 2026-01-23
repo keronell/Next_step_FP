@@ -7,37 +7,37 @@
 }
 
 .landing-content {
-  background: white;
+  background: #EEEEEE;
   border-radius: 20px;
   padding: 3rem;
   max-width: 600px;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(54, 47, 79, 0.3);
 }
 
 .landing-content h1 {
   font-size: 3rem;
-  color: #667eea;
+  color: #5B23FF;
   margin-bottom: 1rem;
 }
 
 .subtitle {
   font-size: 1.5rem;
-  color: #333;
+  color: #362F4F;
   margin-bottom: 1rem;
   font-weight: 600;
 }
 
 .description {
   font-size: 1.1rem;
-  color: #666;
+  color: #362F4F;
   margin-bottom: 2rem;
   line-height: 1.6;
 }
 
 .start-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  color: #EEEEEE;
   border: none;
   padding: 1rem 3rem;
   font-size: 1.2rem;
@@ -49,7 +49,9 @@
 
 .start-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 10px 30px rgba(91, 35, 255, 0.4);
+  background: linear-gradient(135deg, #008BFF 0%, #E4FF30 100%);
+  color: #362F4F;
 }
 
 .start-button:active {

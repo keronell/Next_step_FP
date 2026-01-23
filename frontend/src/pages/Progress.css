@@ -23,10 +23,10 @@
 .progress-container {
   max-width: 1000px;
   margin: 0 auto;
-  background: white;
+  background: #EEEEEE;
   border-radius: 20px;
   padding: 3rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(54, 47, 79, 0.3);
 }
 
 .progress-header {
@@ -35,7 +35,7 @@
 
 .progress-header h1 {
   font-size: 2.5rem;
-  color: #667eea;
+  color: #5B23FF;
   margin-bottom: 2rem;
   text-align: center;
 }
@@ -47,38 +47,38 @@
 }
 
 .summary-card {
-  background: #f8f9fa;
+  background: rgba(54, 47, 79, 0.1);
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #362F4F;
 }
 
 .summary-card.highlight {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  color: #EEEEEE;
   border-color: transparent;
 }
 
 .summary-number {
   font-size: 3rem;
   font-weight: bold;
-  color: #667eea;
+  color: #5B23FF;
   margin-bottom: 0.5rem;
 }
 
 .summary-card.highlight .summary-number {
-  color: white;
+  color: #EEEEEE;
 }
 
 .summary-label {
   font-size: 1rem;
-  color: #666;
+  color: #362F4F;
   font-weight: 600;
 }
 
 .summary-card.highlight .summary-label {
-  color: white;
+  color: #EEEEEE;
 }
 
 .progress-steps {
@@ -91,14 +91,15 @@
   display: flex;
   gap: 1.5rem;
   padding: 1.5rem;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #362F4F;
   border-radius: 12px;
   transition: all 0.3s;
+  background: #EEEEEE;
 }
 
 .progress-step.completed {
-  background: #f0f8ff;
-  border-color: #667eea;
+  background: rgba(91, 35, 255, 0.1);
+  border-color: #5B23FF;
 }
 
 .step-checkbox {
@@ -109,7 +110,7 @@
   width: 24px;
   height: 24px;
   cursor: pointer;
-  accent-color: #667eea;
+  accent-color: #5B23FF;
 }
 
 .step-info {
@@ -125,35 +126,38 @@
 
 .step-title-row h3 {
   font-size: 1.3rem;
-  color: #333;
+  color: #362F4F;
   margin: 0;
 }
 
 .step-status {
   font-size: 0.9rem;
-  color: #4caf50;
+  color: #008BFF;
   font-weight: 600;
 }
 
 .progress-step:not(.completed) .step-status {
-  color: #999;
+  color: #362F4F;
+  opacity: 0.6;
 }
 
 .step-description {
-  color: #666;
+  color: #362F4F;
   margin-bottom: 0.5rem;
   line-height: 1.6;
+  opacity: 0.8;
 }
 
 .step-completed-date {
   font-size: 0.85rem;
-  color: #999;
+  color: #362F4F;
   margin-top: 0.5rem;
+  opacity: 0.7;
 }
 
 .step-resources-count {
   font-size: 0.9rem;
-  color: #667eea;
+  color: #5B23FF;
   margin-top: 0.5rem;
   font-weight: 600;
 }
@@ -166,17 +170,17 @@
 .back-to-roadmap-link {
   display: inline-block;
   padding: 1rem 2rem;
-  background: #f8f9fa;
-  color: #667eea;
+  background: rgba(54, 47, 79, 0.1);
+  color: #5B23FF;
   text-decoration: none;
   border-radius: 12px;
   font-weight: 600;
   transition: all 0.2s;
-  border: 2px solid #667eea;
+  border: 2px solid #5B23FF;
 }
 
 .back-to-roadmap-link:hover {
-  background: #667eea;
-  color: white;
+  background: #5B23FF;
+  color: #EEEEEE;
 }
 
