@@ -4,7 +4,7 @@ A prototype career matching system that helps users discover their ideal tech ca
 
 ## Features
 
-- **30-Question Assessment**: Personalized questionnaire covering skills, interests, personality, and work style
+- **10-Question Assessment**: Personalized questionnaire covering skills, interests, personality, and work style
 - **Top 5 Role Matching**: AI-powered matching algorithm that scores users against 22 tech roles
 - **Skill Vector Analysis**: Computes user skill levels (0-5 scale) across multiple dimensions
 - **Personalized Roadmaps**: Generates 3-5 step learning paths with curated resources
@@ -31,7 +31,7 @@ Next_step_FP/
 │   ├── data/
 │   │   ├── roles.json          # 22 tech roles with skill requirements
 │   │   ├── resources.json      # Learning resources per skill
-│   │   └── questions.json      # 30 selected questions with skill mappings
+│   │   └── questions.json      # 10 selected questions with skill mappings
 │   ├── db/
 │   │   ├── schema.py           # Database schema
 │   │   └── __init__.py         # Database connection
@@ -92,7 +92,7 @@ This will:
 - Create the SQLite database
 - Seed 22 roles
 - Seed learning resources
-- Seed 30 questions
+- Seed 10 questions
 
 ### 4. Start Backend Server
 
@@ -151,7 +151,7 @@ Skills are measured on a 0-5 scale:
 - 5: Expert
 
 ### Questions
-30 questions mapped to skills with weights:
+10 questions mapped to skills with weights:
 - Likert5 scale questions
 - Single/Multi choice questions
 - Numeric input questions
@@ -185,7 +185,7 @@ Skills are measured on a 0-5 scale:
 
 ## MVP Scope
 
-- ✅ 30 questions (expandable to 40)
+- ✅ 10 questions (expandable to 40)
 - ✅ 22 roles (10+ for MVP)
 - ✅ Skill taxonomy (0-5 scale)
 - ✅ Matching engine

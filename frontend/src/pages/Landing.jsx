@@ -26,7 +26,7 @@ function Landing({ setSessionId }) {
           Discover your ideal tech career path through a personalized assessment
         </p>
         <p className="description">
-          Answer 30 questions about your skills, interests, and work style to get matched
+          Answer 10 questions about your skills, interests, and work style to get matched
           with the top 5 tech roles that fit you best, plus a personalized learning roadmap.
         </p>
         <button className="start-button" onClick={handleStart}>

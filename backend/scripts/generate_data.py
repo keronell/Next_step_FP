@@ -68,11 +68,11 @@ def generate_questions():
     
     all_questions = parse_csv(csv_path)
     
-    # Select 30 diverse questions (every Nth question to get variety)
+    # Select 10 diverse questions (every Nth question to get variety)
     selected_questions = []
-    step = len(all_questions) // 30
+    step = len(all_questions) // 10
     
-    for i in range(30):
+    for i in range(10):
         if i * step >= len(all_questions):
             break
         q = all_questions[i * step]
