@@ -48,6 +48,10 @@ function Results({ sessionId }) {
 
   return (
     <div className="results">
+      <div className="results-hero-section">
+        <div className="results-hero-image"></div>
+        <div className="results-hero-overlay"></div>
+      </div>
       <div className="results-container">
         <h1>Your Career Matches</h1>
         <p className="results-subtitle">

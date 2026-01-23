@@ -2,6 +2,32 @@
   min-height: 100vh;
   padding: 2rem;
   background: linear-gradient(135deg, #362F4F 0%, #5B23FF 50%, #008BFF 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.roadmap-hero-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/hero-image.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.08;
+  z-index: 0;
+  animation: slowPan 30s ease-in-out infinite alternate;
+}
+
+@keyframes slowPan {
+  from {
+    background-position: center top;
+  }
+  to {
+    background-position: center bottom;
+  }
 }
 
 .roadmap-loading,
@@ -30,6 +56,8 @@
   padding: 3rem;
   box-shadow: 0 20px 60px rgba(54, 47, 79, 0.5);
   border: 1px solid rgba(238, 238, 238, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .roadmap-header {

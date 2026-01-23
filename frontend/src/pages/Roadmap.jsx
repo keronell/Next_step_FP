@@ -54,6 +54,7 @@ function Roadmap({ sessionId }) {
 
   return (
     <div className="roadmap">
+      <div className="roadmap-hero-bg"></div>
       <div className="roadmap-container">
         <div className="roadmap-header">
           <Link to="/results" className="roadmap-back-button">

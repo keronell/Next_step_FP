@@ -1,6 +1,38 @@
 .results {
   min-height: 100vh;
   padding: 2rem;
+  position: relative;
+}
+
+.results-hero-section {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.results-hero-image {
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/hero-image.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  opacity: 0.2;
+  transform: scale(1.1);
+  filter: blur(2px);
+}
+
+.results-hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(54, 47, 79, 0.8) 0%, rgba(54, 47, 79, 0.4) 50%, transparent 100%);
 }
 
 .results-loading,
@@ -23,6 +55,9 @@
   box-shadow: 0 30px 80px rgba(54, 47, 79, 0.4);
   border: 1px solid rgba(238, 238, 238, 0.2);
   animation: fadeInUp 0.6s ease-out;
+  position: relative;
+  z-index: 1;
+  margin-top: 2rem;
 }
 
 .results-container h1 {
