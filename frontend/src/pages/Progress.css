@@ -1,0 +1,182 @@
+.progress {
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.progress-loading,
+.progress-error {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  gap: 1rem;
+}
+
+.progress-error a {
+  color: white;
+  text-decoration: underline;
+}
+
+.progress-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 20px;
+  padding: 3rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.progress-header {
+  margin-bottom: 3rem;
+}
+
+.progress-header h1 {
+  font-size: 2.5rem;
+  color: #667eea;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.progress-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.summary-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  border: 2px solid #e0e0e0;
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+}
+
+.summary-number {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+}
+
+.summary-card.highlight .summary-number {
+  color: white;
+}
+
+.summary-label {
+  font-size: 1rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.summary-card.highlight .summary-label {
+  color: white;
+}
+
+.progress-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.progress-step {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  transition: all 0.3s;
+}
+
+.progress-step.completed {
+  background: #f0f8ff;
+  border-color: #667eea;
+}
+
+.step-checkbox {
+  flex-shrink: 0;
+}
+
+.step-checkbox input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.step-info {
+  flex: 1;
+}
+
+.step-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.step-title-row h3 {
+  font-size: 1.3rem;
+  color: #333;
+  margin: 0;
+}
+
+.step-status {
+  font-size: 0.9rem;
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.progress-step:not(.completed) .step-status {
+  color: #999;
+}
+
+.step-description {
+  color: #666;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.step-completed-date {
+  font-size: 0.85rem;
+  color: #999;
+  margin-top: 0.5rem;
+}
+
+.step-resources-count {
+  font-size: 0.9rem;
+  color: #667eea;
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+
+.progress-footer {
+  margin-top: 3rem;
+  text-align: center;
+}
+
+.back-to-roadmap-link {
+  display: inline-block;
+  padding: 1rem 2rem;
+  background: #f8f9fa;
+  color: #667eea;
+  text-decoration: none;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: 2px solid #667eea;
+}
+
+.back-to-roadmap-link:hover {
+  background: #667eea;
+  color: white;
+}
+
