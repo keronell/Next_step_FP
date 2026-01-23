@@ -1,30 +1,42 @@
 # Quick Setup Guide
 
 ## Prerequisites
-- Node.js 18+ installed
+- Python 3.8+ installed
+- Node.js 18+ installed (for frontend)
 - npm or yarn
 
 ## Installation Steps
 
 ### 1. Install All Dependencies
 
+**Backend (Python):**
 ```bash
-# From project root
-npm run install:all
+cd backend
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-Or manually:
+**Frontend (Node.js):**
 ```bash
+cd frontend
 npm install
-cd backend && npm install
-cd ../frontend && npm install
 ```
 
-### 2. Seed the Database
+### 2. Generate Data Files
 
 ```bash
 cd backend
-npm run seed
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 scripts/generate_data.py
+```
+
+### 3. Seed the Database
+
+```bash
+cd backend
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 scripts/seed.py
 ```
 
 This creates the SQLite database and populates it with:
@@ -32,12 +44,13 @@ This creates the SQLite database and populates it with:
 - Learning resources
 - 30 questions
 
-### 3. Start the Application
+### 4. Start the Application
 
 **Terminal 1 - Backend:**
 ```bash
 cd backend
-npm run dev
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 app.py
 ```
 
 Backend will run on `http://localhost:3001`
@@ -50,6 +63,11 @@ npm run dev
 
 Frontend will run on `http://localhost:3000`
 
+**Or use the one-click start script:**
+```bash
+./start.sh  # On Windows: node start.js
+```
+
 ### 4. Open in Browser
 
 Navigate to `http://localhost:3000`
@@ -57,16 +75,17 @@ Navigate to `http://localhost:3000`
 ## Troubleshooting
 
 ### Database not found
-- Make sure you ran `npm run seed` in the backend directory
+- Make sure you ran `python3 scripts/seed.py` in the backend directory
 - Check that `backend/data/` directory exists
 
 ### Port already in use
-- Backend: Change `PORT` in `backend/.env` (default: 3001)
+- Backend: Change `PORT` environment variable or in `backend/.env` (default: 3001)
 - Frontend: Change `port` in `frontend/vite.config.js` (default: 3000)
 
 ### Module not found errors
-- Make sure all dependencies are installed: `npm run install:all`
-- Delete `node_modules` and reinstall if needed
+- Backend: Make sure virtual environment is activated and dependencies are installed: `pip install -r requirements.txt`
+- Frontend: Make sure all dependencies are installed: `npm install`
+- Delete `node_modules` or `venv` and reinstall if needed
 
 ## Development
 
@@ -84,5 +103,5 @@ SQLite database: `backend/data/nextstep.db`
 
 To reset database:
 1. Delete `backend/data/nextstep.db`
-2. Run `npm run seed` again
+2. Run `python3 scripts/seed.py` again (with venv activated)
 

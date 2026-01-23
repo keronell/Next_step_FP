@@ -13,8 +13,8 @@ A prototype career matching system that helps users discover their ideal tech ca
 ## Tech Stack
 
 ### Backend
-- Node.js + Express
-- SQLite (better-sqlite3)
+- Python 3.8+ + Flask
+- SQLite (sqlite3)
 - RESTful API
 
 ### Frontend
@@ -33,11 +33,13 @@ Next_step_FP/
 │   │   ├── resources.json      # Learning resources per skill
 │   │   └── questions.json      # 30 selected questions with skill mappings
 │   ├── db/
-│   │   ├── schema.js           # Database schema
-│   │   └── index.js            # Database connection
+│   │   ├── schema.py           # Database schema
+│   │   └── __init__.py         # Database connection
 │   ├── scripts/
-│   │   └── seed.js             # Database seeding script
-│   └── server.js               # Express server with APIs
+│   │   ├── seed.py             # Database seeding script
+│   │   └── generate_data.py    # Data generation script
+│   ├── app.py                  # Flask server with APIs
+│   └── requirements.txt        # Python dependencies
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/
@@ -56,24 +58,34 @@ Next_step_FP/
 
 ### 1. Install Dependencies
 
+**Backend (Python):**
 ```bash
-# Install root dependencies
-npm install
-
-# Install backend dependencies
 cd backend
-npm install
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-# Install frontend dependencies
-cd ../frontend
+**Frontend (Node.js):**
+```bash
+cd frontend
 npm install
 ```
 
-### 2. Seed Database
+### 2. Generate Data Files
 
 ```bash
 cd backend
-npm run seed
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 scripts/generate_data.py
+```
+
+### 3. Seed Database
+
+```bash
+cd backend
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 scripts/seed.py
 ```
 
 This will:
@@ -82,11 +94,12 @@ This will:
 - Seed learning resources
 - Seed 30 questions
 
-### 3. Start Backend Server
+### 4. Start Backend Server
 
 ```bash
 cd backend
-npm run dev
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 app.py
 ```
 
 Server runs on `http://localhost:3001`

@@ -35,6 +35,15 @@ async function checkPrerequisites() {
   log('Checking prerequisites...', 'blue');
   
   try {
+    // Check Python
+    await execAsync('python3 --version');
+    log('✓ Python 3 detected', 'green');
+  } catch (error) {
+    log('❌ Python 3 is not installed. Please install Python 3.8+ first.', 'red');
+    process.exit(1);
+  }
+  
+  try {
     const { stdout: nodeVersion } = await execAsync('node -v');
     const majorVersion = parseInt(nodeVersion.replace('v', '').split('.')[0]);
     
@@ -54,10 +63,24 @@ async function checkPrerequisites() {
 async function installDependencies() {
   log('Checking dependencies...', 'blue');
   
-  if (!existsSync(join(PROJECT_ROOT, 'backend/node_modules'))) {
-    log('Installing backend dependencies...', 'blue');
-    await execAsync('npm install', { cwd: join(PROJECT_ROOT, 'backend') });
+  // Setup Python virtual environment
+  if (!existsSync(join(PROJECT_ROOT, 'backend/venv'))) {
+    log('Creating Python virtual environment...', 'blue');
+    await execAsync('python3 -m venv venv', { cwd: join(PROJECT_ROOT, 'backend') });
   }
+  
+  // Install Python dependencies
+  const isWindows = process.platform === 'win32';
+  const venvPython = isWindows 
+    ? join(PROJECT_ROOT, 'backend/venv/Scripts/python.exe')
+    : join(PROJECT_ROOT, 'backend/venv/bin/python3');
+  const venvPip = isWindows
+    ? join(PROJECT_ROOT, 'backend/venv/Scripts/pip.exe')
+    : join(PROJECT_ROOT, 'backend/venv/bin/pip3');
+  
+  log('Installing backend dependencies...', 'blue');
+  await execAsync(`${venvPip} install --upgrade pip`, { cwd: join(PROJECT_ROOT, 'backend') });
+  await execAsync(`${venvPip} install -r requirements.txt`, { cwd: join(PROJECT_ROOT, 'backend') });
   
   if (!existsSync(join(PROJECT_ROOT, 'frontend/node_modules'))) {
     log('Installing frontend dependencies...', 'blue');
@@ -78,7 +101,11 @@ async function generateDataFiles() {
   
   if (!existsSync(questionsFile) || !existsSync(rolesFile) || !existsSync(resourcesFile)) {
     log('Generating data files...', 'blue');
-    await execAsync('node scripts/generate-data.js', { cwd: join(PROJECT_ROOT, 'backend') });
+    const isWindows = process.platform === 'win32';
+    const venvPython = isWindows
+      ? join(PROJECT_ROOT, 'backend/venv/Scripts/python.exe')
+      : join(PROJECT_ROOT, 'backend/venv/bin/python3');
+    await execAsync(`${venvPython} scripts/generate_data.py`, { cwd: join(PROJECT_ROOT, 'backend') });
   }
   
   log('✓ Data files ready', 'green');
@@ -87,7 +114,11 @@ async function generateDataFiles() {
 // Seed database
 async function seedDatabase() {
   log('Seeding database...', 'blue');
-  await execAsync('npm run seed', { cwd: join(PROJECT_ROOT, 'backend') });
+  const isWindows = process.platform === 'win32';
+  const venvPython = isWindows
+    ? join(PROJECT_ROOT, 'backend/venv/Scripts/python.exe')
+    : join(PROJECT_ROOT, 'backend/venv/bin/python3');
+  await execAsync(`${venvPython} scripts/seed.py`, { cwd: join(PROJECT_ROOT, 'backend') });
   log('✓ Database seeded', 'green');
 }
 
@@ -95,8 +126,13 @@ async function seedDatabase() {
 function startServers() {
   log('Starting servers...', 'blue');
   
+  const isWindows = process.platform === 'win32';
+  const venvPython = isWindows
+    ? join(PROJECT_ROOT, 'backend/venv/Scripts/python.exe')
+    : join(PROJECT_ROOT, 'backend/venv/bin/python3');
+  
   // Start backend
-  const backend = spawn('npm', ['run', 'dev'], {
+  const backend = spawn(venvPython, ['app.py'], {
     cwd: join(PROJECT_ROOT, 'backend'),
     stdio: 'inherit',
     shell: true

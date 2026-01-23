@@ -25,6 +25,11 @@ command_exists() {
 
 # Check prerequisites
 echo -e "${BLUE}Checking prerequisites...${NC}"
+if ! command_exists python3; then
+    echo "❌ Python 3 is not installed. Please install Python 3.8+ first."
+    exit 1
+fi
+
 if ! command_exists node; then
     echo "❌ Node.js is not installed. Please install Node.js 18+ first."
     exit 1
@@ -46,10 +51,24 @@ echo ""
 
 # Install dependencies if needed
 echo -e "${BLUE}Checking dependencies...${NC}"
-if [ ! -d "backend/node_modules" ]; then
-    echo "Installing backend dependencies..."
-    cd backend && npm install && cd ..
+if [ ! -d "backend/venv" ]; then
+    echo "Creating Python virtual environment..."
+    cd backend && python3 -m venv venv && cd ..
 fi
+
+if [ ! -d "backend/venv" ]; then
+    echo "❌ Failed to create virtual environment"
+    exit 1
+fi
+
+# Activate virtual environment and install Python dependencies
+echo "Installing backend dependencies..."
+cd backend
+source venv/bin/activate
+pip install -q --upgrade pip
+pip install -q -r requirements.txt
+deactivate
+cd ..
 
 if [ ! -d "frontend/node_modules" ]; then
     echo "Installing frontend dependencies..."
@@ -63,7 +82,11 @@ echo ""
 echo -e "${BLUE}Checking data files...${NC}"
 if [ ! -f "backend/data/questions.json" ] || [ ! -f "backend/data/roles.json" ] || [ ! -f "backend/data/resources.json" ]; then
     echo "Generating data files..."
-    cd backend && node scripts/generate-data.js && cd ..
+    cd backend
+    source venv/bin/activate
+    python3 scripts/generate_data.py
+    deactivate
+    cd ..
 fi
 
 echo -e "${GREEN}✓ Data files ready${NC}"
@@ -72,7 +95,9 @@ echo ""
 # Seed database
 echo -e "${BLUE}Seeding database...${NC}"
 cd backend
-npm run seed
+source venv/bin/activate
+python3 scripts/seed.py
+deactivate
 cd ..
 echo -e "${GREEN}✓ Database seeded${NC}"
 echo ""
@@ -91,8 +116,10 @@ trap cleanup INT TERM
 # Start backend server
 echo -e "${BLUE}Starting backend server...${NC}"
 cd backend
-npm run dev > ../backend.log 2>&1 &
+source venv/bin/activate
+python3 app.py > ../backend.log 2>&1 &
 BACKEND_PID=$!
+deactivate
 cd ..
 
 # Wait a bit for backend to start

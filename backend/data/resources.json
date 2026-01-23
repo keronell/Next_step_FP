@@ -1,0 +1,462 @@
+[
+  {
+    "skill": "Frontend Development",
+    "resources": [
+      {
+        "title": "Frontend Development - Beginner Guide",
+        "url": "https://example.com/learn/frontend-development",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Frontend Development - Intermediate Course",
+        "url": "https://example.com/course/frontend-development",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Frontend Development - Advanced Documentation",
+        "url": "https://example.com/docs/frontend-development",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Backend Development",
+    "resources": [
+      {
+        "title": "Backend Development - Beginner Guide",
+        "url": "https://example.com/learn/backend-development",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Backend Development - Intermediate Course",
+        "url": "https://example.com/course/backend-development",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Backend Development - Advanced Documentation",
+        "url": "https://example.com/docs/backend-development",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "UI/UX Design",
+    "resources": [
+      {
+        "title": "UI/UX Design - Beginner Guide",
+        "url": "https://example.com/learn/ui-ux-design",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "UI/UX Design - Intermediate Course",
+        "url": "https://example.com/course/ui-ux-design",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "UI/UX Design - Advanced Documentation",
+        "url": "https://example.com/docs/ui-ux-design",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "JavaScript",
+    "resources": [
+      {
+        "title": "JavaScript - Beginner Guide",
+        "url": "https://example.com/learn/javascript",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "JavaScript - Intermediate Course",
+        "url": "https://example.com/course/javascript",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "JavaScript - Advanced Documentation",
+        "url": "https://example.com/docs/javascript",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "React",
+    "resources": [
+      {
+        "title": "React - Beginner Guide",
+        "url": "https://example.com/learn/react",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "React - Intermediate Course",
+        "url": "https://example.com/course/react",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "React - Advanced Documentation",
+        "url": "https://example.com/docs/react",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "CSS",
+    "resources": [
+      {
+        "title": "CSS - Beginner Guide",
+        "url": "https://example.com/learn/css",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "CSS - Intermediate Course",
+        "url": "https://example.com/course/css",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "CSS - Advanced Documentation",
+        "url": "https://example.com/docs/css",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "HTML",
+    "resources": [
+      {
+        "title": "HTML - Beginner Guide",
+        "url": "https://example.com/learn/html",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "HTML - Intermediate Course",
+        "url": "https://example.com/course/html",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "HTML - Advanced Documentation",
+        "url": "https://example.com/docs/html",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "API Design",
+    "resources": [
+      {
+        "title": "API Design - Beginner Guide",
+        "url": "https://example.com/learn/api-design",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "API Design - Intermediate Course",
+        "url": "https://example.com/course/api-design",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "API Design - Advanced Documentation",
+        "url": "https://example.com/docs/api-design",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Database",
+    "resources": [
+      {
+        "title": "Database - Beginner Guide",
+        "url": "https://example.com/learn/database",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Database - Intermediate Course",
+        "url": "https://example.com/course/database",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Database - Advanced Documentation",
+        "url": "https://example.com/docs/database",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Problem Solving",
+    "resources": [
+      {
+        "title": "Problem Solving - Beginner Guide",
+        "url": "https://example.com/learn/problem-solving",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Problem Solving - Intermediate Course",
+        "url": "https://example.com/course/problem-solving",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Problem Solving - Advanced Documentation",
+        "url": "https://example.com/docs/problem-solving",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "System Design",
+    "resources": [
+      {
+        "title": "System Design - Beginner Guide",
+        "url": "https://example.com/learn/system-design",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "System Design - Intermediate Course",
+        "url": "https://example.com/course/system-design",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "System Design - Advanced Documentation",
+        "url": "https://example.com/docs/system-design",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Testing",
+    "resources": [
+      {
+        "title": "Testing - Beginner Guide",
+        "url": "https://example.com/learn/testing",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Testing - Intermediate Course",
+        "url": "https://example.com/course/testing",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Testing - Advanced Documentation",
+        "url": "https://example.com/docs/testing",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "DevOps",
+    "resources": [
+      {
+        "title": "DevOps - Beginner Guide",
+        "url": "https://example.com/learn/devops",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "DevOps - Intermediate Course",
+        "url": "https://example.com/course/devops",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "DevOps - Advanced Documentation",
+        "url": "https://example.com/docs/devops",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Mobile Development",
+    "resources": [
+      {
+        "title": "Mobile Development - Beginner Guide",
+        "url": "https://example.com/learn/mobile-development",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Mobile Development - Intermediate Course",
+        "url": "https://example.com/course/mobile-development",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Mobile Development - Advanced Documentation",
+        "url": "https://example.com/docs/mobile-development",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Machine Learning",
+    "resources": [
+      {
+        "title": "Machine Learning - Beginner Guide",
+        "url": "https://example.com/learn/machine-learning",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Machine Learning - Intermediate Course",
+        "url": "https://example.com/course/machine-learning",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Machine Learning - Advanced Documentation",
+        "url": "https://example.com/docs/machine-learning",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Data Science",
+    "resources": [
+      {
+        "title": "Data Science - Beginner Guide",
+        "url": "https://example.com/learn/data-science",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Data Science - Intermediate Course",
+        "url": "https://example.com/course/data-science",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Data Science - Advanced Documentation",
+        "url": "https://example.com/docs/data-science",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Python",
+    "resources": [
+      {
+        "title": "Python - Beginner Guide",
+        "url": "https://example.com/learn/python",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Python - Intermediate Course",
+        "url": "https://example.com/course/python",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Python - Advanced Documentation",
+        "url": "https://example.com/docs/python",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Technical Writing",
+    "resources": [
+      {
+        "title": "Technical Writing - Beginner Guide",
+        "url": "https://example.com/learn/technical-writing",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Technical Writing - Intermediate Course",
+        "url": "https://example.com/course/technical-writing",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Technical Writing - Advanced Documentation",
+        "url": "https://example.com/docs/technical-writing",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Communication",
+    "resources": [
+      {
+        "title": "Communication - Beginner Guide",
+        "url": "https://example.com/learn/communication",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Communication - Intermediate Course",
+        "url": "https://example.com/course/communication",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Communication - Advanced Documentation",
+        "url": "https://example.com/docs/communication",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  },
+  {
+    "skill": "Product Management",
+    "resources": [
+      {
+        "title": "Product Management - Beginner Guide",
+        "url": "https://example.com/learn/product-management",
+        "type": "Tutorial",
+        "level": "Beginner"
+      },
+      {
+        "title": "Product Management - Intermediate Course",
+        "url": "https://example.com/course/product-management",
+        "type": "Course",
+        "level": "Intermediate"
+      },
+      {
+        "title": "Product Management - Advanced Documentation",
+        "url": "https://example.com/docs/product-management",
+        "type": "Documentation",
+        "level": "Advanced"
+      }
+    ]
+  }
+]

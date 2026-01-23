@@ -1,0 +1,370 @@
+[
+  {
+    "id": 1,
+    "question": "When it matters, i enjoy designing a user interface or visual layout. (in a team)",
+    "category": "Personality",
+    "subcategory": "Creativity",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "UI/UX Design": 0.8,
+      "Frontend Development": 0.5
+    }
+  },
+  {
+    "id": 57,
+    "question": "In general, i enjoy inventing a new way to visualize information. I can relate to this.",
+    "category": "Personality",
+    "subcategory": "Creativity",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "UI/UX Design": 0.7,
+      "Frontend Development": 0.5
+    }
+  },
+  {
+    "id": 113,
+    "question": "I enjoy finding unconventional ways to automate a repetitive task. (under time pressure)",
+    "category": "Personality",
+    "subcategory": "Creativity",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.7,
+      "Backend Development": 0.4
+    }
+  },
+  {
+    "id": 169,
+    "question": "Most of the time, working with data feels energizing to me, especially writing SQL to answer business questions. (when learning)",
+    "category": "Skills",
+    "subcategory": "Data",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 225,
+    "question": "Most of the time, working with data feels energizing to me, especially designing a data model for analytics. (under time pressure)",
+    "category": "Skills",
+    "subcategory": "Data",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "UI/UX Design": 0.8,
+      "Frontend Development": 0.5
+    }
+  },
+  {
+    "id": 281,
+    "question": "I like problems that require careful reasoning, such as optimizing code for performance. (when things are ambiguous) This describes me well.",
+    "category": "Personality",
+    "subcategory": "Analytical",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "UI/UX Design": 0.8,
+      "Frontend Development": 0.5,
+      "Problem Solving": 0.7,
+      "Critical Thinking": 0.5
+    }
+  },
+  {
+    "id": 337,
+    "question": "I like problems that require careful reasoning, such as breaking a big problem into smaller tasks. (when learning)",
+    "category": "Personality",
+    "subcategory": "Analytical",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "UI/UX Design": 0.8,
+      "Frontend Development": 0.5,
+      "Problem Solving": 0.7,
+      "Critical Thinking": 0.5
+    }
+  },
+  {
+    "id": 393,
+    "question": "Overall, i like problems that require careful reasoning, such as optimizing code for performance. I can relate to this.",
+    "category": "Personality",
+    "subcategory": "Analytical",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "UI/UX Design": 0.8,
+      "Frontend Development": 0.5,
+      "Problem Solving": 0.7,
+      "Critical Thinking": 0.5
+    }
+  },
+  {
+    "id": 449,
+    "question": "Typically, i prefer to work with others on tasks like writing clear documentation for others.",
+    "category": "WorkStyle",
+    "subcategory": "Collaboration",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 505,
+    "question": "I prefer to work with others on tasks like writing clear documentation for others. (under time pressure)",
+    "category": "WorkStyle",
+    "subcategory": "Collaboration",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 561,
+    "question": "I pay attention to details and often check my work for mistakes. (under time pressure)",
+    "category": "Habits",
+    "subcategory": "DetailOrientation",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 617,
+    "question": "Overall, i regularly learn new tools or concepts outside of formal requirements.",
+    "category": "Habits",
+    "subcategory": "Learning",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "UI/UX Design": 0.8,
+      "Frontend Development": 0.5,
+      "Communication": 0.6,
+      "Technical Writing": 0.4
+    }
+  },
+  {
+    "id": 673,
+    "question": "I prioritize creative freedom when choosing a role.",
+    "category": "Values",
+    "subcategory": "Growth",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 729,
+    "question": "In general, i prioritize high impact on users when choosing a role.",
+    "category": "Values",
+    "subcategory": "Growth",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 785,
+    "question": "I prioritize clear structure and processes when choosing a role. (under time pressure) I can relate to this.",
+    "category": "Values",
+    "subcategory": "Growth",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 841,
+    "question": "In general, i would be productive in an office environment with daily in-person collaboration. (when learning) I can relate to this.",
+    "category": "WorkStyle",
+    "subcategory": "RemoteHybrid",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Product Management": 0.6,
+      "Problem Solving": 0.4
+    }
+  },
+  {
+    "id": 897,
+    "question": "I would be productive in a hybrid environment. I can relate to this.",
+    "category": "WorkStyle",
+    "subcategory": "RemoteHybrid",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Product Management": 0.6,
+      "Problem Solving": 0.4
+    }
+  },
+  {
+    "id": 953,
+    "question": "In general, i feel curious about applying technology in retail/e-commerce. (when I'm tired) I can relate to this.",
+    "category": "Interests",
+    "subcategory": "Industry",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1009,
+    "question": "Typically, i feel curious about applying technology in finance. (when I'm tired)",
+    "category": "Interests",
+    "subcategory": "Industry",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1065,
+    "question": "When it matters, i feel curious about applying technology in sports/fitness. (when I'm tired)",
+    "category": "Interests",
+    "subcategory": "Industry",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1121,
+    "question": "I see persistence as one of my strengths.",
+    "category": "Personality",
+    "subcategory": "Traits",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1177,
+    "question": "Most of the time, i improve my patience by seeking feedback.",
+    "category": "Personality",
+    "subcategory": "Traits",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1233,
+    "question": "People often describe me as having strong comfort with ambiguity.",
+    "category": "Personality",
+    "subcategory": "Traits",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "UI/UX Design": 0.8,
+      "Frontend Development": 0.5
+    }
+  },
+  {
+    "id": 1289,
+    "question": "Overall, i improve my communication by seeking feedback.",
+    "category": "Personality",
+    "subcategory": "Traits",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1345,
+    "question": "I would enjoy learning Azure if needed.",
+    "category": "Habits",
+    "subcategory": "Learning",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1401,
+    "question": "How appealing is it to you to create features as part of a ML Engineer role?",
+    "category": "Interests",
+    "subcategory": "RoleTasks",
+    "answer_type": "SingleChoice",
+    "options": "Not appealing;Slightly appealing;Neutral;Appealing;Very appealing",
+    "skill_mappings": {
+      "Product Management": 0.6,
+      "Problem Solving": 0.4
+    }
+  },
+  {
+    "id": 1457,
+    "question": "I would enjoy run penetration tests if I worked as a Security Engineer.",
+    "category": "Interests",
+    "subcategory": "RoleTasks",
+    "answer_type": "Likert5",
+    "options": "1=Strongly disagree;2=Disagree;3=Neutral;4=Agree;5=Strongly agree",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1513,
+    "question": "Which field would you like to learn more about first?",
+    "category": "Interests",
+    "subcategory": "TechDomains",
+    "answer_type": "SingleChoice",
+    "options": "backend engineering;data engineering;DevOps/SRE;e-commerce;edtech;UX/UI design;game development;Not sure",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1569,
+    "question": "Which domain best matches what you want to do day-to-day?",
+    "category": "Interests",
+    "subcategory": "TechDomains",
+    "answer_type": "SingleChoice",
+    "options": "mobile apps;data engineering;full-stack development;machine learning;computer vision;NLP;DevOps/SRE;cloud infrastructure;Not sure",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  },
+  {
+    "id": 1625,
+    "question": "Which area sounds most appealing to you right now?",
+    "category": "Interests",
+    "subcategory": "TechDomains",
+    "answer_type": "SingleChoice",
+    "options": "DevOps/SRE;data science;IoT;frontend engineering;NLP;QA/testing;computer vision;cybersecurity;edtech;Not sure",
+    "skill_mappings": {
+      "Problem Solving": 0.5,
+      "Communication": 0.3
+    }
+  }
+]
