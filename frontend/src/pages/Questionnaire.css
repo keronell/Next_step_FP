@@ -1,5 +1,5 @@
 .questionnaire {
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 280px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -8,7 +8,7 @@
 
 .questionnaire-loading,
 .questionnaire-error {
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 280px);
   display: flex;
   align-items: center;
   justify-content: center;

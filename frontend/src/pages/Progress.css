@@ -1,11 +1,11 @@
 .progress {
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 280px);
   padding: 2rem;
 }
 
 .progress-loading,
 .progress-error {
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 280px);
   display: flex;
   flex-direction: column;
   align-items: center;

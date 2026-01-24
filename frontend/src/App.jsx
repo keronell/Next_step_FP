@@ -5,6 +5,7 @@ import Questionnaire from './pages/Questionnaire'
 import Results from './pages/Results'
 import Roadmap from './pages/Roadmap'
 import Progress from './pages/Progress'
+import Header from './components/Header'
 import Footer from './components/Footer'
 import './App.css'
 
@@ -14,6 +15,7 @@ function App() {
   return (
     <Router>
       <div className="app-wrapper">
+        <Header />
         <Routes>
           <Route path="/" element={<Landing setSessionId={setSessionId} />} />
           <Route path="/questionnaire" element={<Questionnaire sessionId={sessionId} />} />
