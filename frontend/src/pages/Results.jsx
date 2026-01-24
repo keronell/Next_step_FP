@@ -48,6 +48,10 @@ function Results({ sessionId }) {
 
   return (
     <div className="results">
+      <div className="results-hero-section">
+        <div className="results-hero-image"></div>
+        <div className="results-hero-overlay"></div>
+      </div>
       <div className="results-container">
         <h1>Your Career Matches</h1>
         <p className="results-subtitle">
@@ -80,7 +84,7 @@ function Results({ sessionId }) {
                 onClick={() => handleSelectRole(role.id)}
                 disabled={selectedRole === role.id}
               >
-                {selectedRole === role.id ? 'Generating Roadmap...' : 'Select This Role'}
+                <span>{selectedRole === role.id ? 'Generating Roadmap...' : 'Select This Role'}</span>
               </button>
             </div>
           ))}

@@ -1,43 +1,102 @@
 .roadmap {
-  min-height: 100vh;
+  min-height: calc(100vh - 280px);
   padding: 2rem;
+  background: linear-gradient(135deg, #362F4F 0%, #5B23FF 50%, #008BFF 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.roadmap-hero-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/hero-image.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.08;
+  z-index: 0;
+  animation: slowPan 30s ease-in-out infinite alternate;
+}
+
+@keyframes slowPan {
+  from {
+    background-position: center top;
+  }
+  to {
+    background-position: center bottom;
+  }
 }
 
 .roadmap-loading,
 .roadmap-error {
-  min-height: 100vh;
+  min-height: calc(100vh - 280px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #EEEEEE;
   font-size: 1.5rem;
   gap: 1rem;
 }
 
 .roadmap-error a {
-  color: white;
+  color: #E4FF30;
   text-decoration: underline;
 }
 
 .roadmap-container {
   max-width: 1000px;
   margin: 0 auto;
-  background: white;
+  background: rgba(238, 238, 238, 0.95);
+  backdrop-filter: blur(10px);
   border-radius: 20px;
   padding: 3rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(54, 47, 79, 0.5);
+  border: 1px solid rgba(238, 238, 238, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .roadmap-header {
   margin-bottom: 3rem;
+  position: relative;
+}
+
+.roadmap-back-button {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  color: #5B23FF;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.2s;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: rgba(238, 238, 238, 0.5);
+  border: 1px solid rgba(91, 35, 255, 0.3);
+}
+
+.roadmap-back-button:hover {
+  background: rgba(91, 35, 255, 0.1);
+  border-color: #5B23FF;
+  transform: translateX(-3px);
 }
 
 .roadmap-header h1 {
-  font-size: 2.5rem;
-  color: #667eea;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2.8rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin-bottom: 1.5rem;
   text-align: center;
+  letter-spacing: -0.02em;
+  animation: fadeInUp 0.6s ease-out;
 }
 
 .roadmap-role {
@@ -47,12 +106,12 @@
 
 .roadmap-role h2 {
   font-size: 1.8rem;
-  color: #333;
+  color: #222831;
   margin-bottom: 0.5rem;
 }
 
 .roadmap-role p {
-  color: #666;
+  color: #393E46;
   font-size: 1.1rem;
 }
 
@@ -62,14 +121,14 @@
 
 .progress-label {
   font-weight: 600;
-  color: #333;
+  color: #362F4F;
   margin-bottom: 0.5rem;
 }
 
 .progress-bar-large {
   width: 100%;
   height: 40px;
-  background: #e0e0e0;
+  background: #362F4F;
   border-radius: 20px;
   overflow: hidden;
   position: relative;
@@ -77,13 +136,26 @@
 
 .progress-fill-large {
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
   transition: width 0.3s ease;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: white;
+  justify-content: flex-end;
+  padding-right: 1rem;
+  color: #EEEEEE;
   font-weight: 600;
+  min-width: 0;
+}
+
+.progress-text-overlay {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #EEEEEE;
+  font-weight: 600;
+  z-index: 10;
+  pointer-events: none;
 }
 
 .roadmap-steps {
@@ -93,15 +165,48 @@
 }
 
 .roadmap-step {
-  border: 2px solid #e0e0e0;
-  border-radius: 16px;
-  padding: 2rem;
-  transition: all 0.3s;
+  border: 2px solid rgba(54, 47, 79, 0.2);
+  border-radius: 24px;
+  padding: 2.5rem;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  background: rgba(238, 238, 238, 0.9);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+  animation: fadeInUp 0.6s ease-out;
+  animation-fill-mode: both;
+}
+
+.roadmap-step:nth-child(1) { animation-delay: 0.1s; }
+.roadmap-step:nth-child(2) { animation-delay: 0.2s; }
+.roadmap-step:nth-child(3) { animation-delay: 0.3s; }
+.roadmap-step:nth-child(4) { animation-delay: 0.4s; }
+.roadmap-step:nth-child(5) { animation-delay: 0.5s; }
+
+.roadmap-step::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(91, 35, 255, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.roadmap-step:hover::before {
+  left: 100%;
+}
+
+.roadmap-step:hover {
+  transform: translateY(-5px) scale(1.02);
+  border-color: rgba(91, 35, 255, 0.5);
+  box-shadow: 0 15px 40px rgba(91, 35, 255, 0.2);
 }
 
 .roadmap-step.completed {
-  background: #f0f8ff;
-  border-color: #667eea;
+  background: rgba(91, 35, 255, 0.1);
+  border-color: #5B23FF;
 }
 
 .step-header {
@@ -112,21 +217,49 @@
 }
 
 .step-number {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  color: #EEEEEE;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
   flex-shrink: 0;
+  box-shadow: 0 8px 20px rgba(91, 35, 255, 0.3);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  overflow: hidden;
+}
+
+.step-number::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+
+.roadmap-step:hover .step-number::before {
+  width: 100px;
+  height: 100px;
+}
+
+.roadmap-step:hover .step-number {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 12px 30px rgba(91, 35, 255, 0.4);
 }
 
 .roadmap-step.completed .step-number {
-  background: #4caf50;
+  background: #008BFF;
 }
 
 .step-content {
@@ -134,48 +267,80 @@
 }
 
 .step-content h3 {
-  font-size: 1.5rem;
-  color: #333;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #362F4F;
   margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
 }
 
 .step-content p {
-  color: #666;
+  color: #362F4F;
   line-height: 1.6;
+  opacity: 0.8;
 }
 
 .complete-button {
-  padding: 0.8rem 1.5rem;
-  border: 2px solid #667eea;
-  background: white;
-  color: #667eea;
-  border-radius: 8px;
+  padding: 0.9rem 2rem;
+  border: 2px solid #5B23FF;
+  background: rgba(238, 238, 238, 0.9);
+  color: #5B23FF;
+  border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.02em;
+}
+
+.complete-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: #5B23FF;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+
+.complete-button:hover::before {
+  width: 300px;
+  height: 300px;
 }
 
 .complete-button:hover {
-  background: #667eea;
-  color: white;
+  background: #5B23FF;
+  color: #EEEEEE;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(91, 35, 255, 0.3);
+}
+
+.complete-button span {
+  position: relative;
+  z-index: 1;
 }
 
 .complete-button.completed {
-  background: #4caf50;
-  border-color: #4caf50;
-  color: white;
+  background: #008BFF;
+  border-color: #008BFF;
+  color: #EEEEEE;
 }
 
 .step-resources {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid #362F4F;
 }
 
 .resources-title {
   font-weight: 600;
-  color: #333;
+  color: #362F4F;
   margin-bottom: 1rem;
 }
 
@@ -188,28 +353,31 @@
 .resource-link {
   display: block;
   padding: 1rem;
-  border: 1px solid #e0e0e0;
+  border: 1px solid rgba(54, 47, 79, 0.3);
   border-radius: 8px;
   text-decoration: none;
-  color: #333;
+  color: #362F4F;
   transition: all 0.2s;
+  background: rgba(238, 238, 238, 0.8);
+  backdrop-filter: blur(3px);
 }
 
 .resource-link:hover {
-  border-color: #667eea;
-  background: #f0f4ff;
+  border-color: #5B23FF;
+  background: rgba(91, 35, 255, 0.1);
   transform: translateX(5px);
 }
 
 .resource-title {
   font-weight: 600;
   margin-bottom: 0.3rem;
-  color: #667eea;
+  color: #008BFF;
 }
 
 .resource-meta {
   font-size: 0.9rem;
-  color: #999;
+  color: #362F4F;
+  opacity: 0.7;
 }
 
 .roadmap-footer {
@@ -220,8 +388,8 @@
 .view-progress-link {
   display: inline-block;
   padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  color: #EEEEEE;
   text-decoration: none;
   border-radius: 12px;
   font-weight: 600;
@@ -230,6 +398,8 @@
 
 .view-progress-link:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 5px 15px rgba(91, 35, 255, 0.4);
+  background: linear-gradient(135deg, #008BFF 0%, #E4FF30 100%);
+  color: #362F4F;
 }
 

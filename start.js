@@ -90,34 +90,34 @@ async function installDependencies() {
   log('✓ Dependencies installed', 'green');
 }
 
-// Generate data files
+// Generate data files (always regenerate to ensure latest version)
 async function generateDataFiles() {
-  log('Checking data files...', 'blue');
+  log('Generating data files...', 'blue');
   
-  const dataDir = join(PROJECT_ROOT, 'backend/data');
-  const questionsFile = join(dataDir, 'questions.json');
-  const rolesFile = join(dataDir, 'roles.json');
-  const resourcesFile = join(dataDir, 'resources.json');
-  
-  if (!existsSync(questionsFile) || !existsSync(rolesFile) || !existsSync(resourcesFile)) {
-    log('Generating data files...', 'blue');
-    const isWindows = process.platform === 'win32';
-    const venvPython = isWindows
-      ? join(PROJECT_ROOT, 'backend/venv/Scripts/python.exe')
-      : join(PROJECT_ROOT, 'backend/venv/bin/python3');
-    await execAsync(`${venvPython} scripts/generate_data.py`, { cwd: join(PROJECT_ROOT, 'backend') });
-  }
+  const isWindows = process.platform === 'win32';
+  const venvPython = isWindows
+    ? join(PROJECT_ROOT, 'backend/venv/Scripts/python.exe')
+    : join(PROJECT_ROOT, 'backend/venv/bin/python3');
+  await execAsync(`${venvPython} scripts/generate_data.py`, { cwd: join(PROJECT_ROOT, 'backend') });
   
   log('✓ Data files ready', 'green');
 }
 
-// Seed database
+// Seed database (delete old database to ensure fresh seed)
 async function seedDatabase() {
   log('Seeding database...', 'blue');
   const isWindows = process.platform === 'win32';
   const venvPython = isWindows
     ? join(PROJECT_ROOT, 'backend/venv/Scripts/python.exe')
     : join(PROJECT_ROOT, 'backend/venv/bin/python3');
+  
+  // Remove old database to ensure fresh seed
+  const dbPath = join(PROJECT_ROOT, 'backend/data/nextstep.db');
+  if (existsSync(dbPath)) {
+    const { unlinkSync } = require('fs');
+    unlinkSync(dbPath);
+  }
+  
   await execAsync(`${venvPython} scripts/seed.py`, { cwd: join(PROJECT_ROOT, 'backend') });
   log('✓ Database seeded', 'green');
 }

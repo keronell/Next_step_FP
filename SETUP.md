@@ -42,7 +42,7 @@ python3 scripts/seed.py
 This creates the SQLite database and populates it with:
 - 22 roles
 - Learning resources
-- 30 questions
+- 10 questions
 
 ### 4. Start the Application
 

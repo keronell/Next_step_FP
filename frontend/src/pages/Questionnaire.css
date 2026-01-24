@@ -1,5 +1,5 @@
 .questionnaire {
-  min-height: 100vh;
+  min-height: calc(100vh - 280px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -8,7 +8,7 @@
 
 .questionnaire-loading,
 .questionnaire-error {
-  min-height: 100vh;
+  min-height: calc(100vh - 280px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -17,50 +17,97 @@
 }
 
 .questionnaire-container {
-  background: white;
-  border-radius: 20px;
-  padding: 3rem;
-  max-width: 800px;
+  background: rgba(238, 238, 238, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 32px;
+  padding: 3.5rem;
+  max-width: 850px;
   width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 30px 80px rgba(54, 47, 79, 0.4);
+  border: 1px solid rgba(238, 238, 238, 0.2);
+  animation: fadeInUp 0.6s ease-out;
 }
 
 .progress-bar {
   width: 100%;
-  height: 8px;
-  background: #e0e0e0;
-  border-radius: 4px;
-  margin-bottom: 2rem;
+  height: 12px;
+  background: rgba(54, 47, 79, 0.2);
+  border-radius: 10px;
+  margin-bottom: 2.5rem;
   overflow: hidden;
+  position: relative;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  transition: width 0.3s ease;
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .question-number {
-  color: #667eea;
+  color: #5B23FF;
   font-weight: 600;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.8;
 }
 
 .question-content {
   margin-top: 2rem;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .question-text {
-  font-size: 1.8rem;
-  color: #333;
-  margin-bottom: 1rem;
-  line-height: 1.4;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2rem;
+  font-weight: 600;
+  color: #362F4F;
+  margin-bottom: 1.5rem;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
 }
 
 .question-meta {
-  color: #999;
+  color: #362F4F;
   font-size: 0.9rem;
   margin-bottom: 2rem;
+  opacity: 0.7;
 }
 
 .question-input {
@@ -77,38 +124,74 @@
 .likert-button {
   flex: 1;
   min-width: 100px;
-  padding: 1.5rem 1rem;
-  border: 2px solid #e0e0e0;
-  background: white;
-  border-radius: 12px;
+  padding: 1.8rem 1.2rem;
+  border: 2px solid rgba(54, 47, 79, 0.2);
+  background: rgba(238, 238, 238, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.likert-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(91, 35, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+
+.likert-button:hover::before {
+  width: 200px;
+  height: 200px;
 }
 
 .likert-button:hover {
-  border-color: #667eea;
-  transform: translateY(-2px);
+  border-color: #5B23FF;
+  transform: translateY(-4px) scale(1.05);
+  background: rgba(91, 35, 255, 0.15);
+  box-shadow: 0 10px 25px rgba(91, 35, 255, 0.2);
 }
 
 .likert-button.selected {
-  border-color: #667eea;
-  background: #f0f4ff;
+  border-color: #5B23FF;
+  background: rgba(91, 35, 255, 0.25);
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(91, 35, 255, 0.3);
 }
 
 .likert-number {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #667eea;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #5B23FF;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s;
+}
+
+.likert-button:hover .likert-number {
+  transform: scale(1.1);
 }
 
 .likert-label {
-  font-size: 0.8rem;
-  color: #666;
+  font-size: 0.85rem;
+  color: #362F4F;
   text-align: center;
+  position: relative;
+  z-index: 1;
+  font-weight: 500;
 }
 
 .choice-options {
@@ -118,26 +201,53 @@
 }
 
 .choice-button {
-  padding: 1.2rem;
-  border: 2px solid #e0e0e0;
-  background: white;
-  border-radius: 12px;
+  padding: 1.4rem 1.5rem;
+  border: 2px solid rgba(54, 47, 79, 0.2);
+  background: rgba(238, 238, 238, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   text-align: left;
-  font-size: 1rem;
-  color: #333;
+  font-size: 1.05rem;
+  color: #362F4F;
+  position: relative;
+  overflow: hidden;
+}
+
+.choice-button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(135deg, #5B23FF, #008BFF);
+  transform: scaleY(0);
+  transition: transform 0.3s;
 }
 
 .choice-button:hover {
-  border-color: #667eea;
-  transform: translateX(5px);
+  border-color: #5B23FF;
+  transform: translateX(8px);
+  background: rgba(91, 35, 255, 0.15);
+  box-shadow: 0 5px 15px rgba(91, 35, 255, 0.15);
+}
+
+.choice-button:hover::before {
+  transform: scaleY(1);
 }
 
 .choice-button.selected {
-  border-color: #667eea;
-  background: #f0f4ff;
+  border-color: #5B23FF;
+  background: rgba(91, 35, 255, 0.25);
   font-weight: 600;
+  transform: translateX(8px);
+  box-shadow: 0 5px 15px rgba(91, 35, 255, 0.2);
+}
+
+.choice-button.selected::before {
+  transform: scaleY(1);
 }
 
 .numeric-input {
@@ -149,20 +259,22 @@
 .numeric-input input {
   flex: 1;
   padding: 1rem;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #362F4F;
   border-radius: 12px;
   font-size: 1.2rem;
+  background: #EEEEEE;
+  color: #362F4F;
 }
 
 .numeric-input input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #5B23FF;
 }
 
 .submit-numeric {
   padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  color: #EEEEEE;
   border: none;
   border-radius: 12px;
   cursor: pointer;
@@ -172,6 +284,8 @@
 
 .submit-numeric:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 5px 15px rgba(91, 35, 255, 0.4);
+  background: linear-gradient(135deg, #008BFF 0%, #E4FF30 100%);
+  color: #362F4F;
 }
 

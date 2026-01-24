@@ -78,24 +78,25 @@ fi
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 echo ""
 
-# Generate data files if they don't exist
-echo -e "${BLUE}Checking data files...${NC}"
-if [ ! -f "backend/data/questions.json" ] || [ ! -f "backend/data/roles.json" ] || [ ! -f "backend/data/resources.json" ]; then
-    echo "Generating data files..."
-    cd backend
-    source venv/bin/activate
-    python3 scripts/generate_data.py
-    deactivate
-    cd ..
-fi
+# Generate data files (always regenerate to ensure latest version)
+echo -e "${BLUE}Generating data files...${NC}"
+cd backend
+source venv/bin/activate
+python3 scripts/generate_data.py
+deactivate
+cd ..
 
 echo -e "${GREEN}✓ Data files ready${NC}"
 echo ""
 
-# Seed database
+# Seed database (delete old database to ensure fresh seed)
 echo -e "${BLUE}Seeding database...${NC}"
 cd backend
 source venv/bin/activate
+# Remove old database to ensure fresh seed
+if [ -f "data/nextstep.db" ]; then
+    rm -f data/nextstep.db
+fi
 python3 scripts/seed.py
 deactivate
 cd ..
