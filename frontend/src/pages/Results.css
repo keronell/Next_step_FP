@@ -1,5 +1,5 @@
 .results {
-  min-height: 100vh;
+  min-height: calc(100vh - 200px);
   padding: 2rem;
   position: relative;
 }
@@ -37,7 +37,7 @@
 
 .results-loading,
 .results-error {
-  min-height: 100vh;
+  min-height: calc(100vh - 200px);
   display: flex;
   align-items: center;
   justify-content: center;

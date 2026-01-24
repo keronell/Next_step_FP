@@ -5,19 +5,24 @@ import Questionnaire from './pages/Questionnaire'
 import Results from './pages/Results'
 import Roadmap from './pages/Roadmap'
 import Progress from './pages/Progress'
+import Footer from './components/Footer'
+import './App.css'
 
 function App() {
   const [sessionId, setSessionId] = useState(localStorage.getItem('sessionId'))
 
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Landing setSessionId={setSessionId} />} />
-        <Route path="/questionnaire" element={<Questionnaire sessionId={sessionId} />} />
-        <Route path="/results" element={<Results sessionId={sessionId} />} />
-        <Route path="/roadmap" element={<Roadmap sessionId={sessionId} />} />
-        <Route path="/progress" element={<Progress sessionId={sessionId} />} />
-      </Routes>
+      <div className="app-wrapper">
+        <Routes>
+          <Route path="/" element={<Landing setSessionId={setSessionId} />} />
+          <Route path="/questionnaire" element={<Questionnaire sessionId={sessionId} />} />
+          <Route path="/results" element={<Results sessionId={sessionId} />} />
+          <Route path="/roadmap" element={<Roadmap sessionId={sessionId} />} />
+          <Route path="/progress" element={<Progress sessionId={sessionId} />} />
+        </Routes>
+        <Footer />
+      </div>
     </Router>
   )
 }
