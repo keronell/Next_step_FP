@@ -4,6 +4,11 @@ from dotenv import load_dotenv
 import os
 import json
 import uuid
+import csv
+import random
+import numpy as np
+from pathlib import Path
+from collections import defaultdict
 from db import get_db
 
 load_dotenv()
@@ -27,7 +32,9 @@ def index():
             'answers': '/api/sessions/<session_id>/answers',
             'compute': '/api/sessions/<session_id>/compute',
             'roadmap': '/api/sessions/<session_id>/roadmap',
-            'roadmap_items': '/api/roadmap-items/<item_id>'
+            'roadmap_items': '/api/roadmap-items/<item_id>',
+            'adaptive_start': '/api/adaptive/start',
+            'adaptive_answer': '/api/adaptive/<session_id>/answer'
         }
     })
 
@@ -369,6 +376,347 @@ def update_roadmap_item(item_id):
     db.commit()
     db.close()
     return jsonify({'success': True})
+
+
+# ============================================================================
+# Adaptive Quiz Functions
+# ============================================================================
+
+def load_expert_answers():
+    """Load expert answers database"""
+    data_dir = Path(__file__).parent / 'data'
+    
+    by_question_file = data_dir / 'expert_answers_by_question.json'
+    by_job_file = data_dir / 'expert_answers_by_job.json'
+    
+    if not by_question_file.exists() or not by_job_file.exists():
+        return None, None
+    
+    with open(by_question_file, 'r') as f:
+        by_question = json.load(f)
+    
+    with open(by_job_file, 'r') as f:
+        by_job = json.load(f)
+    
+    return by_question, by_job
+
+
+def load_adaptive_config():
+    """Load adaptive quiz configuration"""
+    config_file = Path(__file__).parent / 'config' / 'adaptive_quiz_config.json'
+    if config_file.exists():
+        with open(config_file, 'r') as f:
+            return json.load(f)
+    # Default config
+    return {
+        "warmup_questions": 3,
+        "max_questions": 20,
+        "min_questions": 10,
+        "target_jobs_remaining": 5,
+        "elimination_threshold": 0.3,
+        "early_stop_threshold": 7
+    }
+
+
+def normalize_answer(answer_value: str, answer_type: str) -> float:
+    """Normalize answer to 0-1 scale for comparison"""
+    if not answer_value:
+        return 0
+    
+    try:
+        if answer_type == 'Likert5':
+            return (float(answer_value) - 1) / 4  # 1->0, 5->1
+        elif answer_type == 'SingleChoice':
+            return 0.5 if answer_value and answer_value != 'Not sure' else 0
+        elif answer_type == 'MultiChoice':
+            selections = [v for v in answer_value.split(',') if v] if answer_value else []
+            return min(len(selections) * 0.3, 1)
+        elif answer_type == 'Numeric':
+            return min(float(answer_value) / 40, 1) if answer_value else 0
+    except (ValueError, TypeError):
+        return 0
+    return 0
+
+
+def calculate_similarity(user_answer: str, expert_answer: str, answer_type: str) -> float:
+    """Calculate similarity between user and expert answer (0-1)"""
+    user_norm = normalize_answer(user_answer, answer_type)
+    expert_norm = normalize_answer(expert_answer, answer_type)
+    
+    # Use 1 - absolute difference as similarity
+    similarity = 1 - abs(user_norm - expert_norm)
+    return max(0, similarity)
+
+
+def compute_job_scores(user_answers: list, remaining_jobs: list, 
+                      expert_by_question: dict) -> dict:
+    """Compute similarity scores for each remaining job"""
+    job_scores = defaultdict(float)
+    job_answer_counts = defaultdict(int)
+    
+    for answer in user_answers:
+        q_id = str(answer['question_id'])
+        user_answer_value = answer['answer_value']
+        answer_type = answer.get('answer_type', 'Likert5')
+        
+        # Get expert answers for this question
+        expert_answers = expert_by_question.get(q_id, {})
+        
+        for job_id in remaining_jobs:
+            if job_id in expert_answers:
+                expert_answer = expert_answers[job_id]
+                similarity = calculate_similarity(user_answer_value, expert_answer, answer_type)
+                job_scores[job_id] += similarity
+                job_answer_counts[job_id] += 1
+    
+    # Average scores
+    for job_id in job_scores:
+        if job_answer_counts[job_id] > 0:
+            job_scores[job_id] /= job_answer_counts[job_id]
+    
+    return dict(job_scores)
+
+
+def eliminate_jobs(job_scores: dict, threshold: float = 0.3) -> list:
+    """Eliminate jobs with scores below threshold"""
+    return [job_id for job_id, score in job_scores.items() if score >= threshold]
+
+
+def select_next_question(remaining_jobs: list, answered_questions: list,
+                        expert_by_question: dict) -> dict:
+    """Select next question that best differentiates remaining jobs"""
+    question_bank = Path(__file__).parent.parent / 'data' / 'data' / 'question_bank.csv'
+    
+    if not question_bank.exists():
+        return None
+    
+    # Load all questions
+    with open(question_bank, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        all_questions = list(reader)
+    
+    # Get answered question IDs
+    answered_q_ids = {str(a['question_id']) for a in answered_questions}
+    
+    # Find unasked questions
+    unasked_questions = [q for q in all_questions if str(q['id']) not in answered_q_ids]
+    
+    if not unasked_questions:
+        return None
+    
+    # If we have few jobs left, pick question with highest variance in expert answers
+    best_question = None
+    best_variance = 0
+    
+    for question in unasked_questions:
+        q_id = str(question['id'])
+        expert_answers = expert_by_question.get(q_id, {})
+        
+        # Get answers for remaining jobs
+        answers = [expert_answers.get(job_id) for job_id in remaining_jobs 
+                  if job_id in expert_answers]
+        
+        if len(answers) < 2:
+            continue
+        
+        # Calculate variance (higher = more differentiation)
+        try:
+            numeric_answers = [float(a) for a in answers if a]
+            if numeric_answers:
+                variance = np.var(numeric_answers)
+                if variance > best_variance:
+                    best_variance = variance
+                    best_question = question
+        except (ValueError, TypeError):
+            continue
+    
+    # Fallback to random if no good question found
+    if not best_question:
+        best_question = random.choice(unasked_questions)
+    
+    return {
+        'id': best_question['id'],
+        'question': best_question['question'],
+        'answer_type': best_question['answer_type'],
+        'options': best_question.get('options', '')
+    }
+
+
+@app.route('/api/adaptive/start', methods=['POST'])
+def start_adaptive_quiz():
+    """Start adaptive quiz session"""
+    db = get_db()
+    
+    # Get top 10 jobs
+    top_jobs_file = Path(__file__).parent / 'data' / 'top_10_jobs.json'
+    if not top_jobs_file.exists():
+        db.close()
+        return jsonify({'error': 'Top 10 jobs not found. Run select_top_jobs.py first.'}), 404
+    
+    with open(top_jobs_file, 'r') as f:
+        top_jobs = json.load(f)
+    
+    # Create session
+    session_id = str(uuid.uuid4())
+    db.execute('''
+        INSERT INTO sessions (id, created_at, adaptive_mode, remaining_jobs)
+        VALUES (?, CURRENT_TIMESTAMP, 1, ?)
+    ''', (session_id, json.dumps([job['id'] for job in top_jobs])))
+    db.commit()
+    
+    # Select first question
+    question_bank = Path(__file__).parent.parent / 'data' / 'data' / 'question_bank.csv'
+    if not question_bank.exists():
+        db.close()
+        return jsonify({'error': 'Question bank not found'}), 404
+    
+    with open(question_bank, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        questions = list(reader)
+        if not questions:
+            db.close()
+            return jsonify({'error': 'No questions found'}), 404
+        first_question = questions[0]  # Start with first question
+    
+    db.close()
+    
+    return jsonify({
+        'session_id': session_id,
+        'remaining_jobs': len(top_jobs),
+        'question': {
+            'id': first_question['id'],
+            'question': first_question['question'],
+            'answer_type': first_question['answer_type'],
+            'options': first_question.get('options', '')
+        }
+    })
+
+
+@app.route('/api/adaptive/<session_id>/answer', methods=['POST'])
+def submit_adaptive_answer(session_id):
+    """Submit answer and get next question or results"""
+    db = get_db()
+    data = request.json
+    
+    # Get session
+    cursor = db.execute('SELECT remaining_jobs FROM sessions WHERE id = ?', (session_id,))
+    session = cursor.fetchone()
+    if not session:
+        db.close()
+        return jsonify({'error': 'Session not found'}), 404
+    
+    remaining_jobs = json.loads(session['remaining_jobs'] or '[]')
+    
+    # Save answer
+    answer_type = data.get('answer_type', 'Likert5')
+    db.execute('''
+        INSERT INTO answers (session_id, question_id, answer_value, answer_type)
+        VALUES (?, ?, ?, ?)
+    ''', (session_id, data['question_id'], data['answer_value'], answer_type))
+    db.commit()
+    
+    # Get all user answers
+    cursor = db.execute('''
+        SELECT question_id, answer_value, answer_type
+        FROM answers WHERE session_id = ?
+    ''', (session_id,))
+    user_answers = [dict(row) for row in cursor.fetchall()]
+    
+    # Load config
+    config = load_adaptive_config()
+    warmup_questions = config.get('warmup_questions', 3)
+    questions_answered = len(user_answers)
+    
+    # Load expert answers
+    expert_by_question, expert_by_job = load_expert_answers()
+    if not expert_by_question:
+        db.close()
+        return jsonify({'error': 'Expert answers not found. Run generate_expert_answers.py first.'}), 500
+    
+    # Only start eliminating after warmup period
+    if questions_answered >= warmup_questions:
+        # Compute job scores
+        job_scores = compute_job_scores(user_answers, remaining_jobs, expert_by_question)
+        
+        # Eliminate low-scoring jobs
+        threshold = config.get('elimination_threshold', 0.3)
+        new_remaining = eliminate_jobs(job_scores, threshold)
+        
+        # Update remaining jobs
+        remaining_jobs = new_remaining
+        db.execute('UPDATE sessions SET remaining_jobs = ? WHERE id = ?',
+                   (json.dumps(remaining_jobs), session_id))
+        db.commit()
+    else:
+        # Still in warmup - don't eliminate, just collect answers
+        job_scores = {}
+        for job_id in remaining_jobs:
+            job_scores[job_id] = 0.5  # Neutral score during warmup
+    
+    # Check if we should stop
+    max_questions = config.get('max_questions', 20)
+    min_questions = config.get('min_questions', 10)
+    target_jobs = config.get('target_jobs_remaining', 5)
+    early_stop_threshold = config.get('early_stop_threshold', 7)
+    
+    should_stop = (
+        len(remaining_jobs) <= target_jobs or  # Target jobs reached
+        questions_answered >= max_questions or  # Max questions reached
+        (len(remaining_jobs) <= early_stop_threshold and questions_answered >= min_questions)  # Early stop
+    )
+    
+    if should_stop:
+        # Compute final scores if not already computed
+        if questions_answered < warmup_questions or not job_scores:
+            job_scores = compute_job_scores(user_answers, remaining_jobs, expert_by_question)
+        
+        # Get top 5 jobs
+        sorted_jobs = sorted(job_scores.items(), key=lambda x: x[1], reverse=True)
+        top_5_job_ids = [job_id for job_id, _ in sorted_jobs[:5]]
+        
+        # Get full job details
+        top_jobs_file = Path(__file__).parent / 'data' / 'top_10_jobs.json'
+        with open(top_jobs_file, 'r') as f:
+            all_jobs = json.load(f)
+        
+        top_5_jobs = [job for job in all_jobs if job['id'] in top_5_job_ids]
+        # Sort by score
+        top_5_jobs = sorted(top_5_jobs, 
+                          key=lambda j: job_scores.get(j['id'], 0), 
+                          reverse=True)
+        
+        # Add scores to jobs
+        for job in top_5_jobs:
+            job['match_score'] = round(job_scores.get(job['id'], 0) * 100, 1)
+        
+        # Mark session complete
+        db.execute('UPDATE sessions SET completed_at = CURRENT_TIMESTAMP WHERE id = ?',
+                   (session_id,))
+        db.commit()
+        db.close()
+        
+        return jsonify({
+            'completed': True,
+            'top_5_jobs': top_5_jobs,
+            'questions_answered': questions_answered
+        })
+    else:
+        # Select next question
+        next_question = select_next_question(remaining_jobs, user_answers, expert_by_question)
+        
+        if not next_question:
+            db.close()
+            return jsonify({'error': 'No more questions available'}), 400
+        
+        db.close()
+        
+        return jsonify({
+            'completed': False,
+            'remaining_jobs': len(remaining_jobs),
+            'questions_answered': questions_answered,
+            'warmup_active': questions_answered < warmup_questions,
+            'question': next_question
+        })
 
 
 if __name__ == '__main__':
