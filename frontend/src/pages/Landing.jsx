@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { useToast } from '../components/ToastContainer'
 import './Landing.css'
 
 function Landing({ setSessionId }) {
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
   const handleStart = async () => {
     try {
@@ -11,10 +13,11 @@ function Landing({ setSessionId }) {
       const sessionId = response.data.session_id
       setSessionId(sessionId)
       localStorage.setItem('sessionId', sessionId)
+      showToast('Assessment started! Good luck!', 'success')
       navigate('/questionnaire')
     } catch (error) {
       console.error('Failed to start session:', error)
-      alert('Failed to start session. Please try again.')
+      showToast('Failed to start session. Please try again.', 'error')
     }
   }
 
