@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import axios from 'axios'
+import { useToast } from '../components/ToastContainer'
+import { ProgressSkeleton } from '../components/LoadingSkeleton'
 import './Progress.css'
 
 function Progress({ sessionId }) {
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [roadmap, setRoadmap] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -33,13 +36,22 @@ function Progress({ sessionId }) {
       
       const response = await axios.get(`/api/sessions/${sessionId}/roadmap`)
       setRoadmap(response.data)
+      showToast(
+        newStatus === 'completed' ? 'Step marked as completed!' : 'Step marked as pending',
+        'success'
+      )
     } catch (error) {
       console.error('Failed to update step:', error)
+      showToast('Failed to update step. Please try again.', 'error')
     }
   }
 
   if (loading) {
-    return <div className="progress-loading">Loading your progress...</div>
+    return (
+      <div className="progress">
+        <ProgressSkeleton />
+      </div>
+    )
   }
 
   if (!roadmap) {

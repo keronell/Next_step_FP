@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { useToast } from '../components/ToastContainer'
+import { ResultsSkeleton } from '../components/LoadingSkeleton'
 import './Results.css'
 
 function Results({ sessionId }) {
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedRole, setSelectedRole] = useState(null)
+  const [comparisonMode, setComparisonMode] = useState(false)
+  const [selectedForComparison, setSelectedForComparison] = useState([])
 
   useEffect(() => {
     if (!sessionId) {
@@ -34,12 +39,43 @@ function Results({ sessionId }) {
       navigate('/roadmap')
     } catch (error) {
       console.error('Failed to generate roadmap:', error)
-      alert('Failed to generate roadmap. Please try again.')
+      showToast('Failed to generate roadmap. Please try again.', 'error')
     }
   }
 
+  const toggleComparison = (roleId) => {
+    if (selectedForComparison.includes(roleId)) {
+      setSelectedForComparison(selectedForComparison.filter(id => id !== roleId))
+    } else {
+      if (selectedForComparison.length < 3) {
+        setSelectedForComparison([...selectedForComparison, roleId])
+      } else {
+        showToast('You can compare up to 3 roles at once', 'warning')
+      }
+    }
+  }
+
+  const toggleComparisonMode = () => {
+    setComparisonMode(!comparisonMode)
+    if (comparisonMode) {
+      setSelectedForComparison([])
+    }
+  }
+
+  const getSelectedRoles = () => {
+    return results.top_roles.filter(role => selectedForComparison.includes(role.id))
+  }
+
   if (loading) {
-    return <div className="results-loading">Computing your results...</div>
+    return (
+      <div className="results">
+        <div className="results-hero-section">
+          <div className="results-hero-image"></div>
+          <div className="results-hero-overlay"></div>
+        </div>
+        <ResultsSkeleton />
+      </div>
+    )
   }
 
   if (!results) {
@@ -53,10 +89,45 @@ function Results({ sessionId }) {
         <div className="results-hero-overlay"></div>
       </div>
       <div className="results-container">
-        <h1>Your Career Matches</h1>
-        <p className="results-subtitle">
-          Based on your answers, here are the top 5 roles that match your profile:
-        </p>
+        <div className="results-header-actions">
+          <div>
+            <h1>Your Career Matches</h1>
+            <p className="results-subtitle">
+              Based on your answers, here are the top 5 roles that match your profile:
+            </p>
+          </div>
+          <button 
+            className={`comparison-toggle ${comparisonMode ? 'active' : ''}`}
+            onClick={toggleComparisonMode}
+          >
+            {comparisonMode ? '✓ Comparison Mode' : 'Compare Roles'}
+          </button>
+        </div>
+
+        {comparisonMode && selectedForComparison.length > 0 && (
+          <div className="comparison-view">
+            <h2 className="comparison-title">Role Comparison</h2>
+            <div className="comparison-grid">
+              {getSelectedRoles().map(role => (
+                <div key={role.id} className="comparison-card">
+                  <h3>{role.name}</h3>
+                  <div className="comparison-score">{role.score}% Match</div>
+                  <p className="comparison-description">{role.description}</p>
+                  {role.reasons && role.reasons.length > 0 && (
+                    <div className="comparison-reasons">
+                      <strong>Key Areas:</strong>
+                      <ul>
+                        {role.reasons.slice(0, 3).map((reason, idx) => (
+                          <li key={idx}>{reason.message}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="roles-grid">
           {results.top_roles.map((role, index) => (
@@ -79,13 +150,23 @@ function Results({ sessionId }) {
                 </div>
               )}
 
-              <button
-                className={`select-role-button ${selectedRole === role.id ? 'selected' : ''}`}
-                onClick={() => handleSelectRole(role.id)}
-                disabled={selectedRole === role.id}
-              >
-                <span>{selectedRole === role.id ? 'Generating Roadmap...' : 'Select This Role'}</span>
-              </button>
+              <div className="role-actions">
+                {comparisonMode && (
+                  <button
+                    className={`compare-button ${selectedForComparison.includes(role.id) ? 'selected' : ''}`}
+                    onClick={() => toggleComparison(role.id)}
+                  >
+                    {selectedForComparison.includes(role.id) ? '✓ Comparing' : '+ Compare'}
+                  </button>
+                )}
+                <button
+                  className={`select-role-button ${selectedRole === role.id ? 'selected' : ''}`}
+                  onClick={() => handleSelectRole(role.id)}
+                  disabled={selectedRole === role.id}
+                >
+                  <span>{selectedRole === role.id ? 'Generating Roadmap...' : 'Select This Role'}</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>

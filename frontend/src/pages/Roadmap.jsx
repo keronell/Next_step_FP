@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import axios from 'axios'
+import { useToast } from '../components/ToastContainer'
+import { RoadmapSkeleton } from '../components/LoadingSkeleton'
 import './Roadmap.css'
 
 function Roadmap({ sessionId }) {
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [roadmap, setRoadmap] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -34,13 +37,56 @@ function Roadmap({ sessionId }) {
       // Reload roadmap to get updated progress
       const response = await axios.get(`/api/sessions/${sessionId}/roadmap`)
       setRoadmap(response.data)
+      showToast(
+        newStatus === 'completed' ? 'Step marked as completed!' : 'Step marked as pending',
+        'success'
+      )
     } catch (error) {
       console.error('Failed to update step:', error)
+      showToast('Failed to update step. Please try again.', 'error')
     }
   }
 
+  const handleShare = () => {
+    const url = window.location.href
+    if (navigator.share) {
+      navigator.share({
+        title: `My ${roadmap.role_name} Learning Roadmap`,
+        text: `Check out my learning roadmap for ${roadmap.role_name}! Progress: ${roadmap.progress}%`,
+        url: url
+      }).catch(() => {
+        copyToClipboard(url)
+      })
+    } else {
+      copyToClipboard(url)
+    }
+  }
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Link copied to clipboard!', 'success')
+    }).catch(() => {
+      showToast('Failed to copy link', 'error')
+    })
+  }
+
+  const handleExportPDF = () => {
+    showToast('PDF export feature coming soon!', 'info')
+    // Future implementation: Use a library like jsPDF or html2pdf
+  }
+
+  const handleExportImage = () => {
+    showToast('Image export feature coming soon!', 'info')
+    // Future implementation: Use html2canvas to capture and download
+  }
+
   if (loading) {
-    return <div className="roadmap-loading">Loading your roadmap...</div>
+    return (
+      <div className="roadmap">
+        <div className="roadmap-hero-bg"></div>
+        <RoadmapSkeleton />
+      </div>
+    )
   }
 
   if (!roadmap) {
@@ -57,9 +103,22 @@ function Roadmap({ sessionId }) {
       <div className="roadmap-hero-bg"></div>
       <div className="roadmap-container">
         <div className="roadmap-header">
-          <Link to="/results" className="roadmap-back-button">
-            ← Back to Results
-          </Link>
+          <div className="roadmap-header-top">
+            <Link to="/results" className="roadmap-back-button">
+              ← Back to Results
+            </Link>
+            <div className="roadmap-actions">
+              <button className="roadmap-action-button" onClick={handleShare} title="Share roadmap">
+                📤 Share
+              </button>
+              <button className="roadmap-action-button" onClick={handleExportPDF} title="Export as PDF">
+                📄 PDF
+              </button>
+              <button className="roadmap-action-button" onClick={handleExportImage} title="Export as Image">
+                🖼️ Image
+              </button>
+            </div>
+          </div>
           <h1>Your Learning Roadmap</h1>
           <div className="roadmap-role">
             <h2>{roadmap.role_name}</h2>

@@ -60,6 +60,41 @@
   z-index: 1;
 }
 
+.roadmap-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.roadmap-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.roadmap-action-button {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  background: rgba(238, 238, 238, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(91, 35, 255, 0.3);
+  border-radius: 8px;
+  color: #EEEEEE;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.roadmap-action-button:hover {
+  background: rgba(91, 35, 255, 0.2);
+  border-color: rgba(91, 35, 255, 0.5);
+  transform: translateY(-2px);
+}
+
 .roadmap-header {
   margin-bottom: 3rem;
   position: relative;
