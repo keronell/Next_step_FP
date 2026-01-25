@@ -496,6 +496,14 @@ def compute_job_scores(user_answers: list, remaining_jobs: list,
     job_scores = defaultdict(float)
     job_answer_counts = defaultdict(int)
     
+    if not user_answers:
+        print("Warning: No user answers provided to compute_job_scores")
+        return {}
+    
+    if not remaining_jobs:
+        print("Warning: No remaining jobs provided to compute_job_scores")
+        return {}
+    
     for answer in user_answers:
         q_id = str(answer['question_id'])
         user_answer_value = answer['answer_value']
@@ -503,6 +511,10 @@ def compute_job_scores(user_answers: list, remaining_jobs: list,
         
         # Get expert answers for this question
         expert_answers = expert_by_question.get(q_id, {})
+        
+        if not expert_answers:
+            # Debug: question not found in expert answers
+            continue
         
         for job_id in remaining_jobs:
             if job_id in expert_answers:
@@ -515,6 +527,14 @@ def compute_job_scores(user_answers: list, remaining_jobs: list,
     for job_id in job_scores:
         if job_answer_counts[job_id] > 0:
             job_scores[job_id] /= job_answer_counts[job_id]
+    
+    # Debug output
+    if not job_scores:
+        print(f"Warning: compute_job_scores returned empty scores")
+        print(f"  User answers: {len(user_answers)}")
+        print(f"  Remaining jobs: {remaining_jobs}")
+        print(f"  Sample question IDs: {[str(a['question_id']) for a in user_answers[:3]]}")
+        print(f"  Expert answers keys: {list(expert_by_question.keys())[:5]}")
     
     return dict(job_scores)
 
@@ -764,9 +784,24 @@ def submit_adaptive_answer(session_id):
             if questions_answered < warmup_questions or not job_scores:
                 job_scores = compute_job_scores(user_answers, remaining_jobs, expert_by_question)
             
-            # Get top 5 jobs
-            sorted_jobs = sorted(job_scores.items(), key=lambda x: x[1], reverse=True)
-            top_5_job_ids = [job_id for job_id, _ in sorted_jobs[:5]]
+            # If no scores computed, compute for all remaining jobs
+            if not job_scores and remaining_jobs:
+                print("Recomputing job scores as they were empty")
+                job_scores = compute_job_scores(user_answers, remaining_jobs, expert_by_question)
+            
+            # Debug: print scores
+            print(f"Final job_scores: {job_scores}")
+            print(f"Remaining jobs: {remaining_jobs}")
+            
+            # Get top 5 jobs - if we have scores, use them; otherwise use all remaining jobs
+            if job_scores:
+                sorted_jobs = sorted(job_scores.items(), key=lambda x: x[1], reverse=True)
+                print(f"Sorted jobs: {sorted_jobs[:5]}")
+                top_5_job_ids = [job_id for job_id, _ in sorted_jobs[:5]]
+            else:
+                # Fallback: use all remaining jobs
+                print("Warning: No job scores, using all remaining jobs")
+                top_5_job_ids = remaining_jobs[:5]
             
             # Get full job details
             top_jobs_file = Path(__file__).parent / 'data' / 'top_10_jobs.json'
@@ -778,14 +813,24 @@ def submit_adaptive_answer(session_id):
                 all_jobs = json.load(f)
             
             top_5_jobs = [job for job in all_jobs if job['id'] in top_5_job_ids]
-            # Sort by score
-            top_5_jobs = sorted(top_5_jobs, 
-                              key=lambda j: job_scores.get(j['id'], 0), 
-                              reverse=True)
             
-            # Add scores to jobs
+            # Sort by score if we have scores
+            if job_scores:
+                top_5_jobs = sorted(top_5_jobs, 
+                                  key=lambda j: job_scores.get(j['id'], 0), 
+                                  reverse=True)
+            
+            # Add scores to jobs - ensure we have valid scores
             for job in top_5_jobs:
-                job['match_score'] = round(job_scores.get(job['id'], 0) * 100, 1)
+                score = job_scores.get(job['id'], 0) if job_scores else 0.5  # Default to 50% if no scores
+                match_score = round(score * 100, 1)
+                job['match_score'] = match_score
+                # Also set score field for compatibility
+                job['score'] = match_score
+                print(f"Job {job['id']} ({job['name']}): score={score}, match_score={match_score}")
+                # Remove reasons field if it exists (adaptive quiz doesn't use skill-based reasons)
+                if 'reasons' in job:
+                    del job['reasons']
             
             # Mark session complete
             db.execute('UPDATE sessions SET completed_at = CURRENT_TIMESTAMP WHERE id = ?',

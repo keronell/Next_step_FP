@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useToast } from '../components/ToastContainer'
@@ -13,6 +13,19 @@ function Results({ sessionId }) {
   const [selectedRole, setSelectedRole] = useState(null)
   const [comparisonMode, setComparisonMode] = useState(false)
   const [selectedForComparison, setSelectedForComparison] = useState([])
+  const adaptiveResultsProcessed = useRef(false)
+
+  // Debug: log when results change
+  useEffect(() => {
+    if (results) {
+      console.log('Results state updated:', results)
+      console.log('Top roles:', results.top_roles)
+      if (results.top_roles && results.top_roles.length > 0) {
+        console.log('First role in state:', results.top_roles[0])
+        console.log('First role score in state:', results.top_roles[0].score)
+      }
+    }
+  }, [results])
 
   useEffect(() => {
     if (!sessionId) {
@@ -20,30 +33,65 @@ function Results({ sessionId }) {
       return
     }
 
+    // Prevent processing if we've already handled adaptive results
+    if (adaptiveResultsProcessed.current) {
+      console.log('Adaptive results already processed, skipping')
+      return
+    }
+
     // Check if this is adaptive quiz results
     const adaptiveResults = sessionStorage.getItem('adaptiveResults')
     if (adaptiveResults) {
       try {
+        adaptiveResultsProcessed.current = true // Mark as processed
         const data = JSON.parse(adaptiveResults)
+        console.log('Adaptive results data:', data)
+        console.log('Top 5 jobs:', data.top_5_jobs)
+        
         // Convert adaptive format to standard format
-        setResults({
-          top_roles: data.top_5_jobs.map(job => ({
+        const topRoles = data.top_5_jobs.map(job => {
+          console.log('Processing job:', job.id, 'match_score:', job.match_score, 'type:', typeof job.match_score)
+          // Ensure match_score is converted to number and used as score
+          const score = typeof job.match_score === 'number' ? job.match_score : 
+                       typeof job.match_score === 'string' ? parseFloat(job.match_score) : 0
+          console.log('Final score for', job.id, ':', score)
+          return {
             ...job,
-            score: job.match_score || 0
-          })),
-          questions_answered: data.questions_answered
+            score: score,
+            // Adaptive quiz doesn't have reasons, so don't show skill gaps
+            reasons: []
+          }
         })
+        
+        console.log('Final top_roles:', topRoles)
+        console.log('First role score:', topRoles[0]?.score, 'match_score:', topRoles[0]?.match_score)
+        
+        const resultsData = {
+          top_roles: topRoles,
+          questions_answered: data.questions_answered
+        }
+        
+        console.log('Setting results:', resultsData)
+        // Remove from sessionStorage IMMEDIATELY to prevent re-triggering
         sessionStorage.removeItem('adaptiveResults')
+        setResults(resultsData)
         setLoading(false)
+        // IMPORTANT: Return early to prevent standard quiz computation
         return
       } catch (e) {
         console.error('Failed to parse adaptive results:', e)
+        // If parsing fails, remove the bad data and continue to standard quiz
+        sessionStorage.removeItem('adaptiveResults')
+        adaptiveResultsProcessed.current = false // Reset flag on error
       }
     }
 
-    // Fetch results (they should already be computed)
+    // Only fetch standard quiz results if we don't have adaptive results
+    // This should only run for standard quiz, not adaptive
+    console.log('Fetching standard quiz results for session:', sessionId)
     axios.post(`/api/sessions/${sessionId}/compute`)
       .then(response => {
+        console.log('Standard quiz results received:', response.data)
         setResults(response.data)
         setLoading(false)
       })
@@ -103,6 +151,11 @@ function Results({ sessionId }) {
     return <div className="results-error">No results available</div>
   }
 
+  // Debug: log what we're about to render
+  console.log('Rendering results:', results)
+  console.log('First role in results:', results.top_roles?.[0])
+  console.log('First role score:', results.top_roles?.[0]?.score)
+
   return (
     <div className="results">
       <div className="results-hero-section">
@@ -129,10 +182,12 @@ function Results({ sessionId }) {
           <div className="comparison-view">
             <h2 className="comparison-title">Role Comparison</h2>
             <div className="comparison-grid">
-              {getSelectedRoles().map(role => (
+              {getSelectedRoles().map(role => {
+                const displayScore = role.score ?? role.match_score ?? 0
+                return (
                 <div key={role.id} className="comparison-card">
                   <h3>{role.name}</h3>
-                  <div className="comparison-score">{role.score}% Match</div>
+                  <div className="comparison-score">{displayScore}% Match</div>
                   <p className="comparison-description">{role.description}</p>
                   {role.reasons && role.reasons.length > 0 && (
                     <div className="comparison-reasons">
@@ -145,17 +200,23 @@ function Results({ sessionId }) {
                     </div>
                   )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
 
         <div className="roles-grid">
-          {results.top_roles.map((role, index) => (
+          {results.top_roles.map((role, index) => {
+            // Debug each role being rendered
+            console.log(`Rendering role ${index}:`, role.id, 'score:', role.score, 'match_score:', role.match_score, 'all keys:', Object.keys(role))
+            const displayScore = role.score ?? role.match_score ?? 0
+            console.log(`Display score for ${role.id}:`, displayScore)
+            return (
             <div key={role.id} className="role-card">
               <div className="role-header">
                 <div className="role-rank">#{index + 1}</div>
-                <div className="role-score">{role.score}% Match</div>
+                <div className="role-score" data-score={displayScore}>{displayScore}% Match</div>
               </div>
               <h2 className="role-name">{role.name}</h2>
               <p className="role-description">{role.description}</p>
@@ -189,7 +250,8 @@ function Results({ sessionId }) {
                 </button>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
 
         <div className="results-footer">
