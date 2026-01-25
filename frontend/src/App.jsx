@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Landing from './pages/Landing'
 import Questionnaire from './pages/Questionnaire'
+import AdaptiveQuestionnaire from './pages/AdaptiveQuestionnaire'
 import Results from './pages/Results'
 import Roadmap from './pages/Roadmap'
 import Progress from './pages/Progress'
@@ -22,6 +23,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Landing setSessionId={setSessionId} />} />
             <Route path="/questionnaire" element={<Questionnaire sessionId={sessionId} />} />
+            <Route path="/adaptive-questionnaire" element={<AdaptiveQuestionnaire sessionId={sessionId} />} />
             <Route path="/results" element={<Results sessionId={sessionId} />} />
             <Route path="/roadmap" element={<Roadmap sessionId={sessionId} />} />
             <Route path="/progress" element={<Progress sessionId={sessionId} />} />

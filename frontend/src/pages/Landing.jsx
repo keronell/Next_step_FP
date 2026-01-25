@@ -7,14 +7,20 @@ function Landing({ setSessionId }) {
   const navigate = useNavigate()
   const { showToast } = useToast()
 
-  const handleStart = async () => {
+  const handleStart = async (adaptive = false) => {
     try {
-      const response = await axios.post('/api/sessions')
-      const sessionId = response.data.session_id
-      setSessionId(sessionId)
-      localStorage.setItem('sessionId', sessionId)
-      showToast('Assessment started! Good luck!', 'success')
-      navigate('/questionnaire')
+      if (adaptive) {
+        // For adaptive quiz, session is created by the backend
+        showToast('Starting adaptive quiz...', 'info')
+        navigate('/adaptive-questionnaire')
+      } else {
+        const response = await axios.post('/api/sessions')
+        const sessionId = response.data.session_id
+        setSessionId(sessionId)
+        localStorage.setItem('sessionId', sessionId)
+        showToast('Assessment started! Good luck!', 'success')
+        navigate('/questionnaire')
+      }
     } catch (error) {
       console.error('Failed to start session:', error)
       showToast('Failed to start session. Please try again.', 'error')
@@ -33,12 +39,19 @@ function Landing({ setSessionId }) {
           Discover your ideal tech career path through a personalized assessment
         </p>
         <p className="description">
-          Answer 10 questions about your skills, interests, and work style to get matched
+          Answer questions about your skills, interests, and work style to get matched
           with the top 5 tech roles that fit you best, plus a personalized learning roadmap.
         </p>
-        <button className="start-button" onClick={handleStart}>
-          <span>Start Assessment</span>
-        </button>
+        <div className="quiz-options">
+          <button className="start-button primary" onClick={() => handleStart(false)}>
+            <span>Standard Quiz</span>
+            <small>10 fixed questions</small>
+          </button>
+          <button className="start-button adaptive" onClick={() => handleStart(true)}>
+            <span>Adaptive Quiz</span>
+            <small>Smart, personalized questions</small>
+          </button>
+        </div>
         </div>
       </div>
       

@@ -46,21 +46,47 @@ python3 select_top_jobs.py
 
 Generates expert answers for all questions using AI agents. Each agent acts as an expert in one of the 10 jobs.
 
-**⚠️ Important:** This step makes API calls to OpenAI and may take a while (and cost money). For ~1600 questions × 10 jobs = ~16,000 API calls.
+**💰 FREE OPTION AVAILABLE!** Use `generate_expert_answers_free.py` instead for zero-cost generation.
+
+#### Option A: Free Providers (Recommended)
+
+```bash
+cd backend/scripts
+python3 generate_expert_answers_free.py
+```
+
+**Supported free providers:**
+- **Ollama** (local, completely free, no API key) - **RECOMMENDED**
+- Groq (free tier, very fast)
+- Hugging Face (free tier)
+- Google Gemini (free tier)
+- Together AI (free tier)
+
+**Setup:** See `SETUP_FREE_PROVIDERS.md` for detailed instructions.
+
+**Requirements:**
+- For Ollama: Install Ollama and download a model (see setup guide)
+- For others: Set appropriate API key environment variable
+- `top_10_jobs.json` must exist (from Step 1)
+- `data/data/question_bank.csv` must exist
+
+#### Option B: OpenAI (Paid)
 
 ```bash
 cd backend/scripts
 python3 generate_expert_answers.py
 ```
 
+**⚠️ Important:** This step makes API calls to OpenAI and may cost money. For ~1600 questions × 10 jobs = ~16,000 API calls (~$480 with GPT-4).
+
 **Requirements:**
 - `OPENAI_API_KEY` environment variable must be set
 - `top_10_jobs.json` must exist (from Step 1)
 - `data/data/question_bank.csv` must exist
 
-**Output:** `backend/data/expert_answers.json`
+**Output:** `backend/data/expert_answers.json` (same for both options)
 
-**Progress:** The script shows progress every 10 answers and includes rate limiting (0.5s delay between calls).
+**Progress:** The script shows progress every 10 answers and includes rate limiting.
 
 **Note:** If interrupted, you can re-run the script. It will overwrite existing answers.
 

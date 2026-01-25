@@ -20,6 +20,27 @@ function Results({ sessionId }) {
       return
     }
 
+    // Check if this is adaptive quiz results
+    const adaptiveResults = sessionStorage.getItem('adaptiveResults')
+    if (adaptiveResults) {
+      try {
+        const data = JSON.parse(adaptiveResults)
+        // Convert adaptive format to standard format
+        setResults({
+          top_roles: data.top_5_jobs.map(job => ({
+            ...job,
+            score: job.match_score || 0
+          })),
+          questions_answered: data.questions_answered
+        })
+        sessionStorage.removeItem('adaptiveResults')
+        setLoading(false)
+        return
+      } catch (e) {
+        console.error('Failed to parse adaptive results:', e)
+      }
+    }
+
     // Fetch results (they should already be computed)
     axios.post(`/api/sessions/${sessionId}/compute`)
       .then(response => {
