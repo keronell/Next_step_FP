@@ -39,9 +39,9 @@ function AdaptiveQuestionnaire({ sessionId }) {
 
     setSubmitting(true)
     const answerValue = Array.isArray(value) ? value.join(',') : value
+    const currentSessionId = localStorage.getItem('sessionId') || sessionId
 
     try {
-      const currentSessionId = localStorage.getItem('sessionId') || sessionId
       const response = await axios.post(`/api/adaptive/${currentSessionId}/answer`, {
         question_id: currentQuestion.id,
         answer_value: answerValue,
@@ -69,7 +69,16 @@ function AdaptiveQuestionnaire({ sessionId }) {
       }
     } catch (error) {
       console.error('Failed to submit answer:', error)
-      showToast('Failed to submit answer. Please try again.', 'error')
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error'
+      console.error('Error details:', {
+        message: errorMessage,
+        status: error.response?.status,
+        data: error.response?.data,
+        sessionId: currentSessionId,
+        questionId: currentQuestion?.id,
+        answerValue: answerValue
+      })
+      showToast(`Failed to submit answer: ${errorMessage}`, 'error')
     } finally {
       setSubmitting(false)
     }

@@ -418,6 +418,48 @@ def load_adaptive_config():
     }
 
 
+def ensure_question_in_db(db, question_id: int, question_bank_path: Path = None):
+    """Ensure a question exists in the database, loading from CSV if needed"""
+    # Check if question exists
+    cursor = db.execute('SELECT id FROM questions WHERE id = ?', (question_id,))
+    if cursor.fetchone():
+        return True  # Question already exists
+    
+    # Question doesn't exist, load from question bank
+    if question_bank_path is None:
+        question_bank_path = Path(__file__).parent.parent / 'data' / 'data' / 'question_bank.csv'
+    
+    if not question_bank_path.exists():
+        return False
+    
+    try:
+        with open(question_bank_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for q in reader:
+                if str(q.get('id')) == str(question_id):
+                    # Found the question, insert it
+                    db.execute('''
+                        INSERT OR IGNORE INTO questions 
+                        (id, question, category, subcategory, answer_type, options, skill_mappings)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        int(q['id']),
+                        q.get('question', ''),
+                        q.get('category', 'General'),
+                        q.get('subcategory', 'General'),
+                        q.get('answer_type', 'Likert5'),
+                        q.get('options', ''),
+                        json.dumps({})  # Empty skill mappings for adaptive questions
+                    ))
+                    db.commit()
+                    return True
+    except Exception as e:
+        print(f"Error loading question {question_id} from CSV: {e}")
+        return False
+    
+    return False
+
+
 def normalize_answer(answer_value: str, answer_type: str) -> float:
     """Normalize answer to 0-1 scale for comparison"""
     if not answer_value:
@@ -595,128 +637,209 @@ def start_adaptive_quiz():
 @app.route('/api/adaptive/<session_id>/answer', methods=['POST'])
 def submit_adaptive_answer(session_id):
     """Submit answer and get next question or results"""
-    db = get_db()
-    data = request.json
-    
-    # Get session
-    cursor = db.execute('SELECT remaining_jobs FROM sessions WHERE id = ?', (session_id,))
-    session = cursor.fetchone()
-    if not session:
-        db.close()
-        return jsonify({'error': 'Session not found'}), 404
-    
-    remaining_jobs = json.loads(session['remaining_jobs'] or '[]')
-    
-    # Save answer
-    answer_type = data.get('answer_type', 'Likert5')
-    db.execute('''
-        INSERT INTO answers (session_id, question_id, answer_value, answer_type)
-        VALUES (?, ?, ?, ?)
-    ''', (session_id, data['question_id'], data['answer_value'], answer_type))
-    db.commit()
-    
-    # Get all user answers
-    cursor = db.execute('''
-        SELECT question_id, answer_value, answer_type
-        FROM answers WHERE session_id = ?
-    ''', (session_id,))
-    user_answers = [dict(row) for row in cursor.fetchall()]
-    
-    # Load config
-    config = load_adaptive_config()
-    warmup_questions = config.get('warmup_questions', 3)
-    questions_answered = len(user_answers)
-    
-    # Load expert answers
-    expert_by_question, expert_by_job = load_expert_answers()
-    if not expert_by_question:
-        db.close()
-        return jsonify({'error': 'Expert answers not found. Run generate_expert_answers.py first.'}), 500
-    
-    # Only start eliminating after warmup period
-    if questions_answered >= warmup_questions:
-        # Compute job scores
-        job_scores = compute_job_scores(user_answers, remaining_jobs, expert_by_question)
+    try:
+        db = get_db()
+        data = request.json
         
-        # Eliminate low-scoring jobs
-        threshold = config.get('elimination_threshold', 0.3)
-        new_remaining = eliminate_jobs(job_scores, threshold)
-        
-        # Update remaining jobs
-        remaining_jobs = new_remaining
-        db.execute('UPDATE sessions SET remaining_jobs = ? WHERE id = ?',
-                   (json.dumps(remaining_jobs), session_id))
-        db.commit()
-    else:
-        # Still in warmup - don't eliminate, just collect answers
-        job_scores = {}
-        for job_id in remaining_jobs:
-            job_scores[job_id] = 0.5  # Neutral score during warmup
-    
-    # Check if we should stop
-    max_questions = config.get('max_questions', 20)
-    min_questions = config.get('min_questions', 10)
-    target_jobs = config.get('target_jobs_remaining', 5)
-    early_stop_threshold = config.get('early_stop_threshold', 7)
-    
-    should_stop = (
-        len(remaining_jobs) <= target_jobs or  # Target jobs reached
-        questions_answered >= max_questions or  # Max questions reached
-        (len(remaining_jobs) <= early_stop_threshold and questions_answered >= min_questions)  # Early stop
-    )
-    
-    if should_stop:
-        # Compute final scores if not already computed
-        if questions_answered < warmup_questions or not job_scores:
-            job_scores = compute_job_scores(user_answers, remaining_jobs, expert_by_question)
-        
-        # Get top 5 jobs
-        sorted_jobs = sorted(job_scores.items(), key=lambda x: x[1], reverse=True)
-        top_5_job_ids = [job_id for job_id, _ in sorted_jobs[:5]]
-        
-        # Get full job details
-        top_jobs_file = Path(__file__).parent / 'data' / 'top_10_jobs.json'
-        with open(top_jobs_file, 'r') as f:
-            all_jobs = json.load(f)
-        
-        top_5_jobs = [job for job in all_jobs if job['id'] in top_5_job_ids]
-        # Sort by score
-        top_5_jobs = sorted(top_5_jobs, 
-                          key=lambda j: job_scores.get(j['id'], 0), 
-                          reverse=True)
-        
-        # Add scores to jobs
-        for job in top_5_jobs:
-            job['match_score'] = round(job_scores.get(job['id'], 0) * 100, 1)
-        
-        # Mark session complete
-        db.execute('UPDATE sessions SET completed_at = CURRENT_TIMESTAMP WHERE id = ?',
-                   (session_id,))
-        db.commit()
-        db.close()
-        
-        return jsonify({
-            'completed': True,
-            'top_5_jobs': top_5_jobs,
-            'questions_answered': questions_answered
-        })
-    else:
-        # Select next question
-        next_question = select_next_question(remaining_jobs, user_answers, expert_by_question)
-        
-        if not next_question:
+        if not data:
             db.close()
-            return jsonify({'error': 'No more questions available'}), 400
+            return jsonify({'error': 'No data provided'}), 400
         
-        db.close()
+        # Validate required fields
+        if 'question_id' not in data:
+            db.close()
+            return jsonify({'error': 'question_id is required'}), 400
+        if 'answer_value' not in data:
+            db.close()
+            return jsonify({'error': 'answer_value is required'}), 400
         
+        # Get session
+        cursor = db.execute('SELECT remaining_jobs FROM sessions WHERE id = ?', (session_id,))
+        session = cursor.fetchone()
+        if not session:
+            db.close()
+            return jsonify({'error': 'Session not found'}), 404
+        
+        remaining_jobs = json.loads(session['remaining_jobs'] or '[]')
+        
+        # Save answer - ensure question_id is converted to int for database (schema expects INTEGER)
+        answer_type = data.get('answer_type', 'Likert5')
+        try:
+            question_id = int(data['question_id'])  # Convert to int for database
+        except (ValueError, TypeError):
+            db.close()
+            return jsonify({'error': f'Invalid question_id: {data.get("question_id")}'}), 400
+        
+        answer_value = str(data['answer_value'])  # Ensure it's a string
+        
+        # Ensure question exists in database (for foreign key constraint)
+        question_bank_path = Path(__file__).parent.parent / 'data' / 'data' / 'question_bank.csv'
+        if not ensure_question_in_db(db, question_id, question_bank_path):
+            db.close()
+            return jsonify({'error': f'Question {question_id} not found in question bank'}), 404
+        
+        try:
+            db.execute('''
+                INSERT INTO answers (session_id, question_id, answer_value, answer_type)
+                VALUES (?, ?, ?, ?)
+            ''', (session_id, question_id, answer_value, answer_type))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            db.close()
+            return jsonify({'error': f'Failed to save answer: {str(e)}'}), 500
+    
+        # Get all user answers - convert question_id to string for consistency
+        cursor = db.execute('''
+            SELECT question_id, answer_value, answer_type
+            FROM answers WHERE session_id = ?
+        ''', (session_id,))
+        user_answers = []
+        for row in cursor.fetchall():
+            answer_dict = dict(row)
+            answer_dict['question_id'] = str(answer_dict['question_id'])  # Ensure string
+            user_answers.append(answer_dict)
+        
+        # Load config
+        config = load_adaptive_config()
+        warmup_questions = config.get('warmup_questions', 3)
+        questions_answered = len(user_answers)
+        
+        # Load expert answers
+        try:
+            expert_by_question, expert_by_job = load_expert_answers()
+            if not expert_by_question:
+                db.close()
+                return jsonify({'error': 'Expert answers not found. Run create_expert_database.py first.'}), 500
+        except Exception as e:
+            db.close()
+            import traceback
+            print(f"Error loading expert answers: {str(e)}")
+            print(traceback.format_exc())
+            return jsonify({'error': f'Failed to load expert answers: {str(e)}'}), 500
+    
+        # Only start eliminating after warmup period
+        if questions_answered >= warmup_questions:
+            try:
+                # Compute job scores
+                job_scores = compute_job_scores(user_answers, remaining_jobs, expert_by_question)
+                
+                # Eliminate low-scoring jobs
+                threshold = config.get('elimination_threshold', 0.3)
+                new_remaining = eliminate_jobs(job_scores, threshold)
+                
+                # Update remaining jobs
+                remaining_jobs = new_remaining
+                db.execute('UPDATE sessions SET remaining_jobs = ? WHERE id = ?',
+                           (json.dumps(remaining_jobs), session_id))
+                db.commit()
+            except Exception as e:
+                import traceback
+                print(f"Error computing job scores: {str(e)}")
+                print(traceback.format_exc())
+                # Fallback: don't eliminate, just continue
+                job_scores = {}
+                for job_id in remaining_jobs:
+                    job_scores[job_id] = 0.5
+        else:
+            # Still in warmup - don't eliminate, just collect answers
+            job_scores = {}
+            for job_id in remaining_jobs:
+                job_scores[job_id] = 0.5  # Neutral score during warmup
+        
+        # Check if we should stop
+        max_questions = config.get('max_questions', 20)
+        min_questions = config.get('min_questions', 10)
+        target_jobs = config.get('target_jobs_remaining', 5)
+        early_stop_threshold = config.get('early_stop_threshold', 7)
+        
+        should_stop = (
+            len(remaining_jobs) <= target_jobs or  # Target jobs reached
+            questions_answered >= max_questions or  # Max questions reached
+            (len(remaining_jobs) <= early_stop_threshold and questions_answered >= min_questions)  # Early stop
+        )
+        
+        if should_stop:
+            # Compute final scores if not already computed
+            if questions_answered < warmup_questions or not job_scores:
+                job_scores = compute_job_scores(user_answers, remaining_jobs, expert_by_question)
+            
+            # Get top 5 jobs
+            sorted_jobs = sorted(job_scores.items(), key=lambda x: x[1], reverse=True)
+            top_5_job_ids = [job_id for job_id, _ in sorted_jobs[:5]]
+            
+            # Get full job details
+            top_jobs_file = Path(__file__).parent / 'data' / 'top_10_jobs.json'
+            if not top_jobs_file.exists():
+                db.close()
+                return jsonify({'error': 'Top 10 jobs file not found'}), 500
+            
+            with open(top_jobs_file, 'r') as f:
+                all_jobs = json.load(f)
+            
+            top_5_jobs = [job for job in all_jobs if job['id'] in top_5_job_ids]
+            # Sort by score
+            top_5_jobs = sorted(top_5_jobs, 
+                              key=lambda j: job_scores.get(j['id'], 0), 
+                              reverse=True)
+            
+            # Add scores to jobs
+            for job in top_5_jobs:
+                job['match_score'] = round(job_scores.get(job['id'], 0) * 100, 1)
+            
+            # Mark session complete
+            db.execute('UPDATE sessions SET completed_at = CURRENT_TIMESTAMP WHERE id = ?',
+                       (session_id,))
+            db.commit()
+            db.close()
+            
+            return jsonify({
+                'completed': True,
+                'top_5_jobs': top_5_jobs,
+                'questions_answered': questions_answered
+            })
+        else:
+            # Select next question
+            try:
+                next_question = select_next_question(remaining_jobs, user_answers, expert_by_question)
+            except Exception as e:
+                import traceback
+                print(f"Error selecting next question: {str(e)}")
+                print(traceback.format_exc())
+                db.close()
+                return jsonify({'error': f'Failed to select next question: {str(e)}'}), 500
+            
+            if not next_question:
+                db.close()
+                return jsonify({'error': 'No more questions available'}), 400
+            
+            db.close()
+            
+            return jsonify({
+                'completed': False,
+                'remaining_jobs': len(remaining_jobs),
+                'questions_answered': questions_answered,
+                'warmup_active': questions_answered < warmup_questions,
+                'question': next_question
+            })
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        error_msg = str(e)
+        print(f"\n{'='*60}")
+        print(f"ERROR in submit_adaptive_answer: {error_msg}")
+        print(f"{'='*60}")
+        print(error_trace)
+        print(f"{'='*60}\n")
+        if 'db' in locals():
+            try:
+                db.close()
+            except:
+                pass
         return jsonify({
-            'completed': False,
-            'remaining_jobs': len(remaining_jobs),
-            'questions_answered': questions_answered,
-            'warmup_active': questions_answered < warmup_questions,
-            'question': next_question
-        })
+            'error': f'Server error: {error_msg}',
+            'details': error_trace.split('\n')[-2] if error_trace else None
+        }), 500
 
 
 if __name__ == '__main__':
