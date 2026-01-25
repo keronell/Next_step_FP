@@ -43,34 +43,60 @@ def compute_skill_vector(answers, db):
     """Compute skill vector from answers"""
     skill_vector = {}
     
+    if not answers:
+        print("Warning: No answers provided to compute_skill_vector")
+        return {}
+    
     for answer in answers:
+        question_id = answer.get('question_id')
+        if not question_id:
+            continue
+            
         cursor = db.execute(
             'SELECT skill_mappings, answer_type FROM questions WHERE id = ?',
-            (answer['question_id'],)
+            (question_id,)
         )
         question = cursor.fetchone()
         
         if not question:
+            print(f"Warning: Question {question_id} not found in database")
             continue
         
-        skill_mappings = json.loads(question['skill_mappings'])
+        try:
+            skill_mappings = json.loads(question['skill_mappings'])
+        except:
+            print(f"Warning: Could not parse skill_mappings for question {question_id}")
+            skill_mappings = {}
+        
+        if not skill_mappings:
+            # Skip questions without skill mappings
+            continue
         
         # For Likert5: map 1-5 to 0-4 scale
         normalized_value = 0
-        if question['answer_type'] == 'Likert5':
-            answer_value = float(answer['answer_value']) if answer['answer_value'] else 0
-            normalized_value = (answer_value - 1) / 4  # Maps 1->0, 5->1
-        elif question['answer_type'] == 'SingleChoice':
+        answer_type = question['answer_type']
+        answer_value = answer.get('answer_value', '')
+        
+        if answer_type == 'Likert5':
+            try:
+                answer_value = float(answer_value) if answer_value else 0
+                normalized_value = (answer_value - 1) / 4  # Maps 1->0, 5->1
+            except (ValueError, TypeError):
+                normalized_value = 0
+        elif answer_type == 'SingleChoice':
             # For single choice, if answered, give partial credit
-            normalized_value = 0.5 if answer['answer_value'] and answer['answer_value'] != 'Not sure' else 0
-        elif question['answer_type'] == 'MultiChoice':
+            normalized_value = 0.5 if answer_value and answer_value != 'Not sure' else 0
+        elif answer_type == 'MultiChoice':
             # For multi choice, count selections (comma-separated)
-            selections = [v for v in answer['answer_value'].split(',') if v and v != 'Not sure'] if answer['answer_value'] else []
+            selections = [v for v in answer_value.split(',') if v and v != 'Not sure'] if answer_value else []
             normalized_value = min(len(selections) * 0.3, 1)  # Up to 1.0 for multiple selections
-        elif question['answer_type'] == 'Numeric':
+        elif answer_type == 'Numeric':
             # Normalize numeric (e.g., hours per week: 0-40 -> 0-1)
-            answer_value = float(answer['answer_value']) if answer['answer_value'] else 0
-            normalized_value = min(answer_value / 40, 1)
+            try:
+                answer_value = float(answer_value) if answer_value else 0
+                normalized_value = min(answer_value / 40, 1)
+            except (ValueError, TypeError):
+                normalized_value = 0
         
         for skill, weight in skill_mappings.items():
             if skill not in skill_vector:
@@ -201,109 +227,154 @@ def compute_results(session_id):
 @app.route('/api/sessions/<session_id>/roadmap', methods=['POST'])
 def generate_roadmap(session_id):
     """Generate roadmap for a role"""
-    data = request.json
-    role_id = data.get('role_id')
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        role_id = data.get('role_id')
+        if not role_id:
+            return jsonify({'error': 'role_id is required'}), 400
+        
+        db = get_db()
+        
+        # Get user skill vector (same as standard quiz)
+        cursor = db.execute('SELECT skill_vector, completed_at FROM sessions WHERE id = ?', (session_id,))
+        session = cursor.fetchone()
+        
+        if not session:
+            db.close()
+            return jsonify({'error': 'Session not found'}), 404
+        
+        # Get skill vector - same handling as standard quiz
+        skill_vector = {}
+        if session['skill_vector']:
+            try:
+                skill_vector = json.loads(session['skill_vector'])
+            except Exception as e:
+                print(f"Error parsing skill_vector: {e}")
+                skill_vector = {}
+        
+        print(f"Roadmap generation - session_id: {session_id}, skill_vector: {skill_vector}")
+        
+        # Get role requirements
+        cursor = db.execute('SELECT * FROM roles WHERE id = ?', (role_id,))
+        role = cursor.fetchone()
+        if not role:
+            db.close()
+            return jsonify({'error': 'Role not found'}), 404
+        
+        role_dict = dict(role)
+        required_skills = json.loads(role_dict['required_skills'])
+        
+        # Identify gaps
+        gaps = []
+        for skill, required_level in required_skills.items():
+            user_level = skill_vector.get(skill, 0)
+            # If skill_vector is empty (adaptive quiz without skill_mappings), assume user has 0 in all skills
+            if user_level < required_level:
+                gaps.append({
+                    'skill': skill,
+                    'current': user_level,
+                    'required': required_level,
+                    'gap': required_level - user_level
+                })
+        
+        # If no gaps found (user meets all requirements), show top skills as areas to maintain/improve
+        if not gaps and required_skills:
+            # Show top 3-5 required skills as learning areas
+            sorted_skills = sorted(required_skills.items(), key=lambda x: x[1], reverse=True)
+            for skill, required_level in sorted_skills[:5]:
+                gaps.append({
+                    'skill': skill,
+                    'current': required_level,
+                    'required': required_level,
+                    'gap': 0
+                })
+        
+        # Sort gaps by priority (largest gaps first)
+        gaps.sort(key=lambda x: x['gap'], reverse=True)
     
-    db = get_db()
-    
-    # Get user skill vector
-    cursor = db.execute('SELECT skill_vector FROM sessions WHERE id = ?', (session_id,))
-    session = cursor.fetchone()
-    
-    if not session or not session['skill_vector']:
-        db.close()
-        return jsonify({'error': 'Session not found or not completed'}), 400
-    
-    skill_vector = json.loads(session['skill_vector'])
-    
-    # Get role requirements
-    cursor = db.execute('SELECT * FROM roles WHERE id = ?', (role_id,))
-    role = cursor.fetchone()
-    if not role:
-        db.close()
-        return jsonify({'error': 'Role not found'}), 404
-    
-    role_dict = dict(role)
-    required_skills = json.loads(role_dict['required_skills'])
-    
-    # Identify gaps
-    gaps = []
-    for skill, required_level in required_skills.items():
-        user_level = skill_vector.get(skill, 0)
-        if user_level < required_level:
-            gaps.append({
-                'skill': skill,
-                'current': user_level,
-                'required': required_level,
-                'gap': required_level - user_level
+        # Get resources for skills
+        def get_resources(skill):
+            cursor = db.execute('SELECT * FROM resources WHERE skill = ? LIMIT 3', (skill,))
+            return [dict(row) for row in cursor.fetchall()]
+        
+        # Generate roadmap steps (3-5 steps)
+        num_steps = min(5, max(3, len(gaps)))
+        roadmap_steps = []
+        
+        for i in range(num_steps):
+            if i >= len(gaps):
+                break
+            gap = gaps[i]
+            resources = get_resources(gap['skill'])
+            roadmap_steps.append({
+                'step_number': i + 1,
+                'title': f'Improve {gap["skill"]}',
+                'description': f'Build your {gap["skill"]} skills from {gap["current"]:.1f} to {gap["required"]}',
+                'skill': gap['skill'],
+                'resources': [
+                    {
+                        'title': r['title'],
+                        'url': r['url'],
+                        'type': r['type'],
+                        'level': r['level']
+                    }
+                    for r in resources
+                ]
             })
-    
-    # Sort gaps by priority (largest gaps first)
-    gaps.sort(key=lambda x: x['gap'], reverse=True)
-    
-    # Get resources for skills
-    def get_resources(skill):
-        cursor = db.execute('SELECT * FROM resources WHERE skill = ? LIMIT 3', (skill,))
-        return [dict(row) for row in cursor.fetchall()]
-    
-    # Generate roadmap steps (3-5 steps)
-    num_steps = min(5, max(3, len(gaps)))
-    roadmap_steps = []
-    
-    for i in range(num_steps):
-        if i >= len(gaps):
-            break
-        gap = gaps[i]
-        resources = get_resources(gap['skill'])
-        roadmap_steps.append({
-            'step_number': i + 1,
-            'title': f'Improve {gap["skill"]}',
-            'description': f'Build your {gap["skill"]} skills from {gap["current"]:.1f} to {gap["required"]}',
-            'skill': gap['skill'],
-            'resources': [
-                {
-                    'title': r['title'],
-                    'url': r['url'],
-                    'type': r['type'],
-                    'level': r['level']
-                }
-                for r in resources
-            ]
+        
+        # Save roadmap
+        cursor = db.execute('''
+            INSERT INTO roadmaps (session_id, role_id)
+            VALUES (?, ?)
+        ''', (session_id, role_id))
+        roadmap_id = cursor.lastrowid
+        
+        # Save roadmap items
+        for step in roadmap_steps:
+            db.execute('''
+                INSERT INTO roadmap_items (roadmap_id, step_number, title, description, skill, resources)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                roadmap_id,
+                step['step_number'],
+                step['title'],
+                step['description'],
+                step['skill'],
+                json.dumps(step['resources'])
+            ))
+        
+        db.commit()
+        db.close()
+        
+        return jsonify({
+            'roadmap_id': roadmap_id,
+            'role': {
+                'id': role_dict['id'],
+                'name': role_dict['name'],
+                'description': role_dict['description']
+            },
+            'steps': roadmap_steps
         })
-    
-    # Save roadmap
-    cursor = db.execute('''
-        INSERT INTO roadmaps (session_id, role_id)
-        VALUES (?, ?)
-    ''', (session_id, role_id))
-    roadmap_id = cursor.lastrowid
-    
-    # Save roadmap items
-    for step in roadmap_steps:
-        db.execute('''
-            INSERT INTO roadmap_items (roadmap_id, step_number, title, description, skill, resources)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            roadmap_id,
-            step['step_number'],
-            step['title'],
-            step['description'],
-            step['skill'],
-            json.dumps(step['resources'])
-        ))
-    
-    db.commit()
-    db.close()
-    
-    return jsonify({
-        'roadmap_id': roadmap_id,
-        'role': {
-            'id': role_dict['id'],
-            'name': role_dict['name'],
-            'description': role_dict['description']
-        },
-        'steps': roadmap_steps
-    })
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"\n{'='*60}")
+        print(f"ERROR in generate_roadmap: {str(e)}")
+        print(f"{'='*60}")
+        print(error_trace)
+        print(f"{'='*60}\n")
+        if 'db' in locals():
+            try:
+                db.close()
+            except:
+                pass
+        return jsonify({
+            'error': f'Server error: {str(e)}',
+            'details': error_trace.split('\n')[-2] if error_trace else None
+        }), 500
 
 
 @app.route('/api/sessions/<session_id>/roadmap', methods=['GET'])
@@ -418,6 +489,48 @@ def load_adaptive_config():
     }
 
 
+def generate_skill_mappings_simple(question_text: str) -> dict:
+    """Generate skill mappings based on question content (simplified version)"""
+    mappings = {}
+    question_lower = question_text.lower()
+    
+    # Map questions to skills based on keywords
+    if any(word in question_lower for word in ['ui', 'interface', 'visual', 'design', 'layout']):
+        mappings['UI/UX Design'] = 0.8
+        mappings['Frontend Development'] = 0.5
+    
+    if any(word in question_lower for word in ['workflow', 'automate', 'prototype', 'optimize', 'performance']):
+        mappings['Problem Solving'] = 0.7
+        mappings['Backend Development'] = 0.4
+    
+    if any(word in question_lower for word in ['product', 'feature', 'priorit']):
+        mappings['Product Management'] = 0.6
+        mappings['Problem Solving'] = 0.4
+    
+    if any(word in question_lower for word in ['write', 'story', 'blog', 'explain', 'document']):
+        mappings['Technical Writing'] = 0.8
+        mappings['Communication'] = 0.5
+    
+    if any(word in question_lower for word in ['brainstorm', 'solution', 'problem', 'reasoning', 'analyze']):
+        mappings['Problem Solving'] = 0.7
+        mappings['Critical Thinking'] = 0.5
+    
+    if any(word in question_lower for word in ['data', 'outlier', 'statistic', 'analyze']):
+        mappings['Data Analysis'] = 0.8
+        mappings['Problem Solving'] = 0.5
+    
+    if any(word in question_lower for word in ['team', 'collaborate', 'discuss', 'group']):
+        mappings['Communication'] = 0.7
+        mappings['Teamwork'] = 0.5
+    
+    # Default mappings if none found
+    if not mappings:
+        mappings['Problem Solving'] = 0.5
+        mappings['Communication'] = 0.3
+    
+    return mappings
+
+
 def ensure_question_in_db(db, question_id: int, question_bank_path: Path = None):
     """Ensure a question exists in the database, loading from CSV if needed"""
     # Check if question exists
@@ -437,19 +550,23 @@ def ensure_question_in_db(db, question_id: int, question_bank_path: Path = None)
             reader = csv.DictReader(f)
             for q in reader:
                 if str(q.get('id')) == str(question_id):
-                    # Found the question, insert it
+                    # Found the question, generate skill mappings
+                    question_text = q.get('question', '')
+                    skill_mappings = generate_skill_mappings_simple(question_text)
+                    
+                    # Insert it with generated skill mappings
                     db.execute('''
                         INSERT OR IGNORE INTO questions 
                         (id, question, category, subcategory, answer_type, options, skill_mappings)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         int(q['id']),
-                        q.get('question', ''),
+                        question_text,
                         q.get('category', 'General'),
                         q.get('subcategory', 'General'),
                         q.get('answer_type', 'Likert5'),
                         q.get('options', ''),
-                        json.dumps({})  # Empty skill mappings for adaptive questions
+                        json.dumps(skill_mappings)  # Generate skill mappings
                     ))
                     db.commit()
                     return True
@@ -832,9 +949,33 @@ def submit_adaptive_answer(session_id):
                 if 'reasons' in job:
                     del job['reasons']
             
-            # Mark session complete
-            db.execute('UPDATE sessions SET completed_at = CURRENT_TIMESTAMP WHERE id = ?',
-                       (session_id,))
+            # Compute and store skill vector for roadmap generation (same as standard quiz)
+            # Get all answers for skill vector computation - use same format as standard quiz
+            cursor = db.execute('''
+                SELECT a.question_id, a.answer_value
+                FROM answers a
+                WHERE a.session_id = ?
+            ''', (session_id,))
+            all_answers = [dict(row) for row in cursor.fetchall()]
+            
+            print(f"Computing skill vector from {len(all_answers)} answers")
+            
+            # Compute skill vector from answers (same function as standard quiz)
+            try:
+                skill_vector = compute_skill_vector(all_answers, db)
+                print(f"Computed skill vector: {skill_vector}")
+            except Exception as e:
+                import traceback
+                print(f"Error computing skill vector: {e}")
+                print(traceback.format_exc())
+                skill_vector = {}  # Fallback to empty vector
+            
+            # Store skill vector and mark session complete (same as standard quiz)
+            db.execute('''
+                UPDATE sessions 
+                SET completed_at = CURRENT_TIMESTAMP, skill_vector = ?
+                WHERE id = ?
+            ''', (json.dumps(skill_vector), session_id))
             db.commit()
             db.close()
             

@@ -12,18 +12,29 @@ function Roadmap({ sessionId }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!sessionId) {
+    // Get session ID from localStorage (may have been updated by adaptive quiz)
+    const currentSessionId = localStorage.getItem('sessionId') || sessionId
+    
+    if (!currentSessionId) {
       navigate('/')
       return
     }
 
-    axios.get(`/api/sessions/${sessionId}/roadmap`)
+    console.log('Roadmap page - fetching roadmap for session:', currentSessionId)
+    axios.get(`/api/sessions/${currentSessionId}/roadmap`)
       .then(response => {
+        console.log('Roadmap loaded successfully:', response.data)
         setRoadmap(response.data)
         setLoading(false)
       })
       .catch(error => {
         console.error('Failed to load roadmap:', error)
+        console.error('Error details:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+          sessionId: currentSessionId
+        })
         setLoading(false)
       })
   }, [sessionId, navigate])
@@ -34,8 +45,11 @@ function Roadmap({ sessionId }) {
     try {
       await axios.patch(`/api/roadmap-items/${itemId}`, { status: newStatus })
       
+      // Get current session ID from localStorage
+      const currentSessionId = localStorage.getItem('sessionId') || sessionId
+      
       // Reload roadmap to get updated progress
-      const response = await axios.get(`/api/sessions/${sessionId}/roadmap`)
+      const response = await axios.get(`/api/sessions/${currentSessionId}/roadmap`)
       setRoadmap(response.data)
       showToast(
         newStatus === 'completed' ? 'Step marked as completed!' : 'Step marked as pending',

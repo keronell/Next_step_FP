@@ -14,6 +14,7 @@ function Results({ sessionId }) {
   const [comparisonMode, setComparisonMode] = useState(false)
   const [selectedForComparison, setSelectedForComparison] = useState([])
   const adaptiveResultsProcessed = useRef(false)
+  const [adaptiveSessionId, setAdaptiveSessionId] = useState(null)
 
   // Debug: log when results change
   useEffect(() => {
@@ -28,10 +29,15 @@ function Results({ sessionId }) {
   }, [results])
 
   useEffect(() => {
-    if (!sessionId) {
+    // Get session ID from localStorage (may have been updated by adaptive quiz)
+    const currentSessionId = localStorage.getItem('sessionId') || sessionId
+    
+    if (!currentSessionId) {
       navigate('/')
       return
     }
+    
+    console.log('Results page - using sessionId:', currentSessionId)
 
     // Prevent processing if we've already handled adaptive results
     if (adaptiveResultsProcessed.current) {
@@ -71,6 +77,13 @@ function Results({ sessionId }) {
           questions_answered: data.questions_answered
         }
         
+        // Store adaptive session ID if provided
+        if (data.session_id) {
+          setAdaptiveSessionId(data.session_id)
+          localStorage.setItem('sessionId', data.session_id)  // Update localStorage
+          console.log('Stored adaptive session ID:', data.session_id)
+        }
+        
         console.log('Setting results:', resultsData)
         // Remove from sessionStorage IMMEDIATELY to prevent re-triggering
         sessionStorage.removeItem('adaptiveResults')
@@ -88,8 +101,8 @@ function Results({ sessionId }) {
 
     // Only fetch standard quiz results if we don't have adaptive results
     // This should only run for standard quiz, not adaptive
-    console.log('Fetching standard quiz results for session:', sessionId)
-    axios.post(`/api/sessions/${sessionId}/compute`)
+    console.log('Fetching standard quiz results for session:', currentSessionId)
+    axios.post(`/api/sessions/${currentSessionId}/compute`)
       .then(response => {
         console.log('Standard quiz results received:', response.data)
         setResults(response.data)
@@ -104,11 +117,21 @@ function Results({ sessionId }) {
   const handleSelectRole = async (roleId) => {
     setSelectedRole(roleId)
     try {
-      await axios.post(`/api/sessions/${sessionId}/roadmap`, { role_id: roleId })
+      // Get current session ID - prefer adaptive session ID if available, then localStorage, then prop
+      const currentSessionId = adaptiveSessionId || localStorage.getItem('sessionId') || sessionId
+      console.log('Generating roadmap for session:', currentSessionId, 'role:', roleId)
+      console.log('Session ID sources - adaptiveSessionId:', adaptiveSessionId, 'localStorage:', localStorage.getItem('sessionId'), 'prop:', sessionId)
+      await axios.post(`/api/sessions/${currentSessionId}/roadmap`, { role_id: roleId })
       navigate('/roadmap')
     } catch (error) {
       console.error('Failed to generate roadmap:', error)
-      showToast('Failed to generate roadmap. Please try again.', 'error')
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error'
+      console.error('Roadmap error details:', {
+        message: errorMessage,
+        status: error.response?.status,
+        data: error.response?.data
+      })
+      showToast(`Failed to generate roadmap: ${errorMessage}`, 'error')
     }
   }
 

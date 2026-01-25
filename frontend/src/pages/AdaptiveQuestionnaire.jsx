@@ -54,10 +54,13 @@ function AdaptiveQuestionnaire({ sessionId }) {
         // Quiz is complete, navigate to results
         setCompleted(true)
         showToast('Quiz complete! Loading your results...', 'success')
-        // Store results in sessionStorage for Results page
+        // Get current session ID
+        const currentSessionId = localStorage.getItem('sessionId') || sessionId
+        // Store results in sessionStorage for Results page, including session ID
         sessionStorage.setItem('adaptiveResults', JSON.stringify({
           top_5_jobs: response.data.top_5_jobs,
-          questions_answered: response.data.questions_answered
+          questions_answered: response.data.questions_answered,
+          session_id: currentSessionId  // Store session ID for roadmap generation
         }))
         navigate('/results')
       } else {
