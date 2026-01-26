@@ -428,9 +428,28 @@
   box-shadow: 0 4px 15px rgba(91, 35, 255, 0.4);
 }
 
+.sidebar-question-item.current .sidebar-question-number,
+.sidebar-question-item.current .sidebar-question-status {
+  color: #eeeeee !important;
+  font-weight: 700;
+}
+
 .sidebar-question-item.answered {
   background: rgba(228, 255, 48, 0.2);
   border-color: rgba(228, 255, 48, 0.5);
+}
+
+.sidebar-question-item.current.answered {
+  background: linear-gradient(135deg, #5b23ff 0%, #008bff 100%);
+  border-color: rgba(228, 255, 48, 0.8);
+  box-shadow: 0 4px 15px rgba(91, 35, 255, 0.4), 0 0 0 2px rgba(228, 255, 48, 0.3);
+}
+
+.sidebar-question-item.current.answered .sidebar-question-number,
+.sidebar-question-item.current.answered .sidebar-question-status {
+  color: #ffffff !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .sidebar-question-item.skipped {
@@ -443,12 +462,14 @@
   font-size: 0.7rem;
   font-weight: 600;
   line-height: 1;
+  color: #362F4F;
 }
 
 .sidebar-question-status {
   font-size: 0.75rem;
   margin-top: 0.2rem;
   line-height: 1;
+  color: #362F4F;
 }
 
 .sidebar-progress {
