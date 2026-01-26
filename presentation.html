@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextStep Career Matcher - Final Project Presentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow: hidden;
+        }
+
+        .presentation-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .slide {
+            display: none;
+            width: 90%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 20px;
+            padding: 60px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideIn 0.5s ease;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .slide.active {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .slide h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            border-bottom: 4px solid #667eea;
+            padding-bottom: 15px;
+        }
+
+        .slide h2 {
+            color: #764ba2;
+            font-size: 2em;
+            margin: 30px 0 20px 0;
+        }
+
+        .slide h3 {
+            color: #555;
+            font-size: 1.5em;
+            margin: 25px 0 15px 0;
+        }
+
+        .slide ul, .slide ol {
+            margin: 20px 0;
+            padding-left: 40px;
+            line-height: 1.8;
+        }
+
+        .slide li {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        .slide p {
+            margin: 15px 0;
+            font-size: 1.1em;
+            line-height: 1.8;
+        }
+
+        .slide strong {
+            color: #667eea;
+        }
+
+        .problem-solution {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #667eea;
+        }
+
+        .algorithm-box {
+            background: #e8f4f8;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #764ba2;
+        }
+
+        .demo-box {
+            background: #fff3cd;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #ffc107;
+        }
+
+        .innovation-box {
+            background: #d4edda;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #28a745;
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            color: #667eea;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .nav-btn:active {
+            transform: translateY(0);
+        }
+
+        .slide-counter {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: #667eea;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 5px;
+            background: #667eea;
+            transition: width 0.3s;
+            z-index: 1001;
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .tech-stack {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .tech-item {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #28a745;
+        }
+
+        .result-card h4 {
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .key-point {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .formula {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            margin: 15px 0;
+            border: 2px solid #667eea;
+        }
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .slide {
+                padding: 30px;
+                width: 95%;
+            }
+
+            .slide h1 {
+                font-size: 1.8em;
+            }
+
+            .slide h2 {
+                font-size: 1.5em;
+            }
+
+            .navigation {
+                bottom: 15px;
+            }
+
+            .nav-btn {
+                padding: 10px 15px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar" id="progressBar"></div>
+    <div class="slide-counter" id="slideCounter">Slide 1 / 10</div>
+
+    <div class="presentation-container">
+        <!-- Slide 1: Overview -->
+        <div class="slide active">
+            <h1>NextStep Career Matcher</h1>
+            <h2>An Adaptive AI-Powered Career Assessment System</h2>
+            
+            <div class="problem-solution">
+                <h3>Problem Statement</h3>
+                <ul>
+                    <li>Career guidance is often generic and doesn't adapt to individual responses</li>
+                    <li>Traditional questionnaires ask fixed questions regardless of user profile</li>
+                    <li>Need for intelligent, personalized career matching</li>
+                </ul>
+            </div>
+
+            <div class="algorithm-box">
+                <h3>Solution</h3>
+                <ul>
+                    <li>Adaptive quiz system that eliminates jobs in real-time based on user answers</li>
+                    <li>AI-generated expert profiles for each career path</li>
+                    <li>Multi-label classification system for question understanding</li>
+                    <li>Personalized learning roadmaps based on skill gaps</li>
+                </ul>
+            </div>
+
+            <div class="tech-stack">
+                <div class="tech-item">Python/Flask</div>
+                <div class="tech-item">React</div>
+                <div class="tech-item">SQLite</div>
+                <div class="tech-item">Sentence-BERT</div>
+                <div class="tech-item">Qwen-2.5-Coder</div>
+            </div>
+
+            <p style="margin-top: 30px; font-size: 1.2em; text-align: center; color: #667eea;">
+                <strong>Today I'll show you how we use information theory, semantic embeddings, and AI to create an adaptive assessment that reduces quiz length by 40-50% while improving accuracy.</strong>
+            </p>
+        </div>
+
+        <!-- Slide 2: Architecture -->
+        <div class="slide">
+            <h1>Core Architecture & Data Flow</h1>
+            
+            <div class="key-point">
+                <h3>1. Structured Question Bank (1,702 questions)</h3>
+                <ul>
+                    <li>Transformer-based multi-label classification pipeline</li>
+                    <li>40 abstract labels (Interest/Task, Personality/Trait, Technical Orientation)</li>
+                    <li>Automated labeling with metadata, rules, and embedding propagation</li>
+                </ul>
+            </div>
+
+            <div class="key-point">
+                <h3>2. Expert Persona Simulation</h3>
+                <ul>
+                    <li>10 LLM Agents (Qwen-2.5-Coder) act as "Expert Role-Players"</li>
+                    <li>Each agent answers all questions from their specific role's perspective</li>
+                    <li>Establishes "Ground Truth" dense profiles for each career path</li>
+                </ul>
+            </div>
+
+            <div class="key-point">
+                <h3>3. Semantic Embedding Engine (Sentence-BERT)</h3>
+                <ul>
+                    <li>Sentence-BERT with Siamese Network architecture</li>
+                    <li>Converts raw answers into 384-dimensional dense vectors</li>
+                    <li>Captures semantic meaning beyond keywords</li>
+                </ul>
+            </div>
+
+            <div class="key-point">
+                <h3>4. Adaptive Matching & Scoring</h3>
+                <ul>
+                    <li>Cosine Similarity between User Vector (U) and Expert Vectors (E)</li>
+                    <li>Real-time job elimination and dynamic question selection</li>
+                    <li>Adaptive stopping once statistically significant match is identified</li>
+                </ul>
+            </div>
+
+            <div class="key-point">
+                <h3>5. Gap Analysis & Roadmap</h3>
+                <ul>
+                    <li>Vector subtraction (ΔV = E - U) to isolate missing competencies</li>
+                    <li>Algorithmic curation of resources to bridge identified skill gaps</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 3: Multi-Label Classification -->
+        <div class="slide">
+            <h1>Algorithm 1: Multi-Label Question Classification</h1>
+            
+            <div class="problem-solution">
+                <h3>Problem</h3>
+                <p>Need to understand what each question measures without manual annotation</p>
+            </div>
+
+            <div class="algorithm-box">
+                <h3>Transformer-Based Multi-Label Classification Pipeline</h3>
+                
+                <h4>1. Metadata-Based Labeling (Confidence: 0.6-0.9)</h4>
+                <ul>
+                    <li>Uses existing question metadata (categories, subcategories, tags)</li>
+                    <li>Maps these to our 40-label ontology</li>
+                    <li>Example: "UI Design" category → <code>INTEREST_UI_DESIGN</code> label</li>
+                </ul>
+
+                <h4>2. Rule-Based Labeling (Confidence: 0.7-0.8)</h4>
+                <ul>
+                    <li>Analyzes question text for keywords and phrases</li>
+                    <li>Each label has associated keywords</li>
+                    <li>Example: "data pipeline" → <code>INTEREST_DATA_PIPELINES</code></li>
+                </ul>
+
+                <h4>3. Embedding-Based Propagation (Confidence: 0.7)</h4>
+                <ul>
+                    <li>Uses Sentence-BERT for semantic similarity to find similar questions</li>
+                    <li>Propagates labels from high-confidence questions to similar ones</li>
+                    <li>Handles edge cases and variations in wording</li>
+                </ul>
+            </div>
+
+            <div class="demo-box">
+                <h3>Visual Demo</h3>
+                <p>Show labeled question example with multiple labels highlighted, demonstrating traceability</p>
+            </div>
+
+            <div class="innovation-box">
+                <p><strong>Result:</strong> 100% coverage, average 5.48 labels per question</p>
+                <p><strong>Key Innovation:</strong> Fully automated, explainable, and traceable labeling without manual per-question annotation</p>
+            </div>
+        </div>
+
+        <!-- Slide 4: Expert Answer Generation -->
+        <div class="slide">
+            <h1>Algorithm 2: Expert Answer Generation via AI Agents</h1>
+            
+            <div class="problem-solution">
+                <h3>Problem</h3>
+                <p>Need baseline answers representing how experts in each role would respond</p>
+            </div>
+
+            <div class="algorithm-box">
+                <h3>Expert Persona Simulation with LLM Agents</h3>
+                <p>10 LLM Agents (Qwen-2.5-Coder) act as "Expert Role-Players" for each career path.</p>
+                
+                <h4>Agent Logic:</h4>
+                <ol>
+                    <li><strong>Context Construction:</strong> Each agent is primed with role-specific context - "You are an expert Frontend Developer" with job description and key skills</li>
+                    <li><strong>Data Generation:</strong> Agents answer all 1,702 questions from their specific role's perspective</li>
+                    <li><strong>Benchmark Creation:</strong> Establishes "Ground Truth" dense profiles for each career path</li>
+                    <li><strong>Structured Output:</strong> AI generates answers in consistent format for comparison</li>
+                    <li><strong>Normalization:</strong> All answers normalized to 0-1 scale:
+                        <ul>
+                            <li>Likert scales (1-5) → 0-1</li>
+                            <li>Multiple choice → proportional values</li>
+                            <li>Numeric answers → scaled appropriately</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="demo-box">
+                <h3>Visual Demo</h3>
+                <p><strong>Question:</strong> "Do you enjoy working with visual interfaces?"</p>
+                <ul>
+                    <li>Frontend Developer expert: <span class="highlight">"5"</span> (strongly agree)</li>
+                    <li>Data Engineer expert: <span class="highlight">"2"</span> (disagree)</li>
+                </ul>
+                <p>This difference enables elimination!</p>
+            </div>
+
+            <div class="innovation-box">
+                <p><strong>Result:</strong> 10 jobs × 1,702 questions = <span class="highlight">17,020 expert answers</span></p>
+                <p><strong>Key Innovation:</strong> Cost-effective generation using local LLMs (Qwen-2.5-Coder) with structured output guarantees</p>
+            </div>
+        </div>
+
+        <!-- Slide 5: Adaptive Quiz -->
+        <div class="slide">
+            <h1>Algorithm 3: Adaptive Quiz with Real-Time Job Elimination</h1>
+            <p style="text-align: center; font-size: 1.3em; color: #667eea; margin-bottom: 30px;">⭐ <strong>CORE ALGORITHM</strong></p>
+            
+            <div class="problem-solution">
+                <h3>Problem</h3>
+                <p>Traditional quizzes ask all questions regardless of user profile</p>
+            </div>
+
+            <div class="demo-box">
+                <h3>Visual Demo - Live Walkthrough</h3>
+                <ol>
+                    <li>Start with 10 jobs displayed on screen</li>
+                    <li>User answers: "I enjoy working with visual interfaces" → Answer: 5</li>
+                    <li>Show similarity scores (via cosine similarity):
+                        <ul>
+                            <li>Frontend Developer: <span class="highlight">0.95</span> (very similar)</li>
+                            <li>Data Engineer: <span class="highlight">0.20</span> (very different)</li>
+                            <li>UX Designer: <span class="highlight">0.90</span> (very similar)</li>
+                        </ul>
+                    </li>
+                    <li>Eliminate jobs below threshold (0.3) - Data Engineer eliminated</li>
+                    <li>Next question selected based on variance - picks question that best differentiates remaining jobs</li>
+                    <li>Continue until 5 jobs remain</li>
+                </ol>
+            </div>
+
+            <div class="algorithm-box">
+                <h3>Algorithm Explanation</h3>
+                
+                <h4>Phase 1: Warmup (First 3 Questions)</h4>
+                <p>Collect baseline answers without eliminating anything. All 10 jobs remain active.</p>
+
+                <h4>Phase 2: Elimination After Each Answer</h4>
+                <ul>
+                    <li><strong>Semantic Embedding:</strong> User answers converted to 384-dimensional vectors using Sentence-BERT</li>
+                    <li><strong>Cosine Similarity:</strong> Compute similarity between User Vector (U) and Expert Vectors (E)</li>
+                    <li><strong>Metric:</strong> <code>cos(θ) = (U · E) / (||U|| × ||E||)</code></li>
+                    <li><strong>Job Scoring:</strong> Average similarity scores across all answered questions</li>
+                    <li><strong>Elimination Threshold:</strong> Jobs with average similarity below 0.3 are eliminated</li>
+                </ul>
+                <p><strong>Why Cosine Similarity:</strong> Captures semantic meaning beyond keywords (e.g., matching "logic design" to "backend architecture")</p>
+
+                <h4>Phase 3: Intelligent Question Selection</h4>
+                <p><strong>Variance-Based Selection:</strong> Select question with highest variance in expert answers across remaining jobs</p>
+                <p><strong>Why Variance Works:</strong> High variance = question distinguishes well between jobs. This is an information-theoretic approach - maximize information gain per question.</p>
+            </div>
+
+            <div class="innovation-box">
+                <p><strong>Stop Conditions:</strong> ≤5 jobs remaining OR 20 questions answered OR early stop (≤7 jobs AND ≥10 questions)</p>
+                <p><strong>Key Innovation:</strong> Information-theoretic question selection with semantic embeddings maximizes differentiation per question, <span class="highlight">reducing quiz length by 40-50%</span></p>
+            </div>
+        </div>
+
+        <!-- Slide 6: Skill Vector -->
+        <div class="slide">
+            <h1>Algorithm 4: Semantic Embedding Engine & Role Matching</h1>
+            
+            <div class="problem-solution">
+                <h3>Problem</h3>
+                <p>Convert diverse answer types into semantic representations for accurate matching</p>
+            </div>
+
+            <div class="algorithm-box">
+                <h3>Sentence-BERT Embedding Engine</h3>
+                
+                <h4>Architecture: Siamese Network</h4>
+                <ul>
+                    <li><strong>Model:</strong> Sentence-BERT (S-BERT) with Siamese Network architecture</li>
+                    <li><strong>Function:</strong> Converts raw answers into 384-dimensional dense vectors</li>
+                    <li><strong>Impact:</strong> Captures semantic meaning beyond keywords</li>
+                    <li><strong>Example:</strong> Matches "logic design" to "backend architecture" semantically</li>
+                </ul>
+
+                <h4>User Vector Computation</h4>
+                <ul>
+                    <li>Each user answer is embedded using Sentence-BERT</li>
+                    <li>Answers are aggregated to form User Vector (U)</li>
+                    <li>Vector represents user's semantic profile across all dimensions</li>
+                    <li><strong>Result:</strong> 384-dimensional dense vector capturing user's semantic profile</li>
+                </ul>
+
+                <h4>Role Matching with Cosine Similarity</h4>
+                <ul>
+                    <li><strong>Metric:</strong> Cosine Similarity between User Vector (U) and Expert Vectors (E)</li>
+                    <li>Each expert role has a pre-computed semantic vector from their answers</li>
+                    <li>Compute similarity: <code>cos(θ) = (U · E) / (||U|| × ||E||)</code></li>
+                    <li>Higher similarity = better match</li>
+                    <li><strong>Final score:</strong> Cosine similarity converted to percentage (0-100%)</li>
+                </ul>
+                <div class="formula">
+                    <strong>Cosine Similarity Formula:</strong><br>
+                    cos(θ) = (U · E) / (||U|| × ||E||)
+                </div>
+            </div>
+
+            <div class="demo-box">
+                <h3>Visual Demo</h3>
+                <p>Show Sentence-BERT converting answers to 384-dimensional vectors, then cosine similarity computation between user and expert vectors. Display top 5 roles with match scores.</p>
+            </div>
+
+            <div class="innovation-box">
+                <p><strong>Key Innovation:</strong> Semantic embedding captures meaning beyond keywords, enabling accurate matching even when terminology differs</p>
+            </div>
+        </div>
+
+        <!-- Slide 7: Roadmap Generation -->
+        <div class="slide">
+            <h1>Algorithm 5: Roadmap Generation with Gap Analysis</h1>
+            
+            <div class="problem-solution">
+                <h3>Problem</h3>
+                <p>Users need actionable learning paths, not just role recommendations</p>
+            </div>
+
+            <div class="algorithm-box">
+                <h3>Gap Analysis with Vector Subtraction</h3>
+                
+                <h4>Step 1: Gap Identification via Vector Subtraction</h4>
+                <p><strong>Formula:</strong> ΔV = E - U (Expert Vector minus User Vector)</p>
+                <ul>
+                    <li>Compare user's semantic vector (U) to expert role's vector (E)</li>
+                    <li>Vector subtraction isolates missing competencies</li>
+                    <li>Each dimension represents a skill gap</li>
+                    <li>Larger differences indicate bigger learning needs</li>
+                </ul>
+                <div class="formula">
+                    <strong>Gap Analysis Formula:</strong><br>
+                    ΔV = E - U
+                </div>
+                <p>Example: User has 2.0 in "Frontend Development", role requires 4.0 → gap of 2.0</p>
+
+                <h4>Step 2: Prioritization</h4>
+                <p>Sort gaps by magnitude (largest first). These represent the biggest learning needs. Select top 3-5 gaps for roadmap steps.</p>
+
+                <h4>Step 3: Resource Curation</h4>
+                <p>For each gap, query resource database. Find learning resources (tutorials, courses, documentation) for that specific skill. Limit to 3 best resources per step.</p>
+
+                <h4>Step 4: Step Generation</h4>
+                <p>Create actionable steps with clear titles and descriptions. Each step shows: current level → target level with curated resources.</p>
+            </div>
+
+            <div class="demo-box">
+                <h3>Visual Demo</h3>
+                <p><strong>User selected:</strong> "Frontend Developer" (match: 85%)</p>
+                <p><strong>Skill gaps:</strong> Frontend Dev: 2.0 → 4.0, React: 1.0 → 3.5</p>
+                <p><strong>Generated roadmap:</strong></p>
+                <ul>
+                    <li>Step 1: Improve Frontend Development (2.0 → 4.0)
+                        <ul>
+                            <li>Resource: "React Tutorial" (Beginner)</li>
+                            <li>Resource: "CSS Fundamentals" (Beginner)</li>
+                        </ul>
+                    </li>
+                    <li>Step 2: Learn React Framework (1.0 → 3.5)
+                        <ul>
+                            <li>Resource: "React Official Docs" (Intermediate)</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="innovation-box">
+                <p><strong>Key Innovation:</strong> Vector subtraction (ΔV = E - U) enables precise gap identification for prioritized, skill-specific learning paths</p>
+            </div>
+        </div>
+
+        <!-- Slide 8: Technical Implementation -->
+        <div class="slide">
+            <h1>Technical Implementation Highlights</h1>
+            
+            <div class="results-grid">
+                <div class="result-card">
+                    <h4>Efficient Data Structures</h4>
+                    <p>Pre-computed lookup tables for expert answers. O(1) lookup during quiz - critical for real-time elimination.</p>
+                </div>
+
+                <div class="result-card">
+                    <h4>Async Processing</h4>
+                    <p>Expert answer generation uses parallel processing. 4 concurrent AI requests instead of sequential. Reduces generation time from hours to minutes.</p>
+                </div>
+
+                <div class="result-card">
+                    <h4>Sentence-BERT Integration</h4>
+                    <p>384-dimensional embeddings computed efficiently. Siamese network architecture enables fast semantic similarity computation.</p>
+                </div>
+
+                <div class="result-card">
+                    <h4>Database Design</h4>
+                    <p>Normalized schema ensures data integrity. JSON columns for flexible data. Indexed lookups for fast retrieval.</p>
+                </div>
+
+                <div class="result-card">
+                    <h4>Checkpoint System</h4>
+                    <p>Expert answer generation is resumable. Progress saved every 50 responses. Can resume from last checkpoint if interrupted.</p>
+                </div>
+            </div>
+
+            <div class="innovation-box" style="margin-top: 30px;">
+                <h3>Scalability Results</h3>
+                <ul>
+                    <li>Question bank: <span class="highlight">1,702 questions</span> processed</li>
+                    <li>Expert answers: <span class="highlight">17,020 entries</span> generated</li>
+                    <li>Embedding dimension: <span class="highlight">384-dimensional</span> vectors</li>
+                    <li>Processing time: <span class="highlight"><5 seconds</span> for labeling, ~30-60s for embeddings</li>
+                    <li>Quiz runtime: Real-time elimination with <span class="highlight"><100ms</span> per question</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 9: Key Innovations -->
+        <div class="slide">
+            <h1>Key Innovations & Contributions</h1>
+            
+            <div class="key-point">
+                <h3>1. Adaptive Elimination Algorithm</h3>
+                <ul>
+                    <li>Real-time job elimination based on similarity</li>
+                    <li>Reduces questions needed by 40-50%</li>
+                    <li>Information-theoretic question selection</li>
+                </ul>
+            </div>
+
+            <div class="key-point">
+                <h3>2. Multi-Label Classification Pipeline</h3>
+                <ul>
+                    <li>Fully automated labeling (100% coverage)</li>
+                    <li>Three-strategy approach (metadata, rules, embeddings)</li>
+                    <li>Explainable and traceable labels</li>
+                </ul>
+            </div>
+
+            <div class="key-point">
+                <h3>3. AI Agent-Based Expert Simulation</h3>
+                <ul>
+                    <li>Cost-effective using local LLMs (Ollama)</li>
+                    <li>Structured output guarantees</li>
+                    <li>Scalable to any number of roles</li>
+                </ul>
+            </div>
+
+            <div class="key-point">
+                <h3>4. Semantic Embedding with Sentence-BERT</h3>
+                <ul>
+                    <li>384-dimensional dense vector representations</li>
+                    <li>Captures semantic meaning beyond keywords</li>
+                    <li>Cosine similarity for accurate matching</li>
+                </ul>
+            </div>
+
+            <div class="key-point">
+                <h3>5. Gap-Based Roadmap Generation</h3>
+                <ul>
+                    <li>Vector subtraction (ΔV = E - U) to isolate gaps</li>
+                    <li>Prioritized learning paths</li>
+                    <li>Skill-specific resource curation</li>
+                    <li>Actionable, personalized guidance</li>
+                </ul>
+            </div>
+
+            <div class="innovation-box" style="margin-top: 30px;">
+                <h3>Academic Contribution</h3>
+                <ul>
+                    <li>Novel application of adaptive testing to career assessment</li>
+                    <li>Information-theoretic question selection</li>
+                    <li>Semantic embedding (Sentence-BERT) for user-expert matching</li>
+                    <li>Multi-label classification with Transformer-based pipeline</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 10: Results & Future Work -->
+        <div class="slide">
+            <h1>Results & Future Work</h1>
+            
+            <div class="results-grid">
+                <div class="result-card">
+                    <h4>✅ Results</h4>
+                    <ul>
+                        <li>100% question coverage with multi-label classification</li>
+                        <li>Adaptive quiz reduces questions by 40-50%</li>
+                        <li>10 job roles with expert profiles</li>
+                        <li>384-dimensional semantic embeddings</li>
+                        <li>Personalized roadmaps with skill gap analysis</li>
+                    </ul>
+                </div>
+
+                <div class="result-card">
+                    <h4>🔮 Future Enhancements</h4>
+                    <ul>
+                        <li>Expand to 22+ job roles</li>
+                        <li>Fine-tune Sentence-BERT on career domain</li>
+                        <li>Machine learning-based matching refinement</li>
+                        <li>User feedback loop for answer quality</li>
+                        <li>Integration with learning platforms</li>
+                        <li>A/B testing for threshold optimization</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="innovation-box" style="margin-top: 30px; text-align: center;">
+                <h2>Conclusion</h2>
+                <p style="font-size: 1.2em; margin-top: 20px;">
+                    Successfully implemented adaptive, AI-powered career assessment.<br>
+                    Demonstrated practical application of information theory, semantic embeddings, and multi-label classification.<br>
+                    Scalable architecture supporting future enhancements.
+                </p>
+            </div>
+
+            <p style="text-align: center; margin-top: 40px; font-size: 1.5em; color: #667eea;">
+                <strong>Thank You!</strong>
+            </p>
+        </div>
+    </div>
+
+    <div class="navigation">
+        <button class="nav-btn" onclick="previousSlide()">← Previous</button>
+        <button class="nav-btn" onclick="nextSlide()">Next →</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        function updateSlide() {
+            slides.forEach((slide, index) => {
+                slide.classList.toggle('active', index === currentSlide);
+            });
+            
+            document.getElementById('slideCounter').textContent = `Slide ${currentSlide + 1} / ${totalSlides}`;
+            document.getElementById('progressBar').style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlide();
+            }
+        }
+
+        function previousSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlide();
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                previousSlide();
+            }
+        });
+
+        // Initialize
+        updateSlide();
+    </script>
+</body>
+</html>
