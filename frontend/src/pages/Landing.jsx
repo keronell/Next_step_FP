@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useToast } from '../components/ToastContainer'
@@ -6,8 +7,19 @@ import './Landing.css'
 function Landing({ setSessionId }) {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const [showModal, setShowModal] = useState(false)
+  const [isStarting, setIsStarting] = useState(false)
+
+  const handleStartClick = () => {
+    setShowModal(true)
+  }
+
+  const handleCloseModal = () => {
+    setShowModal(false)
+  }
 
   const handleStart = async () => {
+    setIsStarting(true)
     try {
       const response = await axios.post('/api/sessions')
       const sessionId = response.data.session_id
@@ -18,6 +30,7 @@ function Landing({ setSessionId }) {
     } catch (error) {
       console.error('Failed to start session:', error)
       showToast('Failed to start session. Please try again.', 'error')
+      setIsStarting(false)
     }
   }
 
@@ -36,11 +49,45 @@ function Landing({ setSessionId }) {
           Answer 10 questions about your skills, interests, and work style to get matched
           with the top 5 tech roles that fit you best, plus a personalized learning roadmap.
         </p>
-        <button className="start-button" onClick={handleStart}>
+        <button className="start-button" onClick={handleStartClick}>
           <span>Start Assessment</span>
         </button>
         </div>
       </div>
+      
+      {showModal && (
+        <div className="landing-modal-overlay" onClick={handleCloseModal}>
+          <div className="landing-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={handleCloseModal}>×</button>
+            <div className="modal-content">
+              <h2>Ready to Start?</h2>
+              <p>You're about to begin a 10-question assessment that will help us match you with the best tech career roles.</p>
+              <div className="modal-info">
+                <div className="modal-info-item">
+                  <span className="modal-icon">⏱️</span>
+                  <span>Takes about 5-10 minutes</span>
+                </div>
+                <div className="modal-info-item">
+                  <span className="modal-icon">📝</span>
+                  <span>10 questions total</span>
+                </div>
+                <div className="modal-info-item">
+                  <span className="modal-icon">🎯</span>
+                  <span>Get matched with top 5 roles</span>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button className="modal-button secondary" onClick={handleCloseModal} disabled={isStarting}>
+                  Cancel
+                </button>
+                <button className="modal-button primary" onClick={handleStart} disabled={isStarting}>
+                  {isStarting ? 'Starting...' : 'Start Assessment'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="landing-features">
         <div className="feature-item">

@@ -78,21 +78,24 @@
 .roadmap-action-button {
   font-family: 'Inter', sans-serif;
   font-size: 0.9rem;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  background: rgba(238, 238, 238, 0.1);
+  font-weight: 600;
+  padding: 0.625rem 1.25rem;
+  background: rgba(238, 238, 238, 0.95);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(91, 35, 255, 0.3);
-  border-radius: 8px;
-  color: #EEEEEE;
+  border: 2px solid rgba(91, 35, 255, 0.5);
+  border-radius: 10px;
+  color: #362F4F;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .roadmap-action-button:hover {
-  background: rgba(91, 35, 255, 0.2);
-  border-color: rgba(91, 35, 255, 0.5);
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  border-color: transparent;
+  color: #EEEEEE;
   transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(91, 35, 255, 0.4);
 }
 
 .roadmap-header {

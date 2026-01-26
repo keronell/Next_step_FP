@@ -12,6 +12,9 @@ function Questionnaire({ sessionId }) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState({})
   const [loading, setLoading] = useState(true)
+  const [showSidebar, setShowSidebar] = useState(true)
+  const [showReview, setShowReview] = useState(false)
+  const [skippedQuestions, setSkippedQuestions] = useState(new Set())
 
   useEffect(() => {
     if (!sessionId) {
@@ -42,19 +45,45 @@ function Questionnaire({ sessionId }) {
       })
 
       setAnswers({ ...answers, [question.id]: value })
+      setSkippedQuestions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(question.id)
+        return newSet
+      })
 
       if (currentIndex < questions.length - 1) {
         setCurrentIndex(currentIndex + 1)
       } else {
-        // All questions answered, compute results
-        await computeResults()
+        // All questions answered, show review
+        setShowReview(true)
       }
     } catch (error) {
       console.error('Failed to submit answer:', error)
     }
   }
 
-  const computeResults = async () => {
+  const handlePrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1)
+    }
+  }
+
+  const handleSkip = () => {
+    const question = questions[currentIndex]
+    setSkippedQuestions(prev => new Set(prev).add(question.id))
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1)
+    } else {
+      setShowReview(true)
+    }
+  }
+
+  const handleGoToQuestion = (index) => {
+    setCurrentIndex(index)
+    setShowReview(false)
+  }
+
+  const handleSubmitReview = async () => {
     try {
       showToast('Computing your results...', 'info', 2000)
       await axios.post(`/api/sessions/${sessionId}/compute`)
@@ -63,6 +92,35 @@ function Questionnaire({ sessionId }) {
     } catch (error) {
       console.error('Failed to compute results:', error)
       showToast('Failed to compute results. Please try again.', 'error')
+    }
+  }
+
+  const handleEditAnswer = (index) => {
+    setCurrentIndex(index)
+    setShowReview(false)
+  }
+
+  const getAnswerDisplay = (question, answer) => {
+    if (!answer && answer !== 0) return 'Not answered'
+    
+    switch (question.answer_type) {
+      case 'Likert5':
+        const labels = {
+          1: 'Strongly disagree',
+          2: 'Disagree',
+          3: 'Neutral',
+          4: 'Agree',
+          5: 'Strongly agree'
+        }
+        return `${answer} - ${labels[answer]}`
+      case 'SingleChoice':
+        return answer
+      case 'MultiChoice':
+        return Array.isArray(answer) ? answer.join(', ') : answer
+      case 'Numeric':
+        return answer.toString()
+      default:
+        return answer?.toString() || 'Not answered'
     }
   }
 
@@ -154,13 +212,23 @@ function Questionnaire({ sessionId }) {
               min="0"
               value={answers[question.id] || ''}
               onChange={(e) => setAnswers({ ...answers, [question.id]: parseInt(e.target.value) || 0 })}
-              onBlur={() => handleAnswer(answers[question.id] || 0)}
+              onBlur={async () => {
+                const value = answers[question.id]
+                if (value !== undefined && value !== null && value !== '' && value !== 0) {
+                  await handleAnswer(value)
+                }
+              }}
             />
-            <button className="submit-numeric" onClick={() => {
-              if (currentIndex < questions.length - 1) {
-                setCurrentIndex(currentIndex + 1)
+            <button className="submit-numeric" onClick={async () => {
+              const value = answers[question.id] || 0
+              if (value !== undefined && value !== null && value !== '') {
+                await handleAnswer(value)
               } else {
-                computeResults()
+                if (currentIndex < questions.length - 1) {
+                  setCurrentIndex(currentIndex + 1)
+                } else {
+                  setShowReview(true)
+                }
               }
             }}>
               Next
@@ -173,8 +241,92 @@ function Questionnaire({ sessionId }) {
     }
   }
 
+  if (showReview) {
+    return (
+      <div className="questionnaire">
+        <div className="questionnaire-container review-container">
+          <h1 className="review-title">Review Your Answers</h1>
+          <p className="review-subtitle">Please review all your answers before submitting</p>
+          
+          <div className="review-questions">
+            {questions.map((q, index) => {
+              const answer = answers[q.id]
+              const isSkipped = skippedQuestions.has(q.id)
+              return (
+                <div key={q.id} className="review-question-item">
+                  <div className="review-question-header">
+                    <span className="review-question-number">Question {index + 1}</span>
+                    {isSkipped && <span className="review-skipped-badge">Skipped</span>}
+                  </div>
+                  <h3 className="review-question-text">{q.question}</h3>
+                  <div className="review-answer">
+                    <strong>Your Answer:</strong> {isSkipped ? 'Skipped' : getAnswerDisplay(q, answer)}
+                  </div>
+                  <button 
+                    className="review-edit-button"
+                    onClick={() => handleEditAnswer(index)}
+                  >
+                    Edit Answer
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="review-actions">
+            <button className="review-button secondary" onClick={() => setShowReview(false)}>
+              Back to Questions
+            </button>
+            <button className="review-button primary" onClick={handleSubmitReview}>
+              Submit Assessment
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="questionnaire">
+      <button 
+        className="sidebar-toggle"
+        onClick={() => setShowSidebar(!showSidebar)}
+        aria-label="Toggle sidebar"
+      >
+        {showSidebar ? '◀' : '▶'}
+      </button>
+
+      {showSidebar && (
+        <div className="questionnaire-sidebar">
+          <h3 className="sidebar-title">Questions</h3>
+          <div className="sidebar-questions">
+            {questions.map((q, index) => {
+              const isAnswered = answers[q.id] !== undefined && answers[q.id] !== null && answers[q.id] !== ''
+              const isSkipped = skippedQuestions.has(q.id)
+              const isCurrent = index === currentIndex
+              
+              return (
+                <button
+                  key={q.id}
+                  className={`sidebar-question-item ${isCurrent ? 'current' : ''} ${isAnswered ? 'answered' : ''} ${isSkipped ? 'skipped' : ''}`}
+                  onClick={() => handleGoToQuestion(index)}
+                >
+                  <span className="sidebar-question-number">{index + 1}</span>
+                  <span className="sidebar-question-status">
+                    {isSkipped ? '⏭️' : isAnswered ? '✓' : '○'}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="sidebar-progress">
+            <div className="sidebar-progress-text">
+              {Object.keys(answers).filter(id => answers[id] !== undefined && answers[id] !== null && answers[id] !== '').length} / {questions.length} answered
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="questionnaire-container">
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${progress}%` }}></div>
@@ -191,6 +343,21 @@ function Questionnaire({ sessionId }) {
           )}
           <div className="question-input">
             {renderQuestionInput()}
+          </div>
+          <div className="question-actions">
+            <button 
+              className="question-action-button secondary"
+              onClick={handlePrevious}
+              disabled={currentIndex === 0}
+            >
+              ← Previous
+            </button>
+            <button 
+              className="question-action-button secondary"
+              onClick={handleSkip}
+            >
+              Skip Question
+            </button>
           </div>
         </div>
       </div>
