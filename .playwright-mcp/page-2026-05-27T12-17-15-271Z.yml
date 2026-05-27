@@ -1,0 +1,90 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "The Next Step Career Discovery" [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: The Next Step
+        - generic [ref=e8]: Career Discovery
+      - navigation [ref=e9]:
+        - button "Home" [ref=e10] [cursor=pointer]: Home
+        - button "How It Works" [ref=e11] [cursor=pointer]: How It Works
+        - button "Assessment" [ref=e12] [cursor=pointer]: Assessment
+        - button "Start Assessment" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+          - text: Start Assessment
+  - main [ref=e16]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - img [ref=e20]
+          - generic [ref=e22]: Career Discovery Platform
+        - heading "Discover Your Next Step" [level=1] [ref=e23]:
+          - text: Discover Your
+          - text: Next Step
+        - paragraph [ref=e24]: Answer 10 thoughtful questions and get matched with your ideal tech career — plus a clear, personalized learning roadmap to get there.
+        - generic [ref=e25]:
+          - button "Start Assessment" [ref=e26] [cursor=pointer]:
+            - img [ref=e27]
+            - text: Start Assessment
+          - button "See how it works" [ref=e29] [cursor=pointer]:
+            - text: See how it works
+            - img [ref=e30]
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34]: A
+            - generic [ref=e35]: B
+            - generic [ref=e36]: C
+          - paragraph [ref=e37]: Join thousands of tech learners finding their path
+      - img [ref=e40]
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - paragraph [ref=e45]: How It Works
+        - heading "Three steps to clarity" [level=2] [ref=e46]
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - generic [ref=e50]: "01"
+          - img [ref=e52]
+          - heading "Answer 10 Questions" [level=3] [ref=e55]
+          - paragraph [ref=e56]: Tell us about your skills, interests, and work style through a quick, thoughtfully designed quiz.
+        - generic [ref=e58]:
+          - generic [ref=e59]: "02"
+          - img [ref=e61]
+          - heading "Get Matched" [level=3] [ref=e63]
+          - paragraph [ref=e64]: Our scoring engine analyzes your answers and surfaces your top 3 tech career matches — with percentage fit.
+        - generic [ref=e66]:
+          - generic [ref=e67]: "03"
+          - img [ref=e69]
+          - heading "Follow Your Roadmap" [level=3] [ref=e71]
+          - paragraph [ref=e72]: Explore a visual learning tree for your chosen career, from beginner concepts to advanced mastery.
+    - generic [ref=e78]:
+      - paragraph [ref=e79]: Career Assessment
+      - heading "Find your ideal tech career" [level=2] [ref=e80]:
+        - text: Find your ideal
+        - text: tech career
+      - paragraph [ref=e81]: 10 questions · 3–5 minutes · No signup required
+      - generic [ref=e82]:
+        - generic [ref=e83]: Skills & interests
+        - generic [ref=e84]: Work style
+        - generic [ref=e85]: Personality fit
+        - generic [ref=e86]: Personalized match
+      - button "Begin Assessment" [ref=e87] [cursor=pointer]:
+        - img [ref=e88]
+        - text: Begin Assessment
+        - img [ref=e90]
+  - contentinfo [ref=e92]:
+    - generic [ref=e93]:
+      - generic [ref=e94]:
+        - generic [ref=e95]:
+          - button "The Next Step" [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+            - generic [ref=e99]: The Next Step
+          - paragraph [ref=e100]: Discover your ideal tech career with a personalized assessment and a clear learning roadmap.
+        - generic [ref=e101]:
+          - button "Home" [ref=e102] [cursor=pointer]
+          - button "How It Works" [ref=e103] [cursor=pointer]
+          - button "Assessment" [ref=e104] [cursor=pointer]
+        - button "Back to top" [ref=e105] [cursor=pointer]:
+          - img [ref=e106]
+          - text: Back to top
+      - generic [ref=e108]:
+        - paragraph [ref=e109]: © 2026 The Next Step · Career Discovery Platform
+        - paragraph [ref=e110]: All data stays in your browser · No account required
