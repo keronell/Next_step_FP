@@ -75,7 +75,7 @@ function StepCard({ step, index }) {
   return (
     <div className="card-hover flex flex-col items-center text-center p-8 rounded-2xl bg-cream border border-navy/8 shadow-sm relative group">
       {/* Number badge */}
-      <div className="absolute -top-3 left-6 font-display font-bold text-4xl text-navy/5 select-none">
+      <div className="absolute top-2 left-4 font-display font-bold text-4xl text-navy/5 select-none">
         {step.number}
       </div>
 
