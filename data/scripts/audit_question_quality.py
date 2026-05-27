@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 
-INPUT_CSV = Path("data/data/question_bank.csv")
+INPUT_CSV = Path("data/questions/question_bank.csv")
 OUTPUT_CSV = Path("data/reports/question_bank_beginner_quality_flags.csv")
 SUMMARY_MD = Path("data/reports/question_bank_beginner_quality_summary.md")
 

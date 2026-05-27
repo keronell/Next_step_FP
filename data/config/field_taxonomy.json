@@ -1,0 +1,118 @@
+{
+  "version": "1.0",
+  "date": "2026-05-23",
+  "fields": [
+    {
+      "canonical": "Frontend Development",
+      "aliases": ["frontend", "front-end", "front end", "ui development", "client-side"],
+      "remoteok_tags": ["react", "vue", "angular", "frontend", "javascript", "typescript", "html", "css", "next.js", "svelte", "webpack"],
+      "jobicy_categories": ["Software Development"],
+      "title_keywords": ["frontend", "front-end", "ui developer", "react developer", "vue developer", "angular developer"]
+    },
+    {
+      "canonical": "Backend Development",
+      "aliases": ["backend", "back-end", "back end", "server-side"],
+      "remoteok_tags": ["backend", "node", "python", "django", "rails", "java", "golang", "rust", "php", "laravel", "fastapi", "spring", "express"],
+      "jobicy_categories": ["Software Development"],
+      "title_keywords": ["backend", "back-end", "server-side", "node developer", "python developer", "java developer", "golang developer"]
+    },
+    {
+      "canonical": "Full Stack Development",
+      "aliases": ["fullstack", "full-stack", "full stack"],
+      "remoteok_tags": ["fullstack", "full-stack", "react", "node", "javascript", "typescript"],
+      "jobicy_categories": ["Software Development"],
+      "title_keywords": ["fullstack", "full-stack", "full stack developer"]
+    },
+    {
+      "canonical": "Mobile Development",
+      "aliases": ["mobile", "ios", "android", "app development"],
+      "remoteok_tags": ["ios", "android", "react-native", "flutter", "mobile", "swift", "kotlin", "xamarin"],
+      "jobicy_categories": ["Software Development"],
+      "title_keywords": ["mobile developer", "ios developer", "android developer", "react native", "flutter developer"]
+    },
+    {
+      "canonical": "Data Analysis",
+      "aliases": ["data analyst", "business intelligence", "bi analyst", "analytics"],
+      "remoteok_tags": ["data-analyst", "analytics", "sql", "tableau", "powerbi", "excel", "looker"],
+      "jobicy_categories": ["Data Science"],
+      "title_keywords": ["data analyst", "business analyst", "bi analyst", "analytics engineer", "data reporting"]
+    },
+    {
+      "canonical": "Data Science",
+      "aliases": ["data scientist", "ml scientist", "applied scientist"],
+      "remoteok_tags": ["data-science", "python", "pandas", "numpy", "jupyter", "statistics", "r"],
+      "jobicy_categories": ["Data Science"],
+      "title_keywords": ["data scientist", "research scientist", "applied scientist", "quantitative analyst"]
+    },
+    {
+      "canonical": "Machine Learning",
+      "aliases": ["ml engineer", "machine learning engineer", "deep learning"],
+      "remoteok_tags": ["machine-learning", "pytorch", "tensorflow", "keras", "deep-learning", "mlops", "sklearn"],
+      "jobicy_categories": ["Data Science"],
+      "title_keywords": ["machine learning engineer", "ml engineer", "deep learning engineer", "mlops engineer"]
+    },
+    {
+      "canonical": "AI Engineering",
+      "aliases": ["ai engineer", "llm engineer", "generative ai", "nlp engineer", "llmops", "ai platform"],
+      "remoteok_tags": ["ai", "llm", "llmops", "gpt", "openai", "langchain", "rag", "generative-ai", "prompt-engineering", "vector-database", "embeddings", "huggingface"],
+      "jobicy_categories": ["Data Science", "Software Development"],
+      "title_keywords": ["ai engineer", "llm engineer", "nlp engineer", "generative ai", "prompt engineer", "llmops", "ai platform engineer", "conversational ai", "foundation model"]
+    },
+    {
+      "canonical": "Cyber Security",
+      "aliases": ["cybersecurity", "information security", "infosec", "security engineer"],
+      "remoteok_tags": ["security", "cybersecurity", "penetration-testing", "devsecops", "soc", "infosec"],
+      "jobicy_categories": ["IT & Networking"],
+      "title_keywords": ["security engineer", "cybersecurity analyst", "penetration tester", "soc analyst", "infosec"]
+    },
+    {
+      "canonical": "DevOps",
+      "aliases": ["devops engineer", "sre", "platform engineer", "cloud engineer", "infrastructure"],
+      "remoteok_tags": ["devops", "aws", "gcp", "azure", "kubernetes", "docker", "terraform", "ci-cd", "sre", "platform"],
+      "jobicy_categories": ["DevOps & Sysadmin"],
+      "title_keywords": ["devops engineer", "sre", "site reliability", "platform engineer", "cloud engineer", "infrastructure engineer"]
+    },
+    {
+      "canonical": "QA / Software Testing",
+      "aliases": ["qa engineer", "quality assurance", "software tester", "test engineer"],
+      "remoteok_tags": ["qa", "testing", "quality-assurance", "selenium", "cypress", "automation-testing"],
+      "jobicy_categories": ["Software Development"],
+      "title_keywords": ["qa engineer", "quality assurance", "test engineer", "sdet", "automation engineer"]
+    },
+    {
+      "canonical": "Game Development",
+      "aliases": ["game developer", "game programmer", "unity developer"],
+      "remoteok_tags": ["unity", "unreal", "gamedev", "game-development", "c++", "c#"],
+      "jobicy_categories": ["Software Development"],
+      "title_keywords": ["game developer", "game programmer", "unity developer", "unreal developer", "gameplay engineer"]
+    },
+    {
+      "canonical": "UI / UX Design",
+      "aliases": ["ux designer", "ui designer", "product designer", "interaction designer"],
+      "remoteok_tags": ["ux", "ui", "design", "figma", "product-design", "user-research"],
+      "jobicy_categories": ["Design & Creative"],
+      "title_keywords": ["ux designer", "ui designer", "product designer", "ux researcher", "interaction designer"]
+    },
+    {
+      "canonical": "Product Management",
+      "aliases": ["product manager", "pm", "product owner", "po"],
+      "remoteok_tags": ["product-manager", "product-management", "product-owner", "agile", "scrum"],
+      "jobicy_categories": ["Product"],
+      "title_keywords": ["product manager", "product owner", "program manager", "technical product manager"]
+    },
+    {
+      "canonical": "Technical Writing",
+      "aliases": ["technical writer", "documentation engineer", "content engineer"],
+      "remoteok_tags": ["technical-writing", "documentation", "content", "developer-relations"],
+      "jobicy_categories": ["Writing & Translation"],
+      "title_keywords": ["technical writer", "documentation specialist", "developer advocate", "devrel"]
+    },
+    {
+      "canonical": "Software Architecture",
+      "aliases": ["software architect", "solutions architect", "enterprise architect", "principal engineer", "distinguished engineer"],
+      "remoteok_tags": ["architect", "software-architect", "solutions-architect", "principal", "staff-engineer", "system-design", "distributed-systems"],
+      "jobicy_categories": ["Software Development"],
+      "title_keywords": ["software architect", "solutions architect", "principal engineer", "staff engineer", "enterprise architect", "distinguished engineer", "system architect", "technical architect"]
+    }
+  ]
+}

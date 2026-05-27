@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 
-INPUT_CSV = Path("data/data/question_bank_answered_local.csv")
+INPUT_CSV = Path("data/answers/question_bank_answered_local.csv")
 REPORT_MD = Path("data/reports/synthetic_output_validation_report.md")
 REPORT_JSON = Path("data/reports/synthetic_output_validation_report.json")
 MIN_SAMPLES_PER_FIELD = 2

@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 
 
-QUESTION_BANK_CSV = Path("data/data/question_bank.csv")
+QUESTION_BANK_CSV = Path("data/questions/question_bank.csv")
 OUTPUT_CSV = Path("data/reports/quick_trust_check_results.csv")
 OUTPUT_MD = Path("data/reports/quick_trust_check_report.md")
 OLLAMA_URL = "http://localhost:11434/api/generate"

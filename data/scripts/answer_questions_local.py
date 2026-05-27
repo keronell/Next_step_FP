@@ -1,7 +1,9 @@
 import json
 import random
+import threading
 import uuid
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,20 +12,23 @@ import requests
 from tqdm import tqdm
 
 
-INPUT_CSV = Path("data/data/question_bank.csv")
-OUTPUT_CSV = Path("data/data/question_bank_answered_local.csv")
-FAILURES_JSONL = Path("data/data/annotation_failures.jsonl")
+INPUT_CSV = Path("data/questions/question_bank.csv")
+OUTPUT_CSV = Path("data/answers/question_bank_answered_local.csv")
+FAILURES_JSONL = Path("data/answers/annotation_failures.jsonl")
 MODEL_FAST = "qwen2.5:7b-instruct"
 MODEL_STRONG = "qwen3:14b"
 USE_STRONG_FALLBACK = False
 OLLAMA_URL = "http://localhost:11434/api/generate"
-PROMPT_VERSION = "v3.0.0"
-MAX_RETRIES = 1
-NUM_PREDICT_FAST = 120
-NUM_PREDICT_STRONG = 220
+PROMPT_VERSION = "v3.2.0"
+MAX_RETRIES = 2
+NUM_PREDICT_FAST = 450
+NUM_PREDICT_STRONG = 512
 MIN_SAMPLES_PER_FIELD = 5
 GENERATION_MODE = "partitioned_shared_20"  # "balanced", "exhaustive", or "partitioned_shared_20"
-SHARED_QUESTION_RATIO = 0.20
+SHARED_QUESTION_RATIO = 0.05   # was 0.20 — reduced to cut shared-question duplication
+MAX_PERSONAS_PER_FIELD = 2     # was 5 — shared rows scale with persona count
+MAX_UNIQUE_PER_PERSONA = 100   # cap unique questions per persona; None = no cap
+OLLAMA_WORKERS = 4             # parallel Ollama requests; set OLLAMA_NUM_PARALLEL=N on Ollama side
 RANDOM_SEED = 42
 RESUME_FROM_EXISTING = True
 
@@ -275,6 +280,55 @@ Question:
 """.strip()
 
 
+def _repair_truncated_json(raw: str) -> str:
+    """Close open brackets/braces in a truncated JSON string."""
+    s = raw.rstrip()
+
+    # Determine if we are inside an unterminated string literal.
+    in_string = False
+    escaped = False
+    for ch in s:
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\":
+            escaped = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+
+    if in_string:
+        s += '"'
+
+    # Walk again to track open containers.
+    opens: list[str] = []
+    in_string = False
+    escaped = False
+    for ch in s:
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\":
+            escaped = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch in "{[":
+            opens.append(ch)
+        elif ch == "}" and opens and opens[-1] == "{":
+            opens.pop()
+        elif ch == "]" and opens and opens[-1] == "[":
+            opens.pop()
+
+    for opener in reversed(opens):
+        s += "]" if opener == "[" else "}"
+
+    return s
+
+
 def call_ollama(prompt: str, model: str, num_predict: int, timeout_s: int = 180) -> dict:
     payload = {
         "model": model,
@@ -289,7 +343,10 @@ def call_ollama(prompt: str, model: str, num_predict: int, timeout_s: int = 180)
     response = requests.post(OLLAMA_URL, json=payload, timeout=timeout_s)
     response.raise_for_status()
     raw = response.json().get("response", "").strip()
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return json.loads(_repair_truncated_json(raw))
 
 
 def validate_and_shape(result: dict, fallback_expert: str, answer_type: str, target_field: str) -> dict:
@@ -348,14 +405,18 @@ def validate_and_shape(result: dict, fallback_expert: str, answer_type: str, tar
     }
 
 
+_failure_lock = threading.Lock()
+
+
 def append_failure(record: dict) -> None:
     FAILURES_JSONL.parent.mkdir(parents=True, exist_ok=True)
     serializable_record = {
         k: (v.item() if hasattr(v, "item") else v)
         for k, v in record.items()
     }
-    with FAILURES_JSONL.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(serializable_record, ensure_ascii=True, default=str) + "\n")
+    with _failure_lock:
+        with FAILURES_JSONL.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(serializable_record, ensure_ascii=True, default=str) + "\n")
 
 
 def make_generation_key(target_field: str, persona_id: str, question_id, split_type: str) -> str:
@@ -420,7 +481,7 @@ def build_partitioned_shared_plan(df: pd.DataFrame) -> list[dict]:
     all_indices = list(df.index)
 
     for field_index, field in enumerate(CANONICAL_FIELDS):
-        personas = FIELD_PERSONAS.get(field, ["Domain Subject Matter Expert"])
+        personas = FIELD_PERSONAS.get(field, ["Domain Subject Matter Expert"])[:MAX_PERSONAS_PER_FIELD]
         persona_count = len(personas)
         if persona_count == 0:
             continue
@@ -453,7 +514,10 @@ def build_partitioned_shared_plan(df: pd.DataFrame) -> list[dict]:
                         "row": row,
                     }
                 )
-            for row_index in unique_buckets[p_idx - 1]:
+            bucket = unique_buckets[p_idx - 1]
+            if MAX_UNIQUE_PER_PERSONA is not None:
+                bucket = bucket[:MAX_UNIQUE_PER_PERSONA]
+            for row_index in bucket:
                 row = df.loc[row_index]
                 plan.append(
                     {
@@ -545,15 +609,11 @@ def main() -> None:
             f"remaining {len(plan)}"
         )
 
-    print(f"Generation mode: {GENERATION_MODE}")
-    print(f"Planned generations: {len(plan)}")
-    for item in tqdm(plan, total=len(plan), desc="Generating synthetic annotations"):
+    def _process_item(item: dict) -> dict:
         row = item["row"]
         target_field = item["target_field"]
         persona_name = item["persona_name"]
         answer_type = str(row.get("answer_type", "")).strip()
-
-        # Prefer field persona; fallback to heuristic domain expert selection.
         expert_role = persona_name or choose_expert(
             str(row.get("category", "")),
             str(row.get("subcategory", "")),
@@ -566,11 +626,7 @@ def main() -> None:
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                raw_result = call_ollama(
-                    prompt=prompt,
-                    model=MODEL_FAST,
-                    num_predict=NUM_PREDICT_FAST,
-                )
+                raw_result = call_ollama(prompt=prompt, model=MODEL_FAST, num_predict=NUM_PREDICT_FAST)
                 shaped = validate_and_shape(raw_result, expert_role, answer_type, target_field)
                 used_model = MODEL_FAST
                 break
@@ -579,11 +635,7 @@ def main() -> None:
 
         if shaped is None and USE_STRONG_FALLBACK:
             try:
-                raw_result = call_ollama(
-                    prompt=prompt,
-                    model=MODEL_STRONG,
-                    num_predict=NUM_PREDICT_STRONG,
-                )
+                raw_result = call_ollama(prompt=prompt, model=MODEL_STRONG, num_predict=NUM_PREDICT_STRONG)
                 shaped = validate_and_shape(raw_result, expert_role, answer_type, target_field)
                 used_model = MODEL_STRONG
             except Exception as exc:
@@ -599,17 +651,15 @@ def main() -> None:
                 "field_scores_json": json.dumps({}, ensure_ascii=True),
                 "confidence": 0.0,
             }
-            append_failure(
-                {
-                    "run_id": run_id,
-                    "timestamp_utc": now_utc(),
-                    "question_id": row.get("id"),
-                    "target_field": target_field,
-                    "error": error_text or "unknown_error",
-                }
-            )
+            append_failure({
+                "run_id": run_id,
+                "timestamp_utc": now_utc(),
+                "question_id": row.get("id"),
+                "target_field": target_field,
+                "error": error_text or "unknown_error",
+            })
 
-        base = {
+        shaped.update({
             "id": row.get("id"),
             "category": row.get("category"),
             "subcategory": row.get("subcategory"),
@@ -617,8 +667,7 @@ def main() -> None:
             "answer_type": row.get("answer_type"),
             "options": row.get("options"),
             "tags": row.get("tags"),
-        }
-        shaped.update(base)
+        })
         shaped["target_field"] = target_field
         shaped["persona_id"] = item["persona_id"]
         shaped["persona_name"] = persona_name
@@ -631,7 +680,14 @@ def main() -> None:
         shaped["timestamp_utc"] = now_utc()
         shaped["is_synthetic"] = 1
         shaped["error"] = error_text
-        outputs.append(shaped)
+        return shaped
+
+    print(f"Generation mode: {GENERATION_MODE}")
+    print(f"Planned generations: {len(plan)}  workers: {OLLAMA_WORKERS}")
+    with ThreadPoolExecutor(max_workers=OLLAMA_WORKERS) as executor:
+        futures = {executor.submit(_process_item, item): item for item in plan}
+        for future in tqdm(as_completed(futures), total=len(plan), desc="Generating synthetic annotations"):
+            outputs.append(future.result())
 
     new_df = pd.DataFrame(outputs)
     out_df = pd.concat([existing_df, new_df], ignore_index=True) if not existing_df.empty else new_df
