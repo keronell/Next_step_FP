@@ -1,0 +1,180 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "The Next Step Career Discovery" [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: The Next Step
+        - generic [ref=e8]: Career Discovery
+      - navigation [ref=e9]:
+        - button "Home" [ref=e10] [cursor=pointer]: Home
+        - button "How It Works" [ref=e11] [cursor=pointer]: How It Works
+        - button "Assessment" [ref=e12] [cursor=pointer]: Assessment
+        - button "Start Assessment" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+          - text: Start Assessment
+  - main [ref=e16]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - img [ref=e20]
+          - generic [ref=e22]: Career Discovery Platform
+        - heading "Discover Your Next Step" [level=1] [ref=e23]:
+          - text: Discover Your
+          - generic [ref=e24]: Next Step
+        - paragraph [ref=e25]: Answer 10 thoughtful questions and get matched with your ideal tech career — plus a clear, personalized learning roadmap to get there.
+        - generic [ref=e26]:
+          - button "Start Assessment" [ref=e27] [cursor=pointer]:
+            - img [ref=e28]
+            - text: Start Assessment
+          - button "See how it works" [ref=e30] [cursor=pointer]:
+            - text: See how it works
+            - img [ref=e31]
+        - generic [ref=e33]:
+          - generic [ref=e34]:
+            - generic [ref=e35]: A
+            - generic [ref=e36]: B
+            - generic [ref=e37]: C
+          - paragraph [ref=e38]: Join thousands of tech learners finding their path
+      - img [ref=e41]
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - paragraph [ref=e46]: How It Works
+        - heading "Three steps to clarity" [level=2] [ref=e47]
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - generic [ref=e51]: "01"
+          - img [ref=e53]
+          - heading "Answer 10 Questions" [level=3] [ref=e56]
+          - paragraph [ref=e57]: Tell us about your skills, interests, and work style through a quick, thoughtfully designed quiz.
+        - generic [ref=e59]:
+          - generic [ref=e60]: "02"
+          - img [ref=e62]
+          - heading "Get Matched" [level=3] [ref=e64]
+          - paragraph [ref=e65]: Our scoring engine analyzes your answers and surfaces your top 3 tech career matches — with percentage fit.
+        - generic [ref=e67]:
+          - generic [ref=e68]: "03"
+          - img [ref=e70]
+          - heading "Follow Your Roadmap" [level=3] [ref=e72]
+          - paragraph [ref=e73]: Explore a visual learning tree for your chosen career, from beginner concepts to advanced mastery.
+    - generic [ref=e156]:
+      - generic [ref=e157]:
+        - generic [ref=e158]:
+          - img [ref=e159]
+          - paragraph [ref=e162]: Almost there
+        - heading "Review your answers" [level=2] [ref=e163]
+        - paragraph [ref=e164]: 0 answered · 10 skipped
+      - generic [ref=e165]:
+        - generic [ref=e166]:
+          - generic [ref=e167]: "01"
+          - generic [ref=e168]:
+            - paragraph [ref=e169]: How comfortable are you writing code from scratch?
+            - paragraph [ref=e170]: Skipped
+          - button "Edit" [ref=e171] [cursor=pointer]:
+            - img [ref=e172]
+            - text: Edit
+        - generic [ref=e174]:
+          - generic [ref=e175]: "02"
+          - generic [ref=e176]:
+            - paragraph [ref=e177]: What excites you more?
+            - paragraph [ref=e178]: Skipped
+          - button "Edit" [ref=e179] [cursor=pointer]:
+            - img [ref=e180]
+            - text: Edit
+        - generic [ref=e182]:
+          - generic [ref=e183]: "03"
+          - generic [ref=e184]:
+            - paragraph [ref=e185]: When you encounter a dataset, you feel…
+            - paragraph [ref=e186]: Skipped
+          - button "Edit" [ref=e187] [cursor=pointer]:
+            - img [ref=e188]
+            - text: Edit
+        - generic [ref=e190]:
+          - generic [ref=e191]: "04"
+          - generic [ref=e192]:
+            - paragraph [ref=e193]: Your ideal work output is…
+            - paragraph [ref=e194]: Skipped
+          - button "Edit" [ref=e195] [cursor=pointer]:
+            - img [ref=e196]
+            - text: Edit
+        - generic [ref=e198]:
+          - generic [ref=e199]: "05"
+          - generic [ref=e200]:
+            - paragraph [ref=e201]: In a team, you naturally drift toward…
+            - paragraph [ref=e202]: Skipped
+          - button "Edit" [ref=e203] [cursor=pointer]:
+            - img [ref=e204]
+            - text: Edit
+        - generic [ref=e206]:
+          - generic [ref=e207]: "06"
+          - generic [ref=e208]:
+            - paragraph [ref=e209]: How do you prefer to work?
+            - paragraph [ref=e210]: Skipped
+          - button "Edit" [ref=e211] [cursor=pointer]:
+            - img [ref=e212]
+            - text: Edit
+        - generic [ref=e214]:
+          - generic [ref=e215]: "07"
+          - generic [ref=e216]:
+            - paragraph [ref=e217]: Which of these tools sounds most appealing?
+            - paragraph [ref=e218]: Skipped
+          - button "Edit" [ref=e219] [cursor=pointer]:
+            - img [ref=e220]
+            - text: Edit
+        - generic [ref=e222]:
+          - generic [ref=e223]: "08"
+          - generic [ref=e224]:
+            - paragraph [ref=e225]: When a project goes sideways, you tend to…
+            - paragraph [ref=e226]: Skipped
+          - button "Edit" [ref=e227] [cursor=pointer]:
+            - img [ref=e228]
+            - text: Edit
+        - generic [ref=e230]:
+          - generic [ref=e231]: "09"
+          - generic [ref=e232]:
+            - paragraph [ref=e233]: How drawn are you to visual design?
+            - paragraph [ref=e234]: Skipped
+          - button "Edit" [ref=e235] [cursor=pointer]:
+            - img [ref=e236]
+            - text: Edit
+        - generic [ref=e238]:
+          - generic [ref=e239]: "10"
+          - generic [ref=e240]:
+            - paragraph [ref=e241]: Success to you means…
+            - paragraph [ref=e242]: Skipped
+          - button "Edit" [ref=e243] [cursor=pointer]:
+            - img [ref=e244]
+            - text: Edit
+      - generic [ref=e246]:
+        - generic [ref=e247]:
+          - img [ref=e248]
+          - paragraph [ref=e250]:
+            - text: You have
+            - generic [ref=e251]: 10 unanswered questions
+            - text: . You can still submit or go back to answer them.
+        - generic [ref=e252]:
+          - button "Submit Anyway" [ref=e253] [cursor=pointer]
+          - button "Review Skipped" [ref=e254] [cursor=pointer]
+      - generic [ref=e255]:
+        - button "Go Back" [ref=e256] [cursor=pointer]:
+          - img [ref=e257]
+          - text: Go Back
+        - button "Submit & See Results" [ref=e259] [cursor=pointer]:
+          - text: Submit & See Results
+          - img [ref=e260]
+  - contentinfo [ref=e93]:
+    - generic [ref=e94]:
+      - generic [ref=e95]:
+        - generic [ref=e96]:
+          - button "The Next Step" [ref=e97] [cursor=pointer]:
+            - img [ref=e98]
+            - generic [ref=e100]: The Next Step
+          - paragraph [ref=e101]: Discover your ideal tech career with a personalized assessment and a clear learning roadmap.
+        - generic [ref=e102]:
+          - button "Home" [ref=e103] [cursor=pointer]
+          - button "How It Works" [ref=e104] [cursor=pointer]
+          - button "Assessment" [ref=e105] [cursor=pointer]
+        - button "Back to top" [ref=e106] [cursor=pointer]:
+          - img [ref=e107]
+          - text: Back to top
+      - generic [ref=e109]:
+        - paragraph [ref=e110]: © 2026 The Next Step · Career Discovery Platform
+        - paragraph [ref=e111]: All data stays in your browser · No account required

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sparkles, ChevronRight, ChevronLeft, SkipForward, Edit3, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { QUESTIONS } from '../data'
 import { useReveal } from '../hooks/useReveal'
@@ -222,7 +222,7 @@ function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSele
         </h2>
 
         {/* Options */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+        <div key={currentQ} className="option-grid grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
           {question.options.map((option, i) => {
             const isHighlighted = pendingVal === option.value
             const isPreviousAnswer = isAnswered(answers[question.id]) && answers[question.id] === option.value && pendingVal === null
@@ -425,6 +425,53 @@ function ReviewScreen({ answers, skipWarning, onEdit, onGoBack, onSubmit, onSubm
   )
 }
 
+// ─── Scan grid (Style B) ───────────────────────────────────────────────────────
+
+function ScanGrid() {
+  const svgRef = useRef(null)
+
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const ns = 'http://www.w3.org/2000/svg'
+    const segs = [
+      [20, 20, 70, 20], [20, 20, 20, 70],
+      [210, 20, 160, 20], [210, 20, 210, 70],
+      [20, 210, 70, 210], [20, 210, 20, 160],
+      [210, 210, 160, 210], [210, 210, 210, 160],
+      [95, 80, 95, 150], [135, 80, 135, 150],
+    ]
+    const lines = segs.map((s, i) => {
+      const el = document.createElementNS(ns, 'line')
+      el.setAttribute('x1', s[0]); el.setAttribute('y1', s[1])
+      el.setAttribute('x2', s[2]); el.setAttribute('y2', s[3])
+      const len = Math.sqrt((s[2] - s[0]) ** 2 + (s[3] - s[1]) ** 2)
+      el.setAttribute('stroke', i < 8 ? '#C9A84C' : 'rgba(201,168,76,0.25)')
+      el.setAttribute('stroke-width', i < 8 ? '1.5' : '0.8')
+      el.setAttribute('stroke-dasharray', `${len}`)
+      el.setAttribute('stroke-dashoffset', `${len}`)
+      el.style.transition = `stroke-dashoffset ${0.5 + i * 0.06}s ${i * 0.05}s cubic-bezier(0.4,0,0.2,1)`
+      svg.appendChild(el)
+      return el
+    })
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        lines.forEach(l => l.setAttribute('stroke-dashoffset', '0'))
+      )
+    )
+    return () => { cancelAnimationFrame(raf); lines.forEach(l => l.remove()) }
+  }, [])
+
+  return (
+    <div className="relative flex items-center justify-center mb-8">
+      <svg ref={svgRef} width={230} height={230} viewBox="0 0 230 230" />
+      <div className="absolute inset-0 flex items-start justify-center pointer-events-none overflow-hidden">
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent animate-scan-line" />
+      </div>
+    </div>
+  )
+}
+
 // ─── Loading screen ─────────────────────────────────────────────────────────────
 
 function LoadingScreen() {
@@ -437,15 +484,18 @@ function LoadingScreen() {
 
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="relative w-20 h-20 mb-8">
-        <div className="absolute inset-0 rounded-full border-4 border-gold/15" />
-        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-gold animate-spin" />
-        <div className="absolute inset-[6px] rounded-full border-2 border-transparent border-t-gold/50 animate-spin" style={{ animationDuration: '0.7s' }} />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Sparkles size={18} className="text-gold" />
-        </div>
+      <ScanGrid />
+      <div className="flex font-display font-semibold text-2xl text-navy mb-2" aria-label="Analyzing your profile">
+        {'Analyzing your profile…'.split('').map((ch, i) => (
+          <span
+            key={i}
+            className="char-stamp inline-block"
+            style={{ animationDelay: `${i * 0.035}s` }}
+          >
+            {ch === ' ' ? ' ' : ch}
+          </span>
+        ))}
       </div>
-      <h2 className="font-display font-semibold text-2xl text-navy mb-2">Analyzing your profile…</h2>
       <p className="font-body text-sm text-navy/50 mb-8 max-w-xs">Matching your answers against 6 tech career paths</p>
       <div className="w-64 h-1.5 bg-navy/10 rounded-full overflow-hidden">
         <div

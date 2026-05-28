@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useState } from 'react'
+import { useRef, useLayoutEffect, useEffect, useState } from 'react'
 import { ExternalLink, X } from 'lucide-react'
 import { ROADMAPS, CAREERS } from '../data'
 
@@ -76,7 +76,7 @@ function elbowPath(fromX, fromY, toX, toY) {
   return `M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`
 }
 
-function NodeRect({ node, isHovered, isActive, onClick, onMouseEnter, onMouseLeave }) {
+function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter, onMouseLeave }) {
   const color = LEVEL_COLORS[node.level]
   const w = node.width
   const rx = node.x - w / 2
@@ -98,11 +98,17 @@ function NodeRect({ node, isHovered, isActive, onClick, onMouseEnter, onMouseLea
     </text>
   )
 
+  const revealStyle = {
+    opacity: isRevealed ? 1 : 0,
+    transform: isRevealed ? 'translateY(0px)' : 'translateY(8px)',
+    transition: 'opacity 0.5s cubic-bezier(0.25,0.46,0.45,0.94), transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94)',
+  }
+
   const sharedProps = {
     onClick,
     onMouseEnter,
     onMouseLeave,
-    style: { cursor: 'pointer', filter: isHovered ? glow : 'none' },
+    style: { cursor: 'pointer', filter: isHovered ? glow : 'none', ...revealStyle },
   }
 
   if (node.type === 'required') {
@@ -246,9 +252,11 @@ function Legend() {
 
 function Roadmap({ selectedCareer }) {
   const pathRefs = useRef({})
+  const revealTimersRef = useRef([])
   const [drawerNode, setDrawerNode] = useState(null)
   const [hoveredNode, setHoveredNode] = useState(null)
   const [collapsed, setCollapsed] = useState({})
+  const [revealedNodes, setRevealedNodes] = useState(new Set())
 
   const career = CAREERS.find((c) => c.id === selectedCareer)
   const roadmapData = selectedCareer ? ROADMAPS[selectedCareer] : null
@@ -290,6 +298,10 @@ function Roadmap({ selectedCareer }) {
     }
   })
 
+  useEffect(() => {
+    setRevealedNodes(new Set())
+  }, [selectedCareer, collapsed])
+
   useLayoutEffect(() => {
     if (!roadmapData) return
     const refs = pathRefs.current
@@ -301,6 +313,10 @@ function Roadmap({ selectedCareer }) {
       path.style.strokeDasharray = `${len}`
       path.style.strokeDashoffset = `${len}`
     })
+
+    revealTimersRef.current.forEach(clearTimeout)
+    revealTimersRef.current = []
+
     const raf = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         Object.keys(refs).forEach((id, i) => {
@@ -308,10 +324,20 @@ function Roadmap({ selectedCareer }) {
           if (!path) return
           path.style.transition = `stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1) ${i * 0.08}s`
           path.style.strokeDashoffset = '0'
+
+          const nodeId = id.split('--')[1]
+          const t = setTimeout(() => {
+            setRevealedNodes(prev => new Set([...prev, nodeId]))
+          }, i * 80 + 1400)
+          revealTimersRef.current.push(t)
         })
       })
     })
-    return () => cancelAnimationFrame(raf)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      revealTimersRef.current.forEach(clearTimeout)
+    }
   }, [selectedCareer, roadmapData, collapsed])
 
   if (!selectedCareer) return null
@@ -407,6 +433,7 @@ function Roadmap({ selectedCareer }) {
                       <NodeRect
                         key={node.id}
                         node={node}
+                        isRevealed={revealedNodes.has(node.id)}
                         isHovered={hoveredNode === node.id}
                         isActive={drawerNode?.id === node.id}
                         onClick={() => handleNodeClick(node)}

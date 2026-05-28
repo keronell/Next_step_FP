@@ -63,19 +63,22 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
   const CareerIcon = ICON_MAP[career.icon] || Monitor
 
   useEffect(() => {
-    const start = Date.now()
-    const duration = 1000
-    const target = career.matchPercent
-    const tick = () => {
-      const elapsed = Date.now() - start
-      const progress = Math.min(elapsed / duration, 1)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      setDisplayPercent(Math.round(eased * target))
-      if (progress < 1) requestAnimationFrame(tick)
-    }
-    const raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [career.matchPercent])
+    let raf
+    const timer = setTimeout(() => {
+      const start = Date.now()
+      const duration = 1000
+      const target = career.matchPercent
+      const tick = () => {
+        const elapsed = Date.now() - start
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        setDisplayPercent(Math.round(eased * target))
+        if (progress < 1) raf = requestAnimationFrame(tick)
+      }
+      raf = requestAnimationFrame(tick)
+    }, rank * 150)
+    return () => { clearTimeout(timer); cancelAnimationFrame(raf) }
+  }, [career.matchPercent, rank])
 
   return (
     <div
@@ -102,7 +105,7 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
         </div>
 
         {/* Match % + icon */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -117,6 +120,14 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
             </span>
             <span className="font-body text-lg text-gold font-semibold">%</span>
           </div>
+        </div>
+
+        {/* Match fill bar */}
+        <div className="h-0.5 bg-navy/8 rounded-full overflow-hidden mb-3">
+          <div
+            className="h-full bg-gold rounded-full transition-all ease-out"
+            style={{ width: `${displayPercent}%`, transitionDuration: '700ms' }}
+          />
         </div>
 
         {/* Title */}

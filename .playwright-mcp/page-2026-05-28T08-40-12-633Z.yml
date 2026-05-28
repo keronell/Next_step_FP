@@ -1,0 +1,133 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "The Next Step Career Discovery" [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: The Next Step
+        - generic [ref=e8]: Career Discovery
+      - navigation [ref=e9]:
+        - button "Home" [ref=e10] [cursor=pointer]: Home
+        - button "How It Works" [ref=e11] [cursor=pointer]: How It Works
+        - button "Assessment" [ref=e12] [cursor=pointer]: Assessment
+        - button "Results" [ref=e293] [cursor=pointer]: Results
+        - button "Start Assessment" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+          - text: Start Assessment
+  - main [ref=e16]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - img [ref=e20]
+          - generic [ref=e22]: Career Discovery Platform
+        - heading "Discover Your Next Step" [level=1] [ref=e23]:
+          - text: Discover Your
+          - generic [ref=e24]: Next Step
+        - paragraph [ref=e25]: Answer 10 thoughtful questions and get matched with your ideal tech career — plus a clear, personalized learning roadmap to get there.
+        - generic [ref=e26]:
+          - button "Start Assessment" [ref=e27] [cursor=pointer]:
+            - img [ref=e28]
+            - text: Start Assessment
+          - button "See how it works" [ref=e30] [cursor=pointer]:
+            - text: See how it works
+            - img [ref=e31]
+        - generic [ref=e33]:
+          - generic [ref=e34]:
+            - generic [ref=e35]: A
+            - generic [ref=e36]: B
+            - generic [ref=e37]: C
+          - paragraph [ref=e38]: Join thousands of tech learners finding their path
+      - img [ref=e41]
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - paragraph [ref=e46]: How It Works
+        - heading "Three steps to clarity" [level=2] [ref=e47]
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - generic [ref=e51]: "01"
+          - img [ref=e53]
+          - heading "Answer 10 Questions" [level=3] [ref=e56]
+          - paragraph [ref=e57]: Tell us about your skills, interests, and work style through a quick, thoughtfully designed quiz.
+        - generic [ref=e59]:
+          - generic [ref=e60]: "02"
+          - img [ref=e62]
+          - heading "Get Matched" [level=3] [ref=e64]
+          - paragraph [ref=e65]: Our scoring engine analyzes your answers and surfaces your top 3 tech career matches — with percentage fit.
+        - generic [ref=e67]:
+          - generic [ref=e68]: "03"
+          - img [ref=e70]
+          - heading "Follow Your Roadmap" [level=3] [ref=e72]
+          - paragraph [ref=e73]: Explore a visual learning tree for your chosen career, from beginner concepts to advanced mastery.
+    - generic [ref=e296]:
+      - generic [ref=e297]:
+        - paragraph [ref=e298]: Your Results
+        - heading "Your top career matches" [level=2] [ref=e299]
+        - paragraph [ref=e300]: Based on your answers, here are the tech roles where you're most likely to thrive.
+      - generic [ref=e301]:
+        - generic [ref=e304]:
+          - generic [ref=e305]:
+            - img [ref=e306]
+            - text: Best Match
+          - generic [ref=e312]:
+            - img [ref=e315]
+            - generic [ref=e317]: NaN%
+          - heading "Frontend Developer" [level=3] [ref=e319]
+          - paragraph [ref=e320]: Craft interactive, accessible web interfaces that delight users. You live at the intersection of design and engineering.
+          - generic [ref=e321]:
+            - generic [ref=e322]: React
+            - generic [ref=e323]: CSS
+            - generic [ref=e324]: TypeScript
+            - generic [ref=e325]: Accessibility
+          - button "View Roadmap" [ref=e326] [cursor=pointer]:
+            - text: View Roadmap
+            - img [ref=e327]
+        - generic [ref=e331]:
+          - generic [ref=e332]:
+            - img [ref=e333]
+            - text: Strong Match
+          - generic [ref=e339]:
+            - img [ref=e342]
+            - generic [ref=e345]: NaN%
+          - heading "Backend Engineer" [level=3] [ref=e347]
+          - paragraph [ref=e348]: Build the systems and APIs that power products at scale. You love elegant architecture and rock-solid reliability.
+          - generic [ref=e349]:
+            - generic [ref=e350]: Node.js
+            - generic [ref=e351]: Databases
+            - generic [ref=e352]: APIs
+            - generic [ref=e353]: System Design
+          - button "View Roadmap" [ref=e354] [cursor=pointer]:
+            - text: View Roadmap
+            - img [ref=e355]
+        - generic [ref=e359]:
+          - generic [ref=e360]:
+            - img [ref=e361]
+            - text: Great Fit
+          - generic [ref=e364]:
+            - img [ref=e367]
+            - generic [ref=e368]: NaN%
+          - heading "Data Scientist" [level=3] [ref=e370]
+          - paragraph [ref=e371]: Transform raw data into insights that steer strategy. You turn numbers into narratives decision-makers can act on.
+          - generic [ref=e372]:
+            - generic [ref=e373]: Python
+            - generic [ref=e374]: Statistics
+            - generic [ref=e375]: Machine Learning
+            - generic [ref=e376]: SQL
+          - button "View Roadmap" [ref=e377] [cursor=pointer]:
+            - text: View Roadmap
+            - img [ref=e378]
+  - contentinfo [ref=e93]:
+    - generic [ref=e94]:
+      - generic [ref=e95]:
+        - generic [ref=e96]:
+          - button "The Next Step" [ref=e97] [cursor=pointer]:
+            - img [ref=e98]
+            - generic [ref=e100]: The Next Step
+          - paragraph [ref=e101]: Discover your ideal tech career with a personalized assessment and a clear learning roadmap.
+        - generic [ref=e102]:
+          - button "Home" [ref=e103] [cursor=pointer]
+          - button "How It Works" [ref=e104] [cursor=pointer]
+          - button "Assessment" [ref=e105] [cursor=pointer]
+        - button "Back to top" [ref=e106] [cursor=pointer]:
+          - img [ref=e107]
+          - text: Back to top
+      - generic [ref=e109]:
+        - paragraph [ref=e110]: © 2026 The Next Step · Career Discovery Platform
+        - paragraph [ref=e111]: All data stays in your browser · No account required

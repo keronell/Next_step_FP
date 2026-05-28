@@ -138,3 +138,69 @@ body::before {
 ::-webkit-scrollbar-track { background: #FAF7F2; }
 ::-webkit-scrollbar-thumb { background: #C9A84C; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #E2C76B; }
+
+/* ── Style A: Particle Drift ─────────────────────────────────── */
+
+.gold-underline {
+  position: absolute;
+  bottom: -4px; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #C9A84C, transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s;
+}
+.reveal.is-visible .gold-underline {
+  transform: scaleX(1);
+}
+
+@keyframes btn-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); }
+  50%       { box-shadow: 0 0 0 10px rgba(201,168,76,0.12); }
+}
+.btn-gold-pulse {
+  animation: btn-pulse 2.8s ease-in-out infinite;
+}
+
+/* ── Style B: Morphic Lines ──────────────────────────────────── */
+
+@keyframes scan-line {
+  0%   { transform: translateY(0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(230px); opacity: 0; }
+}
+.animate-scan-line {
+  animation: scan-line 2s linear infinite;
+}
+
+@keyframes char-stamp {
+  from { opacity: 0; transform: scaleY(0.2); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+.char-stamp {
+  opacity: 0;
+  transform-origin: bottom;
+  animation: char-stamp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* ── Style C: Liquid Reveal ──────────────────────────────────── */
+
+@keyframes option-slide {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.option-grid > button:nth-child(1) { animation: option-slide 0.4s 0.00s both; }
+.option-grid > button:nth-child(2) { animation: option-slide 0.4s 0.06s both; }
+.option-grid > button:nth-child(3) { animation: option-slide 0.4s 0.12s both; }
+.option-grid > button:nth-child(4) { animation: option-slide 0.4s 0.18s both; }
+
+/* ── Reduced motion ──────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .option-grid > button { animation: none !important; opacity: 1; transform: none; }
+  .char-stamp { animation: none !important; opacity: 1; transform: none; }
+  .btn-gold-pulse { animation: none !important; }
+  .gold-underline { transition: none; transform: scaleX(1); }
+  .animate-scan-line { animation: none !important; opacity: 0; }
+}

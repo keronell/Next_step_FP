@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Animation Direction — Next Step</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #0a0e17;
+    color: #FAF7F2;
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #8899aa;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .sub {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #556677;
+    margin-bottom: 40px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    max-width: 1100px;
+    margin: 0 auto 40px;
+  }
+
+  .card {
+    border: 1.5px solid #1e2a3a;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.3s, transform 0.2s;
+    background: #0d1421;
+  }
+  .card:hover { border-color: #C9A84C; transform: translateY(-2px); }
+  .card.selected { border-color: #C9A84C; box-shadow: 0 0 0 2px rgba(201,168,76,0.3); }
+
+  .demo-area {
+    height: 220px;
+    position: relative;
+    overflow: hidden;
+    background: #0a0e17;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-info {
+    padding: 20px 22px;
+    border-top: 1px solid #1e2a3a;
+  }
+  .card-info h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #FAF7F2;
+    margin-bottom: 6px;
+  }
+  .card-info p {
+    font-size: 0.8rem;
+    color: #6677aa;
+    line-height: 1.5;
+  }
+  .tag {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #C9A84C;
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 20px;
+    padding: 2px 10px;
+  }
+
+  .selected-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #0d1421;
+    border-top: 1px solid #1e2a3a;
+    padding: 14px 24px;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #556677;
+    transform: translateY(100%);
+    transition: transform 0.3s;
+    z-index: 100;
+  }
+  .selected-bar.visible { transform: translateY(0); }
+  .selected-bar span { color: #C9A84C; font-weight: 600; }
+
+  /* ===================== OPTION A: PARTICLE DRIFT ===================== */
+  #demo-a {
+    background: #060a12;
+  }
+  #demo-a canvas { position: absolute; inset: 0; }
+  #demo-a .label-a {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+  }
+  .label-a .big {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #FAF7F2;
+    letter-spacing: -0.02em;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: riseIn 0.8s 0.3s forwards;
+  }
+  .label-a .gold-word {
+    color: #C9A84C;
+    font-style: italic;
+  }
+  .label-a .sub-a {
+    font-size: 0.75rem;
+    color: #556688;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 6px;
+    opacity: 0;
+    animation: riseIn 0.8s 0.7s forwards;
+  }
+  .label-a .bar {
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #C9A84C, transparent);
+    margin: 10px auto 0;
+    animation: barGrow 1.2s 0.5s forwards;
+  }
+  @keyframes riseIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes barGrow {
+    to { width: 100px; }
+  }
+
+  /* ===================== OPTION B: MORPHIC LINES ===================== */
+  #demo-b {
+    background: #04080f;
+  }
+  #demo-b svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #demo-b .center-b {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+  }
+  .center-b .chars {
+    display: flex;
+    gap: 1px;
+    justify-content: center;
+  }
+  .char {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #FAF7F2;
+    opacity: 0;
+    transform: scaleY(0.3);
+    animation: charReveal 0.5s forwards;
+  }
+  .char.gold { color: #C9A84C; }
+  .progress-b {
+    margin-top: 16px;
+    height: 2px;
+    background: #0f1825;
+    width: 140px;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-b-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: #C9A84C;
+    width: 0;
+    animation: fillB 1.8s 0.8s cubic-bezier(0.4,0,0.2,1) forwards;
+    border-radius: 2px;
+  }
+  .percent-b {
+    font-size: 0.75rem;
+    color: #556688;
+    margin-top: 8px;
+    letter-spacing: 0.08em;
+  }
+  @keyframes charReveal {
+    to { opacity: 1; transform: scaleY(1); }
+  }
+  @keyframes fillB { to { width: 87%; } }
+
+  /* ===================== OPTION C: LIQUID REVEAL ===================== */
+  #demo-c {
+    background: #040810;
+  }
+  .cards-c {
+    display: flex;
+    gap: 10px;
+    padding: 0 16px;
+    position: relative;
+    z-index: 2;
+  }
+  .mini-card {
+    flex: 1;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 12px;
+    opacity: 0;
+    transform: translateY(18px);
+    transition: border-color 0.3s;
+  }
+  .mini-card:hover { border-color: rgba(201,168,76,0.4); }
+  .mini-card .mc-pct {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #C9A84C;
+    font-variant-numeric: tabular-nums;
+  }
+  .mini-card .mc-label {
+    font-size: 0.65rem;
+    color: #445566;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+  .mini-card .mc-bar-wrap {
+    margin-top: 8px;
+    height: 3px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .mini-card .mc-bar {
+    height: 100%;
+    border-radius: 3px;
+    width: 0;
+    background: linear-gradient(90deg, #C9A84C, #E2C76B);
+    animation: mcFill 1.2s cubic-bezier(0.4,0,0.2,1) forwards;
+  }
+  #demo-c canvas { position: absolute; inset: 0; opacity: 0.5; }
+
+  @keyframes mcFill { to { width: var(--w); } }
+
+  .note {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #334455;
+    max-width: 700px;
+    margin: 0 auto;
+    padding-bottom: 60px;
+  }
+  .note em { color: #667788; font-style: normal; }
+</style>
+</head>
+<body>
+
+<h1>Animation Direction</h1>
+<p class="sub">Pick the feel that resonates — click a card to select</p>
+
+<div class="grid">
+
+  <!-- OPTION A: PARTICLE DRIFT -->
+  <div class="card" id="card-a" onclick="select('a','Particle Drift — Ambient & atmospheric')">
+    <div class="demo-area" id="demo-a">
+      <canvas id="canvas-a"></canvas>
+      <div class="label-a">
+        <div class="big">Discover Your <span class="gold-word">Next Step</span></div>
+        <div class="bar"></div>
+        <div class="sub-a">ambient · floating · alive</div>
+      </div>
+    </div>
+    <div class="card-info">
+      <h3>A — Particle Drift</h3>
+      <p>Tiny dots drift slowly through the background like a starfield. Text fades and rises with a glowing gold underline. Breathing, ambient energy — it feels alive without being loud.</p>
+      <span class="tag">Atmospheric</span>
+    </div>
+  </div>
+
+  <!-- OPTION B: MORPHIC LINES -->
+  <div class="card" id="card-b" onclick="select('b','Morphic Lines — Precise & architectural')">
+    <div class="demo-area" id="demo-b">
+      <svg id="svg-b" viewBox="0 0 300 220" preserveAspectRatio="none">
+        <!-- Lines animate in via JS -->
+      </svg>
+      <div class="center-b">
+        <div class="chars" id="chars-b"></div>
+        <div class="progress-b"><div class="progress-b-fill"></div></div>
+        <div class="percent-b">Analyzing your profile…</div>
+      </div>
+    </div>
+    <div class="card-info">
+      <h3>B — Morphic Lines</h3>
+      <p>Geometric lines draw themselves across the screen. Characters stamp in with precision. Progress bars fill with exacting control. Clean, architectural, almost cyberpunk-quiet.</p>
+      <span class="tag">Precise</span>
+    </div>
+  </div>
+
+  <!-- OPTION C: LIQUID REVEAL -->
+  <div class="card" id="card-c" onclick="select('c','Liquid Reveal — Smooth & staggered')">
+    <div class="demo-area" id="demo-c">
+      <canvas id="canvas-c"></canvas>
+      <div class="cards-c" id="cards-c">
+        <div class="mini-card" id="mc1">
+          <div class="mc-pct" id="pct1">0%</div>
+          <div class="mc-label">Frontend Dev</div>
+          <div class="mc-bar-wrap"><div class="mc-bar" style="--w:94%"></div></div>
+        </div>
+        <div class="mini-card" id="mc2">
+          <div class="mc-pct" id="pct2">0%</div>
+          <div class="mc-label">UX Designer</div>
+          <div class="mc-bar-wrap"><div class="mc-bar" style="--w:72%; animation-delay: 0.2s"></div></div>
+        </div>
+        <div class="mini-card" id="mc3">
+          <div class="mc-pct" id="pct3">0%</div>
+          <div class="mc-label">Data Scientist</div>
+          <div class="mc-bar-wrap"><div class="mc-bar" style="--w:61%; animation-delay: 0.4s"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-info">
+      <h3>C — Liquid Reveal</h3>
+      <p>Elements pour in with staggered timing — each card slides up a moment after the last. Percentage numbers count up in real time. Smooth, satisfying, premium-app feel.</p>
+      <span class="tag">Staggered</span>
+    </div>
+  </div>
+
+</div>
+
+<p class="note">These are live mini-demos — watch the animations loop. <em>You can mix ideas: e.g. particles from A + staggered reveals from C.</em></p>
+
+<div class="selected-bar" id="sel-bar">
+  Selected: <span id="sel-label">—</span> · Respond in terminal with any thoughts
+</div>
+
+<script>
+/* ── Selection ── */
+let chosen = null;
+function select(id, label) {
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('card-' + id).classList.add('selected');
+  document.getElementById('sel-label').textContent = label;
+  document.getElementById('sel-bar').classList.add('visible');
+  chosen = id;
+  // record for state_dir events
+  try {
+    const ev = {type:'click', choice: id, text: label, timestamp: Date.now()};
+    fetch('/__event', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(ev)});
+  } catch(e) {}
+}
+
+/* ── Option A: Particle Canvas ── */
+(function(){
+  const canvas = document.getElementById('canvas-a');
+  const ctx = canvas.getContext('2d');
+  const parent = canvas.parentElement;
+  let w, h, particles;
+  function resize() {
+    w = canvas.width = parent.offsetWidth;
+    h = canvas.height = parent.offsetHeight;
+  }
+  function init() {
+    particles = Array.from({length: 70}, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random()-0.5)*0.3, vy: (Math.random()-0.5)*0.3,
+      r: Math.random()*1.5+0.4,
+      alpha: Math.random()*0.4+0.1,
+      gold: Math.random() < 0.15
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if(p.x<0) p.x=w; if(p.x>w) p.x=0;
+      if(p.y<0) p.y=h; if(p.y>h) p.y=0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = p.gold
+        ? `rgba(201,168,76,${p.alpha})`
+        : `rgba(180,200,220,${p.alpha * 0.5})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  resize(); init(); draw();
+  window.addEventListener('resize', () => { resize(); init(); });
+})();
+
+/* ── Option B: Morphic Lines SVG ── */
+(function(){
+  const svg = document.getElementById('svg-b');
+  const lines = [
+    {x1:0,y1:30,x2:300,y2:30},
+    {x1:0,y1:190,x2:300,y2:190},
+    {x1:20,y1:0,x2:20,y2:220},
+    {x1:280,y1:0,x2:280,y2:220},
+    {x1:60,y1:30,x2:60,y2:190},
+    {x1:240,y1:30,x2:240,y2:190},
+    {x1:20,y1:80,x2:60,y2:80},
+    {x1:240,y1:80,x2:280,y2:80},
+    {x1:20,y1:140,x2:60,y2:140},
+    {x1:240,y1:140,x2:280,y2:140},
+  ];
+  lines.forEach((l, i) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg','line');
+    el.setAttribute('x1', l.x1); el.setAttribute('y1', l.y1);
+    el.setAttribute('x2', l.x2); el.setAttribute('y2', l.y2);
+    const len = Math.sqrt((l.x2-l.x1)**2 + (l.y2-l.y1)**2);
+    el.setAttribute('stroke', i < 4 ? '#C9A84C' : '#1e2d40');
+    el.setAttribute('stroke-width', i < 4 ? '0.8' : '0.5');
+    el.setAttribute('stroke-dasharray', len);
+    el.setAttribute('stroke-dashoffset', len);
+    el.style.transition = `stroke-dashoffset ${0.6 + i*0.08}s ${i*0.06}s ease`;
+    svg.appendChild(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.setAttribute('stroke-dashoffset', '0');
+    }));
+  });
+
+  // Character stamp
+  const word = 'NEXT STEP';
+  const container = document.getElementById('chars-b');
+  [...word].forEach((ch, i) => {
+    const el = document.createElement('span');
+    el.className = 'char' + (i >= 5 ? ' gold' : '');
+    el.textContent = ch === ' ' ? ' ' : ch;
+    el.style.animationDelay = (0.2 + i * 0.07) + 's';
+    container.appendChild(el);
+  });
+
+  // Loop: restart animation every 3.5s
+  function loopB() {
+    // Reset chars
+    container.querySelectorAll('.char').forEach(c => {
+      c.style.animation = 'none';
+      c.offsetHeight;
+      c.style.animation = '';
+    });
+    // Reset progress
+    const fill = document.querySelector('.progress-b-fill');
+    fill.style.animation = 'none'; fill.offsetHeight;
+    fill.style.animation = 'fillB 1.8s 0.8s cubic-bezier(0.4,0,0.2,1) forwards';
+    // Reset lines
+    svg.querySelectorAll('line').forEach((el, i) => {
+      const len = parseFloat(el.getAttribute('stroke-dasharray'));
+      el.style.transition = 'none';
+      el.setAttribute('stroke-dashoffset', len);
+      el.offsetHeight;
+      el.style.transition = `stroke-dashoffset ${0.6 + i*0.08}s ${i*0.06}s ease`;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        el.setAttribute('stroke-dashoffset', '0');
+      }));
+    });
+  }
+  setInterval(loopB, 4000);
+})();
+
+/* ── Option C: Liquid Reveal + count-up ── */
+(function(){
+  // Background ripple canvas
+  const canvas = document.getElementById('canvas-c');
+  const ctx = canvas.getContext('2d');
+  const parent = canvas.parentElement;
+  let w, h;
+  function resize() { w = canvas.width = parent.offsetWidth; h = canvas.height = parent.offsetHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  let t = 0;
+  function drawC() {
+    ctx.clearRect(0,0,w,h);
+    // subtle gradient blob
+    const grd = ctx.createRadialGradient(w*0.5, h*0.5+Math.sin(t*0.01)*20, 10, w*0.5, h*0.5, Math.max(w,h)*0.55);
+    grd.addColorStop(0, 'rgba(201,168,76,0.06)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,w,h);
+    t++;
+    requestAnimationFrame(drawC);
+  }
+  drawC();
+
+  // Card stagger reveal + count-up
+  const targets = [94, 72, 61];
+  const ids = ['pct1','pct2','pct3'];
+  const cardIds = ['mc1','mc2','mc3'];
+  let running = false;
+
+  function runC() {
+    if (running) return;
+    running = true;
+    cardIds.forEach((id, i) => {
+      const card = document.getElementById(id);
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(18px)';
+      document.getElementById(ids[i]).textContent = '0%';
+    });
+
+    cardIds.forEach((id, i) => {
+      setTimeout(() => {
+        const card = document.getElementById(id);
+        card.style.transition = 'opacity 0.5s, transform 0.5s';
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+        // count-up
+        let val = 0;
+        const target = targets[i];
+        const dur = 900;
+        const start = performance.now();
+        function step(now) {
+          const p = Math.min((now - start) / dur, 1);
+          val = Math.round(p * p * (3 - 2*p) * target); // smoothstep
+          document.getElementById(ids[i]).textContent = val + '%';
+          if (p < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }, i * 180);
+    });
+
+    setTimeout(() => { running = false; }, 3000);
+  }
+
+  runC();
+  setInterval(runC, 3500);
+})();
+</script>
+</body>
+</html>
