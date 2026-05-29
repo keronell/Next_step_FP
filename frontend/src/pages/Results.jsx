@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Monitor, Server, BarChart2, Layers, Compass, Pen, ChevronRight, Trophy, Medal, Award } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useReveal } from '../hooks/useReveal'
+import Badge from '../components/ui/Badge.jsx'
+import Button from '../components/ui/Button.jsx'
+import SectionHeading from '../components/ui/SectionHeading.jsx'
 
 const ICON_MAP = {
   Monitor, Server, BarChart2, Layers, Compass, Pen,
 }
 
 const RANK_STYLES = [
-  { icon: Trophy, label: 'Best Match', color: '#C9A84C', bg: '#C9A84C15', border: '#C9A84C40' },
-  { icon: Medal, label: 'Strong Match', color: '#6B7280', bg: '#6B728010', border: '#6B728030' },
-  { icon: Award, label: 'Great Fit', color: '#92400E', bg: '#92400E10', border: '#92400E30' },
+  { icon: Trophy, label: 'Best Match', tone: 'gold' },
+  { icon: Medal,  label: 'Strong Match', tone: 'neutral' },
+  { icon: Award,  label: 'Good Fit', tone: 'neutral' },
 ]
 
 function Results({ phase, results, onSelectCareer, selectedCareer }) {
@@ -20,39 +24,28 @@ function Results({ phase, results, onSelectCareer, selectedCareer }) {
   return (
     <section id="results" className="py-24 px-6 bg-navy/[0.02]">
       <div className="max-w-6xl mx-auto">
-        <div ref={revealRef} className="reveal text-center mb-14">
-          <p className="font-body text-xs font-semibold text-gold tracking-widest uppercase mb-3">
-            Your Results
-          </p>
-          <h2 className="font-display font-bold text-4xl md:text-5xl text-navy mb-4">
-            Your top career matches
-          </h2>
-          <p className="font-body text-navy/55 text-lg max-w-md mx-auto">
-            Based on your answers, here are the tech roles where you're most likely to thrive.
-          </p>
+        <div ref={revealRef} className="reveal mb-14">
+          <SectionHeading
+            eyebrow="Your Results"
+            title="Your top career matches"
+            lede="Based on your answers, here are the tech roles where you’re most likely to thrive."
+            align="center"
+          />
         </div>
 
-        <CardsRow results={results} onSelectCareer={onSelectCareer} selectedCareer={selectedCareer} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {results.map((career, i) => (
+            <CareerCard
+              key={career.id}
+              career={career}
+              rank={i}
+              isSelected={selectedCareer === career.id}
+              onSelect={() => onSelectCareer(career.id)}
+            />
+          ))}
+        </div>
       </div>
     </section>
-  )
-}
-
-function CardsRow({ results, onSelectCareer, selectedCareer }) {
-  const rowRef = useReveal(0.05)
-
-  return (
-    <div ref={rowRef} className="reveal-stagger reveal grid grid-cols-1 md:grid-cols-3 gap-6">
-      {results.map((career, i) => (
-        <CareerCard
-          key={career.id}
-          career={career}
-          rank={i}
-          isSelected={selectedCareer === career.id}
-          onSelect={() => onSelectCareer(career.id)}
-        />
-      ))}
-    </div>
   )
 }
 
@@ -66,77 +59,99 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
     let raf
     const timer = setTimeout(() => {
       const start = Date.now()
-      const duration = 1000
+      const duration = 1100
       const target = career.matchPercent
+      // Elastic-out style: 1 + c3*(t-1)^3 + c1*(t-1)^2 (Penner overshoot)
+      const ease = (t) => {
+        const c1 = 1.70158
+        const c3 = c1 + 1
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
+      }
       const tick = () => {
         const elapsed = Date.now() - start
         const progress = Math.min(elapsed / duration, 1)
-        const eased = 1 - Math.pow(1 - progress, 3)
-        setDisplayPercent(Math.round(eased * target))
+        const eased = ease(progress)
+        setDisplayPercent(Math.round(Math.max(0, eased) * target))
         if (progress < 1) raf = requestAnimationFrame(tick)
       }
       raf = requestAnimationFrame(tick)
-    }, rank * 150)
+    }, rank * 180)
     return () => { clearTimeout(timer); cancelAnimationFrame(raf) }
   }, [career.matchPercent, rank])
 
+  const isTop = rank === 0
+
   return (
-    <div
-      className={`card-hover relative flex flex-col rounded-2xl border overflow-hidden bg-white transition-all duration-200
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.55, delay: rank * 0.12, ease: [0.25, 0.46, 0.45, 0.94] }}
+      whileHover={{ y: -6 }}
+      className={`group relative flex flex-col overflow-hidden rounded-card bg-white transition-[border-color,box-shadow] duration-base
         ${isSelected
-          ? 'border-gold shadow-lg shadow-gold/15 ring-2 ring-gold/30'
-          : 'border-navy/8 shadow-sm hover:border-gold/40'
+          ? 'border border-gold shadow-lg shadow-gold/15 ring-2 ring-gold/30'
+          : isTop
+          ? 'border border-gold/30 shadow-sm hover:border-gold/55 hover:shadow-[0_20px_50px_-18px_rgba(201,168,76,0.45)]'
+          : 'border border-navy/[0.08] shadow-sm hover:border-gold/40 hover:shadow-[0_16px_40px_-18px_rgba(15,27,45,0.25)]'
         }`}
     >
-      {/* Gold top accent bar */}
+      {/* Best-match ambient glow */}
+      {isTop && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full bg-gold/25 blur-3xl opacity-60 group-hover:opacity-90 transition-opacity duration-base"
+        />
+      )}
+
+      {/* Top accent bar — gold gradient on rank-1, soft neutral on others */}
       <div
-        className="h-1 w-full"
-        style={{ background: `linear-gradient(to right, ${rankStyle.color}80, ${rankStyle.color})` }}
+        className="relative z-10 h-1 w-full"
+        style={{
+          background: isTop
+            ? 'linear-gradient(to right, var(--color-gold-light), var(--color-gold))'
+            : 'linear-gradient(to right, rgba(15,27,45,0.08), rgba(15,27,45,0.18))'
+        }}
+        aria-hidden="true"
       />
 
-      <div className="p-6 flex flex-col flex-1">
+      <div className="relative z-10 p-6 flex flex-col flex-1">
         {/* Rank badge */}
-        <div
-          className="self-start flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-body font-semibold mb-4"
-          style={{ background: rankStyle.bg, border: `1px solid ${rankStyle.border}`, color: rankStyle.color }}
-        >
-          <RankIcon size={11} />
+        <Badge tone={rankStyle.tone} icon={RankIcon} className="self-start mb-4">
           {rankStyle.label}
-        </div>
+        </Badge>
 
-        {/* Match % + icon */}
+        {/* Career icon + Match % */}
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: rankStyle.bg, border: `1px solid ${rankStyle.border}` }}
-            >
-              <CareerIcon size={18} style={{ color: rankStyle.color }} />
-            </div>
+          <div
+            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-transform duration-base group-hover:scale-110
+              ${isTop ? 'bg-gold/15 border border-gold/30' : 'bg-navy/[0.04] border border-navy/[0.08]'}`}
+          >
+            <CareerIcon size={18} className={isTop ? 'text-gold' : 'text-navy/70'} aria-hidden="true" />
           </div>
           <div className="text-right">
-            <span className="font-display font-bold text-4xl text-navy tabular-nums">
+            <span className="font-display font-bold text-h2 text-navy tabular">
               {displayPercent}
             </span>
-            <span className="font-body text-lg text-gold font-semibold">%</span>
+            <span className="font-body text-h3 text-gold font-semibold">%</span>
           </div>
         </div>
 
-        {/* Match fill bar */}
-        <div className="h-0.5 bg-navy/8 rounded-full overflow-hidden mb-3">
+        {/* Gradient match micro-bar */}
+        <div className="h-1 bg-navy/[0.08] rounded-full overflow-hidden mb-4">
           <div
-            className="h-full bg-gold rounded-full transition-all ease-out"
+            className="h-full rounded-full bg-gradient-to-r from-gold to-gold-light transition-[width] ease-out"
             style={{ width: `${displayPercent}%`, transitionDuration: '700ms' }}
           />
         </div>
 
         {/* Title */}
-        <h3 className="font-display font-semibold text-xl text-navy mb-2">
+        <h3 className="font-display font-semibold text-h3 text-navy mb-2 tracking-tight">
           {career.title}
         </h3>
 
         {/* Description */}
-        <p className="font-body text-sm text-navy/55 leading-relaxed mb-5 flex-1">
+        <p className="font-body text-small text-navy/65 leading-relaxed mb-5 flex-1">
           {career.description}
         </p>
 
@@ -145,7 +160,7 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
           {career.keySkills.slice(0, 4).map((skill) => (
             <span
               key={skill}
-              className="px-2.5 py-1 rounded-full bg-navy/5 border border-navy/8 text-xs font-body text-navy/60 font-medium"
+              className="px-2.5 py-1 rounded-full bg-navy/[0.04] border border-navy/[0.08] text-eyebrow font-body text-navy/65 font-medium uppercase"
             >
               {skill}
             </span>
@@ -153,19 +168,17 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
         </div>
 
         {/* CTA */}
-        <button
+        <Button
+          variant={isSelected ? 'primary' : 'secondary'}
+          size="md"
           onClick={onSelect}
-          className={`w-full py-3 rounded-xl text-sm font-body font-semibold flex items-center justify-center gap-1.5 transition-all duration-150
-            ${isSelected
-              ? 'bg-gold text-navy shadow-sm'
-              : 'bg-navy/5 text-navy hover:bg-gold hover:text-navy border border-navy/10 hover:border-gold'
-            }`}
+          className="!rounded-xl w-full"
         >
           {isSelected ? 'Viewing Roadmap' : 'View Roadmap'}
-          <ChevronRight size={14} />
-        </button>
+          <ChevronRight size={14} aria-hidden="true" />
+        </Button>
       </div>
-    </div>
+    </motion.div>
   )
 }
 

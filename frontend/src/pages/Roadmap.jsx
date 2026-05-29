@@ -1,6 +1,8 @@
 import { useRef, useLayoutEffect, useEffect, useState } from 'react'
 import { ExternalLink, X } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ROADMAPS, CAREERS } from '../data'
+import SectionHeading from '../components/ui/SectionHeading.jsx'
 
 const CANVAS_W = 1400
 const SPINE_X = 700
@@ -14,6 +16,8 @@ const TOP_PAD = 80
 const HEADER_TO_ROW_GAP = 60
 const ROW_TO_HEADER_GAP = 80
 const NODE_COL_GAP = 40
+
+const FONT = { node: 13, section: 13, legendLabel: 11, badge: 11 }
 
 const LEVEL_COLORS = {
   beginner:     '#22C55E',
@@ -76,6 +80,22 @@ function elbowPath(fromX, fromY, toX, toY) {
   return `M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`
 }
 
+// Inline Lucide-style chevron paths (size 14, centered at 0,0)
+function ChevronSVG({ cx, cy, open, color = 'rgba(15,27,45,0.55)' }) {
+  // Lucide chevron-right path: M9 18l6-6-6-6 (in 24x24 viewport)
+  // Lucide chevron-down path:  M6 9l6 6 6-6
+  // We draw with stroke at scale 0.6 (~14px equivalent) around (cx, cy)
+  const s = 0.6
+  const tx = cx - 12 * s
+  const ty = cy - 12 * s
+  const d = open ? 'M6 9l6 6 6-6' : 'M9 18l6-6-6-6'
+  return (
+    <g transform={`translate(${tx} ${ty}) scale(${s})`} pointerEvents="none">
+      <path d={d} stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </g>
+  )
+}
+
 function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter, onMouseLeave }) {
   const color = LEVEL_COLORS[node.level]
   const w = node.width
@@ -90,7 +110,7 @@ function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter
 
   const label = (
     <text x={node.x} y={node.y} textAnchor="middle" dominantBaseline="middle"
-          fontSize="13" fontFamily="Inter, system-ui, sans-serif" fontWeight="500"
+          fontSize={FONT.node} fontFamily="Inter, system-ui, sans-serif" fontWeight="500"
           pointerEvents="none"
           fill={node.type === 'required' ? 'white' : color}
           fillOpacity={node.type === 'optional' ? 0.55 : 1}>
@@ -101,7 +121,7 @@ function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter
   const revealStyle = {
     opacity: isRevealed ? 1 : 0,
     transform: isRevealed ? 'translateY(0px)' : 'translateY(8px)',
-    transition: 'opacity 0.5s cubic-bezier(0.25,0.46,0.45,0.94), transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94)',
+    transition: 'opacity 0.5s var(--ease-standard), transform 0.5s var(--ease-standard)',
   }
 
   const sharedProps = {
@@ -143,108 +163,119 @@ function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter
 }
 
 function NodeDrawer({ node, onClose }) {
-  const color = node ? LEVEL_COLORS[node.level] : '#22C55E'
+  const color = node ? LEVEL_COLORS[node.level] : 'var(--color-gold)'
+
   return (
-    <div
-      className="fixed right-0 top-0 h-full z-50 overflow-y-auto"
-      style={{
-        width: 320,
-        background: '#FAF7F2',
-        borderLeft: '1px solid rgba(15,27,45,0.1)',
-        boxShadow: '-8px 0 32px rgba(15,27,45,0.12)',
-        transform: node ? 'translateX(0)' : 'translateX(100%)',
-        transition: 'transform 300ms cubic-bezier(0.4,0,0.2,1)',
-        pointerEvents: node ? 'auto' : 'none',
-      }}
-    >
+    <AnimatePresence>
       {node && (
-        <div className="p-6 pt-10">
-          <button
+        <>
+          {/* Backdrop scrim */}
+          <motion.div
             onClick={onClose}
-            className="absolute top-4 right-4 transition-colors"
-            style={{ color: 'rgba(15,27,45,0.3)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(15,27,45,0.8)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(15,27,45,0.3)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.24 }}
+            className="fixed inset-0 z-40 backdrop-blur-[2px] bg-navy/30"
+          />
+
+          {/* Drawer panel */}
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', stiffness: 280, damping: 32 }}
+            className="fixed right-0 top-0 h-full z-50 overflow-y-auto bg-cream border-l border-navy/[0.1] shadow-[-8px_0_32px_rgba(15,27,45,0.12)]"
+            style={{ width: 340 }}
           >
-            <X size={16} />
-          </button>
+          <div className="p-6 pt-10">
+            <button
+              onClick={onClose}
+              aria-label="Close drawer"
+              className="focus-ring absolute top-4 right-4 inline-flex items-center justify-center w-8 h-8 rounded-full text-navy/40 hover:text-navy hover:bg-navy/[0.06] transition-colors duration-fast"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
 
-          <div className="flex flex-wrap gap-2 mb-4">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-semibold"
-                  style={{ background: `${color}18`, color, border: `1px solid ${color}40` }}>
-              {TYPE_LABELS[node.type]}
-            </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-semibold"
-                  style={{ background: `${color}10`, color, border: `1px solid ${color}25` }}>
-              {LEVEL_LABELS[node.level]}
-            </span>
-          </div>
-
-          <h3 className="font-display font-semibold text-lg mb-3" style={{ color: '#0F1B2D' }}>
-            {node.label}
-          </h3>
-
-          <p className="font-body text-sm leading-relaxed mb-6" style={{ color: 'rgba(15,27,45,0.6)' }}>
-            {node.description}
-          </p>
-
-          {node.resources?.length > 0 && (
-            <div>
-              <p className="font-body text-[10px] font-semibold uppercase tracking-widest mb-3"
-                 style={{ color: 'rgba(15,27,45,0.35)' }}>
-                Resources
-              </p>
-              <div className="flex flex-col gap-2">
-                {node.resources.map((r) => (
-                  <a key={r.url} href={r.url} target="_blank" rel="noopener noreferrer"
-                     className="inline-flex items-center gap-2 text-sm font-semibold transition-opacity hover:opacity-70"
-                     style={{ color: '#C9A84C' }}>
-                    <ExternalLink size={13} />
-                    {r.title}
-                  </a>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span
+                className="inline-flex items-center px-2.5 py-0.5 rounded text-eyebrow font-semibold uppercase"
+                style={{ background: `${color}1F`, color, border: `1px solid ${color}40` }}
+              >
+                {TYPE_LABELS[node.type]}
+              </span>
+              <span
+                className="inline-flex items-center px-2.5 py-0.5 rounded text-eyebrow font-semibold uppercase"
+                style={{ background: `${color}14`, color, border: `1px solid ${color}25` }}
+              >
+                {LEVEL_LABELS[node.level]}
+              </span>
             </div>
-          )}
-        </div>
+
+            <h3 className="font-display font-semibold text-h3 text-navy mb-3 tracking-tight">
+              {node.label}
+            </h3>
+
+            <p className="font-body text-small text-navy/65 leading-relaxed mb-6">
+              {node.description}
+            </p>
+
+            {node.resources?.length > 0 && (
+              <div>
+                <p className="font-body text-eyebrow font-semibold uppercase text-navy/45 mb-3">
+                  Resources
+                </p>
+                <div className="flex flex-col gap-2">
+                  {node.resources.map((r) => (
+                    <a
+                      key={r.url}
+                      href={r.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="focus-ring inline-flex items-center gap-2 text-small font-semibold text-gold hover:opacity-70 transition-opacity duration-fast"
+                    >
+                      <ExternalLink size={13} aria-hidden="true" />
+                      {r.title}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          </motion.div>
+        </>
       )}
-    </div>
+    </AnimatePresence>
   )
 }
 
 function Legend() {
   return (
-    <div className="flex flex-col gap-2.5 p-3 rounded-lg"
-         style={{ background: 'rgba(250,247,242,0.95)', border: '1px solid rgba(201,168,76,0.2)' }}>
-      <p className="font-body text-[10px] font-semibold uppercase tracking-widest"
-         style={{ color: 'rgba(15,27,45,0.35)' }}>
+    <div className="flex flex-col gap-2.5 p-3 rounded-lg bg-cream/95 backdrop-blur-sm border border-gold/25 shadow-sm">
+      <p className="font-body text-eyebrow font-semibold uppercase text-navy/45">
         Legend
       </p>
       <div className="flex items-center gap-2">
         <svg width={60} height={22} style={{ flexShrink: 0 }}>
           <rect x={0} y={1} width={60} height={20} rx={4} fill="#22C55E" />
         </svg>
-        <span className="font-body text-xs whitespace-nowrap" style={{ color: 'rgba(15,27,45,0.65)' }}>
-          Required
-        </span>
+        <span className="font-body text-small text-navy/70 whitespace-nowrap">Required</span>
       </div>
       <div className="flex items-center gap-2">
         <svg width={60} height={22} style={{ flexShrink: 0 }}>
           <rect x={0.75} y={1.75} width={58.5} height={18.5} rx={4}
                 fill="none" stroke="#EAB308" strokeWidth={1.5} />
         </svg>
-        <span className="font-body text-xs whitespace-nowrap" style={{ color: 'rgba(15,27,45,0.65)' }}>
-          Good to Know
-        </span>
+        <span className="font-body text-small text-navy/70 whitespace-nowrap">Good to Know</span>
       </div>
       <div className="flex items-center gap-2">
         <svg width={60} height={22} style={{ flexShrink: 0 }}>
           <rect x={0.75} y={1.75} width={58.5} height={18.5} rx={4}
                 fill="none" stroke="#EF4444" strokeWidth={1.5} strokeDasharray="6,3" />
         </svg>
-        <span className="font-body text-xs whitespace-nowrap" style={{ color: 'rgba(15,27,45,0.65)' }}>
-          Optional
-        </span>
+        <span className="font-body text-small text-navy/70 whitespace-nowrap">Optional</span>
       </div>
     </div>
   )
@@ -255,6 +286,7 @@ function Roadmap({ selectedCareer }) {
   const revealTimersRef = useRef([])
   const [drawerNode, setDrawerNode] = useState(null)
   const [hoveredNode, setHoveredNode] = useState(null)
+  const [hoveredSection, setHoveredSection] = useState(null)
   const [collapsed, setCollapsed] = useState({})
   const [revealedNodes, setRevealedNodes] = useState(new Set())
 
@@ -344,107 +376,109 @@ function Roadmap({ selectedCareer }) {
 
   return (
     <>
-      <section id="roadmap" className="py-24 px-6">
-        <div className="max-w-7xl mx-auto">
+      <section id="roadmap" className="py-24 px-6 relative">
+        <div className="max-w-7xl mx-auto relative">
           {/* Header */}
-          <div className="text-center mb-10">
-            <p className="font-body text-xs font-semibold text-gold tracking-widest uppercase mb-3">
-              Your Learning Roadmap
-            </p>
-            <h2 className="font-display font-bold text-4xl md:text-5xl text-navy mb-4">
-              {career?.title} Path
-            </h2>
-            <p className="font-body text-navy/55 text-base max-w-lg mx-auto">
-              Click any skill node to explore resources and details.
-            </p>
+          <div className="mb-10">
+            <SectionHeading
+              eyebrow="Your Learning Roadmap"
+              title={`${career?.title} Path`}
+              lede="Click any skill node to explore resources and details."
+              align="center"
+            />
           </div>
 
-          {/* Toolbar: expand/collapse + legend */}
-          <div className="flex items-start justify-between mb-5 flex-wrap gap-4">
+          {/* Toolbar */}
+          <div className="flex items-center justify-start mb-5">
             <button
               onClick={toggleAll}
-              className="font-body text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-              style={{
-                border: '1px solid rgba(201,168,76,0.4)',
-                color: '#C9A84C',
-                background: 'transparent',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              className="focus-ring font-body text-eyebrow font-semibold uppercase px-4 py-2 rounded-lg border border-gold/40 text-gold hover:bg-gold/[0.08] transition-colors duration-fast"
             >
               {allCollapsed ? 'Expand All' : 'Collapse All'}
             </button>
-            <Legend />
           </div>
 
-          {/* SVG canvas */}
-          <div style={{ overflowX: 'auto' }}>
-            <svg
-              width={CANVAS_W}
-              height={totalH}
-              style={{ display: 'block', margin: '0 auto', minWidth: CANVAS_W }}
-            >
-              {/* Center spine */}
-              <line x1={SPINE_X} y1={0} x2={SPINE_X} y2={totalH}
-                    stroke="#C9A84C" strokeWidth={1} opacity={0.2} />
+          {/* SVG canvas + sticky legend wrapper */}
+          <div className="relative">
+            <div style={{ overflowX: 'auto' }}>
+              <svg
+                width={CANVAS_W}
+                height={totalH}
+                style={{ display: 'block', margin: '0 auto', minWidth: CANVAS_W }}
+              >
+                {/* Center spine */}
+                <line x1={SPINE_X} y1={0} x2={SPINE_X} y2={totalH}
+                      stroke="var(--color-gold)" strokeWidth={1} opacity={0.2} />
 
-              {/* Connector paths */}
-              {allEdges.map((edge) => (
-                <path
-                  key={edge.id}
-                  ref={(el) => { pathRefs.current[edge.id] = el }}
-                  d={edge.d}
-                  stroke="#C9A84C" strokeWidth={2} fill="none" opacity={0.8}
-                />
-              ))}
+                {/* Connector paths */}
+                {allEdges.map((edge) => (
+                  <path
+                    key={edge.id}
+                    ref={(el) => { pathRefs.current[edge.id] = el }}
+                    d={edge.d}
+                    stroke="var(--color-gold)" strokeWidth={2} fill="none" opacity={0.8}
+                  />
+                ))}
 
-              {/* Sections */}
-              {layoutSections.map((section) => {
-                const isCollapsed = !!collapsed[section.id]
-                return (
-                  <g key={section.id}>
-                    {/* Section header — clickable to collapse */}
-                    <g onClick={() => toggleSection(section.id)} style={{ cursor: 'pointer' }}>
-                      <rect
-                        x={SPINE_X - SECTION_HEADER_W / 2} y={section.y}
-                        width={SECTION_HEADER_W} height={SECTION_HEADER_H} rx={6}
-                        fill="rgba(15,27,45,0.07)" stroke="rgba(15,27,45,0.12)" strokeWidth={1}
-                      />
-                      <text
-                        x={SPINE_X - 10} y={section.y + SECTION_HEADER_H / 2}
-                        textAnchor="middle" dominantBaseline="middle"
-                        fontSize="13" fontFamily="Inter, system-ui, sans-serif" fontWeight="600"
-                        fill="#0F1B2D" pointerEvents="none"
+                {/* Sections */}
+                {layoutSections.map((section) => {
+                  const isCollapsed = !!collapsed[section.id]
+                  const isHovered = hoveredSection === section.id
+                  return (
+                    <g key={section.id}>
+                      {/* Section header — clickable to collapse */}
+                      <g
+                        onClick={() => toggleSection(section.id)}
+                        onMouseEnter={() => setHoveredSection(section.id)}
+                        onMouseLeave={() => setHoveredSection(null)}
+                        style={{ cursor: 'pointer' }}
                       >
-                        {section.label}
-                      </text>
-                      <text
-                        x={SPINE_X + SECTION_HEADER_W / 2 - 16}
-                        y={section.y + SECTION_HEADER_H / 2}
-                        textAnchor="middle" dominantBaseline="middle"
-                        fontSize="11" fill="rgba(15,27,45,0.4)" pointerEvents="none"
-                      >
-                        {isCollapsed ? '▸' : '▾'}
-                      </text>
+                        <rect
+                          x={SPINE_X - SECTION_HEADER_W / 2} y={section.y}
+                          width={SECTION_HEADER_W} height={SECTION_HEADER_H} rx={6}
+                          fill={isHovered ? 'rgba(15,27,45,0.10)' : 'rgba(15,27,45,0.06)'}
+                          stroke={isHovered ? 'rgba(201,168,76,0.45)' : 'rgba(15,27,45,0.12)'}
+                          strokeWidth={1}
+                          style={{ transition: 'fill var(--motion-fast), stroke var(--motion-fast)' }}
+                        />
+                        <text
+                          x={SPINE_X - 10} y={section.y + SECTION_HEADER_H / 2}
+                          textAnchor="middle" dominantBaseline="middle"
+                          fontSize={FONT.section} fontFamily="Inter, system-ui, sans-serif" fontWeight="600"
+                          fill="var(--color-navy)" pointerEvents="none"
+                        >
+                          {section.label}
+                        </text>
+                        <ChevronSVG
+                          cx={SPINE_X + SECTION_HEADER_W / 2 - 18}
+                          cy={section.y + SECTION_HEADER_H / 2}
+                          open={!isCollapsed}
+                        />
+                      </g>
+
+                      {/* Child nodes */}
+                      {!isCollapsed && section.nodes.map((node) => (
+                        <NodeRect
+                          key={node.id}
+                          node={node}
+                          isRevealed={revealedNodes.has(node.id)}
+                          isHovered={hoveredNode === node.id}
+                          isActive={drawerNode?.id === node.id}
+                          onClick={() => handleNodeClick(node)}
+                          onMouseEnter={() => setHoveredNode(node.id)}
+                          onMouseLeave={() => setHoveredNode(null)}
+                        />
+                      ))}
                     </g>
+                  )
+                })}
+              </svg>
+            </div>
 
-                    {/* Child nodes */}
-                    {!isCollapsed && section.nodes.map((node) => (
-                      <NodeRect
-                        key={node.id}
-                        node={node}
-                        isRevealed={revealedNodes.has(node.id)}
-                        isHovered={hoveredNode === node.id}
-                        isActive={drawerNode?.id === node.id}
-                        onClick={() => handleNodeClick(node)}
-                        onMouseEnter={() => setHoveredNode(node.id)}
-                        onMouseLeave={() => setHoveredNode(null)}
-                      />
-                    ))}
-                  </g>
-                )
-              })}
-            </svg>
+            {/* Sticky legend — top-right of the canvas wrapper, stays put during horizontal scroll */}
+            <div className="absolute top-2 right-2 pointer-events-auto z-10">
+              <Legend />
+            </div>
           </div>
         </div>
       </section>

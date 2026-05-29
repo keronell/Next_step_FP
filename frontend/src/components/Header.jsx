@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Menu, X, Sparkles } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import Button from './ui/Button.jsx'
 
 function Header({ phase, onReset }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [hovered, setHovered] = useState(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -16,84 +19,119 @@ function Header({ phase, onReset }) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  const navItems = [
+    { label: 'Home', id: 'hero' },
+    { label: 'How It Works', id: 'how-it-works' },
+    { label: 'Assessment', id: 'assessment' },
+    ...(phase === 'results_ready' ? [{ label: 'Results', id: 'results' }] : []),
+  ]
+
   return (
-    <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-cream/95 backdrop-blur-md shadow-sm border-b border-navy/8'
-          : 'bg-transparent'
-      }`}
-    >
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <button
-          onClick={onReset}
-          className="flex flex-col items-start group"
-        >
-          <span className="font-display font-bold text-xl text-navy group-hover:text-navy/80 transition-colors leading-none">
-            The Next Step
-          </span>
-          <span className="font-body text-[10px] font-medium text-gold tracking-widest uppercase leading-none mt-0.5">
-            Career Discovery
-          </span>
-        </button>
-
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8">
-          {[
-            { label: 'Home', id: 'hero' },
-            { label: 'How It Works', id: 'how-it-works' },
-            { label: 'Assessment', id: 'assessment' },
-            ...(phase === 'results_ready' ? [{ label: 'Results', id: 'results' }] : []),
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => scrollToSection(item.id)}
-              className="font-body text-sm text-navy/70 hover:text-navy transition-colors relative group"
-            >
-              {item.label}
-              <span className="absolute -bottom-0.5 left-0 right-0 h-px bg-gold scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
-            </button>
-          ))}
+    <header className="sticky top-0 z-50 px-3">
+      <motion.div
+        initial={false}
+        animate={{
+          maxWidth: scrolled ? 880 : 1152,
+          marginTop: scrolled ? 12 : 0,
+          borderRadius: scrolled ? 9999 : 0,
+          backgroundColor: scrolled ? 'rgba(250,247,242,0.85)' : 'rgba(250,247,242,0)',
+          boxShadow: scrolled
+            ? '0 10px 40px -12px rgba(15,27,45,0.25), inset 0 0 0 1px rgba(201,168,76,0.18)'
+            : '0 0 0 0 rgba(0,0,0,0)',
+        }}
+        transition={{ type: 'spring', stiffness: 220, damping: 32 }}
+        className="mx-auto backdrop-blur-md"
+      >
+        <div className="px-5 sm:px-6 h-16 flex items-center justify-between">
+          {/* Logo */}
           <button
-            onClick={() => scrollToSection('assessment')}
-            className="btn-gold px-5 py-2 rounded-full text-sm font-semibold font-body flex items-center gap-1.5"
+            onClick={onReset}
+            className="focus-ring flex flex-col items-start group rounded-md px-1 py-0.5"
           >
-            <Sparkles size={14} />
-            Start Assessment
+            <span className="font-display font-bold text-xl text-navy group-hover:text-gold transition-colors duration-fast leading-none">
+              The Next Step
+            </span>
+            <span className="font-body text-eyebrow font-medium text-gold uppercase leading-none mt-1">
+              Career Discovery
+            </span>
           </button>
-        </nav>
 
-        {/* Mobile hamburger */}
-        <button
-          className="md:hidden p-2 text-navy hover:text-navy/70 transition-colors"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle menu"
-        >
-          {menuOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
-      </div>
-
-      {/* Mobile dropdown */}
-      {menuOpen && (
-        <div className="md:hidden bg-cream/98 backdrop-blur-md border-b border-navy/10 px-6 py-4 flex flex-col gap-3">
-          {['hero', 'how-it-works', 'assessment'].map((id) => (
-            <button
-              key={id}
-              onClick={() => scrollToSection(id)}
-              className="text-left font-body text-navy/80 hover:text-navy py-2 border-b border-navy/5 last:border-0 transition-colors capitalize"
-            >
-              {id.replace('-', ' ')}
-            </button>
-          ))}
-          <button
-            onClick={() => scrollToSection('assessment')}
-            className="btn-gold px-5 py-2.5 rounded-full text-sm font-semibold font-body mt-1"
+          {/* Desktop nav */}
+          <nav
+            className="hidden md:flex items-center gap-1"
+            onMouseLeave={() => setHovered(null)}
           >
-            Start Assessment
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => scrollToSection(item.id)}
+                onMouseEnter={() => setHovered(item.id)}
+                className="focus-ring relative px-4 py-2 rounded-full font-body text-small text-navy/75 hover:text-navy transition-colors duration-fast"
+              >
+                {hovered === item.id && (
+                  <motion.span
+                    layoutId="nav-pill"
+                    className="absolute inset-0 rounded-full bg-gold/12 ring-1 ring-inset ring-gold/25"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10">{item.label}</span>
+              </button>
+            ))}
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => scrollToSection('assessment')}
+              className="ml-2 !px-5 !py-2 !text-small"
+            >
+              <Sparkles size={14} aria-hidden="true" />
+              Start Assessment
+            </Button>
+          </nav>
+
+          {/* Mobile hamburger */}
+          <button
+            className="focus-ring md:hidden p-2 rounded-md text-navy hover:text-gold transition-colors duration-fast"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+          >
+            {menuOpen ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
           </button>
         </div>
-      )}
+      </motion.div>
+
+      {/* Mobile dropdown */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden mx-auto mt-2 max-w-6xl rounded-2xl bg-cream/95 backdrop-blur-md border border-gold/20 shadow-lg px-6 py-4 flex flex-col gap-1"
+          >
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => scrollToSection(item.id)}
+                className="focus-ring text-left font-body text-navy/80 hover:text-gold py-2.5 border-b border-navy/5 last:border-0 transition-colors duration-fast"
+              >
+                {item.label}
+              </button>
+            ))}
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => scrollToSection('assessment')}
+              className="mt-3 !text-small"
+            >
+              <Sparkles size={14} aria-hidden="true" />
+              Start Assessment
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   )
 }

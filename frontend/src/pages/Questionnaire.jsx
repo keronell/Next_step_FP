@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Sparkles, ChevronRight, ChevronLeft, SkipForward, Edit3, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { QUESTIONS } from '../data'
 import { useReveal } from '../hooks/useReveal'
+import Button from '../components/ui/Button.jsx'
+import Eyebrow from '../components/ui/Eyebrow.jsx'
 
 // answers[qId] = number (answered) | null (skipped) | undefined (not visited)
 const isAnswered = (val) => val !== null && val !== undefined
@@ -155,31 +158,34 @@ function Assessment({ phase, onStart, onComplete }) {
 
 function AssessmentStart({ onStart }) {
   return (
-    <div className="text-center">
-      <p className="font-body text-xs font-semibold text-gold tracking-widest uppercase mb-4">
-        Career Assessment
-      </p>
-      <h2 className="font-display font-bold text-4xl md:text-5xl text-navy mb-5">
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="flex flex-col items-center text-center"
+    >
+      <Eyebrow dot className="mb-4">Career Assessment</Eyebrow>
+      <h2 className="font-display font-bold text-h1 text-navy mb-5 tracking-tight text-balance">
         Find your ideal
         <br />
         <span className="italic text-gold">tech career</span>
       </h2>
-      <p className="font-body text-navy/60 text-lg max-w-lg mx-auto leading-relaxed mb-10">
+      <p className="font-body text-navy/65 text-body max-w-[52ch] mx-auto leading-snug mb-10">
         10 questions · 3–5 minutes · No signup required
       </p>
-      <div className="flex flex-wrap justify-center gap-3 mb-10">
+      <div className="flex flex-wrap justify-center gap-2 mb-10">
         {['Skills & interests', 'Work style', 'Personality fit', 'Personalized match'].map((tag) => (
-          <span key={tag} className="px-4 py-1.5 rounded-full bg-navy/5 border border-navy/10 text-xs font-body text-navy/60 font-medium">
+          <span key={tag} className="px-3 py-1 rounded-full bg-navy/[0.04] border border-navy/10 text-eyebrow font-body text-navy/65 font-medium uppercase">
             {tag}
           </span>
         ))}
       </div>
-      <button onClick={onStart} className="btn-gold px-8 py-4 rounded-full text-base font-semibold font-body inline-flex items-center gap-2">
-        <Sparkles size={16} />
+      <Button variant="primary" size="lg" onClick={onStart}>
+        <Sparkles size={16} aria-hidden="true" />
         Begin Assessment
-        <ChevronRight size={16} />
-      </button>
-    </div>
+        <ChevronRight size={16} aria-hidden="true" />
+      </Button>
+    </motion.div>
   )
 }
 
@@ -191,38 +197,51 @@ function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSele
   const isWaiting = pendingVal !== null && !fromReview && isAnswered(pendingVal)
 
   return (
-    <div className="bg-white rounded-2xl border border-navy/8 shadow-lg overflow-hidden">
+    <div className="bg-white rounded-card border border-navy/[0.08] shadow-lg overflow-hidden">
       {/* Top progress bar */}
-      <div className="h-1 bg-navy/8">
-        <div className="h-full bg-gold transition-all duration-400 ease-out" style={{ width: `${progressPct}%` }} />
+      <div className="h-1 bg-navy/[0.08]">
+        <motion.div
+          className="h-full bg-gradient-to-r from-gold to-gold-light"
+          initial={false}
+          animate={{ width: `${progressPct}%` }}
+          transition={{ type: 'spring', stiffness: 120, damping: 24 }}
+        />
       </div>
 
       <div className="p-8 md:p-10">
         {/* From-review badge */}
         {fromReview && (
-          <div className="flex items-center gap-2 mb-4 px-3 py-1.5 bg-gold/10 border border-gold/30 rounded-full w-fit">
-            <Edit3 size={12} className="text-gold" />
-            <span className="font-body text-xs font-semibold text-gold">Editing — will return to Review</span>
+          <div className="flex items-center gap-2 mb-4 px-3 py-1.5 bg-gold/10 border border-gold/40 rounded-full w-fit">
+            <Edit3 size={12} className="text-gold" aria-hidden="true" />
+            <span className="font-body text-eyebrow font-semibold text-gold uppercase">Editing — will return to Review</span>
           </div>
         )}
 
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentQ}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
         {/* Category + counter */}
         <div className="flex items-center justify-between mb-6">
-          <span className="font-body text-xs font-semibold text-gold tracking-widest uppercase">
-            {question.category}
-          </span>
-          <span className="font-body text-sm text-navy/40 tabular-nums">
-            {currentQ + 1} / {QUESTIONS.length}
+          <Eyebrow dot>{question.category}</Eyebrow>
+          <span className="font-body text-small text-navy/55 tabular">
+            <span className="font-semibold text-navy/80">{currentQ + 1}</span>
+            <span className="mx-0.5">/</span>
+            {QUESTIONS.length}
           </span>
         </div>
 
         {/* Question */}
-        <h2 className="font-display font-semibold text-2xl md:text-3xl text-navy leading-snug mb-8">
+        <h2 className="font-display font-semibold text-h2 md:text-h1 text-navy leading-snug mb-8 tracking-tight text-balance">
           {question.text}
         </h2>
 
         {/* Options */}
-        <div key={currentQ} className="option-grid grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+        <div className="option-grid grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
           {question.options.map((option, i) => {
             const isHighlighted = pendingVal === option.value
             const isPreviousAnswer = isAnswered(answers[question.id]) && answers[question.id] === option.value && pendingVal === null
@@ -232,17 +251,17 @@ function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSele
                 key={i}
                 onClick={() => onSelect(option.value)}
                 disabled={isWaiting}
-                className={`text-left p-4 rounded-xl border-2 font-body text-sm leading-snug transition-all duration-150
+                className={`focus-ring text-left p-4 rounded-2xl border-2 font-body text-base leading-snug transition-all duration-base
                   ${showSelected
-                    ? 'border-gold bg-gold/10 text-navy shadow-sm'
-                    : 'border-navy/10 bg-cream/50 text-navy/70 hover:border-gold/60 hover:bg-gold/5 hover:text-navy hover:scale-[1.01]'
+                    ? 'border-gold bg-gold/[0.08] text-navy shadow-sm ring-1 ring-gold/60'
+                    : 'border-navy/10 bg-cream/50 text-navy/75 hover:border-gold/60 hover:bg-gold/5 hover:text-navy hover:scale-[1.01]'
                   }
                   ${isWaiting && !showSelected ? 'opacity-40 cursor-not-allowed' : ''}
                 `}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all
-                    ${showSelected ? 'border-gold bg-gold' : 'border-navy/20'}`}
+                  <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-fast
+                    ${showSelected ? 'border-gold bg-gold' : 'border-navy/25'}`}
                   >
                     {showSelected && <div className="w-1.5 h-1.5 rounded-full bg-cream" />}
                   </div>
@@ -252,9 +271,11 @@ function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSele
             )
           })}
         </div>
+          </motion.div>
+        </AnimatePresence>
 
         {/* Clickable progress dots */}
-        <div className="flex justify-center gap-1.5 mb-6">
+        <div className="flex justify-center items-center gap-1.5 mb-6">
           {QUESTIONS.map((q, i) => {
             const val = answers[q.id]
             const isCurrentDot = i === currentQ
@@ -269,16 +290,18 @@ function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSele
                 onClick={() => clickable && onDotJump(i)}
                 disabled={!clickable}
                 title={isVisited ? (answered ? 'Jump to this question' : skipped ? 'Skipped — click to revisit' : '') : ''}
-                className={`rounded-full transition-all duration-300 focus:outline-none
-                  ${isCurrentDot ? 'w-5 h-2.5' : 'w-2.5 h-2.5'}
+                aria-label={`Question ${i + 1}`}
+                aria-current={isCurrentDot ? 'step' : undefined}
+                className={`focus-ring rounded-full transition-all duration-base
+                  ${isCurrentDot ? 'w-6 h-2.5 scale-[1.15]' : 'w-2.5 h-2.5'}
                   ${clickable ? 'cursor-pointer hover:scale-125' : 'cursor-default'}
                   ${isCurrentDot
-                    ? 'bg-gold'
+                    ? 'bg-gold shadow-[0_0_0_3px_rgba(201,168,76,0.18)]'
                     : answered
                     ? 'bg-gold/70'
                     : skipped
                     ? 'bg-navy/25'
-                    : 'bg-navy/12'
+                    : 'bg-navy/[0.12]'
                   }
                 `}
               />
@@ -287,26 +310,26 @@ function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSele
         </div>
 
         {/* Navigation row: Back · Skip */}
-        <div className="flex items-center justify-between pt-4 border-t border-navy/6">
+        <div className="flex items-center justify-between pt-4 border-t border-navy/[0.06]">
           <button
             onClick={onBack}
             disabled={currentQ === 0}
-            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-body text-sm font-medium transition-all
+            className={`focus-ring inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-body text-small font-medium transition-all duration-fast
               ${currentQ === 0
-                ? 'text-navy/20 cursor-not-allowed'
-                : 'text-navy/60 hover:text-navy hover:bg-navy/5'
+                ? 'text-navy/30 cursor-not-allowed'
+                : 'text-navy/65 hover:text-navy hover:bg-navy/[0.04]'
               }`}
           >
-            <ChevronLeft size={15} />
+            <ChevronLeft size={15} aria-hidden="true" />
             Back
           </button>
 
           <button
             onClick={onSkip}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-body text-sm font-medium text-navy/45 hover:text-navy/70 hover:bg-navy/5 transition-all"
+            className="focus-ring inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-body text-small font-medium text-navy/55 hover:text-navy/80 hover:bg-navy/[0.04] transition-all duration-fast"
           >
             {fromReview ? 'Skip & Return' : 'Skip'}
-            <SkipForward size={15} />
+            <SkipForward size={15} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -320,19 +343,22 @@ function ReviewScreen({ answers, skipWarning, onEdit, onGoBack, onSubmit, onSubm
   const skippedCount = QUESTIONS.filter((q) => !isAnswered(answers[q.id])).length
 
   return (
-    <div className="bg-white rounded-2xl border border-navy/8 shadow-lg overflow-hidden flex flex-col">
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="bg-white rounded-card border border-navy/[0.08] shadow-lg overflow-hidden flex flex-col"
+    >
       {/* Header */}
-      <div className="px-8 pt-8 pb-5 border-b border-navy/6">
-        <div className="flex items-center gap-2 mb-1">
-          <CheckCircle2 size={18} className="text-gold" />
-          <p className="font-body text-xs font-semibold text-gold tracking-widest uppercase">
-            Almost there
-          </p>
-        </div>
-        <h2 className="font-display font-bold text-2xl md:text-3xl text-navy">
+      <div className="px-8 pt-8 pb-5 border-b border-navy/[0.06]">
+        <Eyebrow dot className="mb-2">
+          <CheckCircle2 size={14} className="text-gold" aria-hidden="true" />
+          Almost there
+        </Eyebrow>
+        <h2 className="font-display font-bold text-h2 md:text-h1 text-navy tracking-tight text-balance">
           Review your answers
         </h2>
-        <p className="font-body text-sm text-navy/50 mt-1">
+        <p className="font-body text-small text-navy/55 mt-2 tabular">
           {skippedCount > 0
             ? `${QUESTIONS.length - skippedCount} answered · ${skippedCount} skipped`
             : `All ${QUESTIONS.length} questions answered`
@@ -341,25 +367,25 @@ function ReviewScreen({ answers, skipWarning, onEdit, onGoBack, onSubmit, onSubm
       </div>
 
       {/* Scrollable question list */}
-      <div className="overflow-y-auto max-h-[420px] divide-y divide-navy/5">
+      <div className="overflow-y-auto max-h-[420px] divide-y divide-navy/[0.05]">
         {QUESTIONS.map((q, i) => {
           const val = answers[q.id]
           const answered = isAnswered(val)
           const selectedOption = answered ? q.options.find((o) => o.value === val) : null
 
           return (
-            <div key={q.id} className="flex items-start gap-4 px-8 py-4 hover:bg-navy/[0.015] transition-colors group">
+            <div key={q.id} className="flex items-start gap-4 px-8 py-4 hover:bg-navy/[0.04] transition-colors duration-fast group">
               {/* Number */}
-              <span className="font-body text-xs font-semibold text-navy/30 tabular-nums w-5 flex-shrink-0 pt-0.5">
+              <span className="font-body text-eyebrow font-semibold text-navy/40 tabular w-5 flex-shrink-0 pt-0.5">
                 {String(i + 1).padStart(2, '0')}
               </span>
 
               {/* Q + A */}
               <div className="flex-1 min-w-0">
-                <p className="font-body text-sm font-medium text-navy leading-snug">
+                <p className="font-body text-body font-medium text-navy leading-snug">
                   {q.text}
                 </p>
-                <p className={`font-body text-sm mt-1 ${answered ? 'text-navy/60' : 'text-navy/30 italic'}`}>
+                <p className={`font-body text-small mt-1 ${answered ? 'text-navy/65' : 'text-navy/40 italic'}`}>
                   {answered ? selectedOption?.label : 'Skipped'}
                 </p>
               </div>
@@ -367,9 +393,9 @@ function ReviewScreen({ answers, skipWarning, onEdit, onGoBack, onSubmit, onSubm
               {/* Edit */}
               <button
                 onClick={() => onEdit(i)}
-                className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-body font-semibold text-navy/40 hover:text-gold hover:bg-gold/8 border border-transparent hover:border-gold/25 transition-all opacity-0 group-hover:opacity-100"
+                className="focus-ring flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-eyebrow font-body font-semibold uppercase text-navy/50 hover:text-gold hover:bg-gold/[0.08] border border-transparent hover:border-gold/30 transition-all duration-fast opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
               >
-                <Edit3 size={11} />
+                <Edit3 size={11} aria-hidden="true" />
                 Edit
               </button>
             </div>
@@ -379,10 +405,10 @@ function ReviewScreen({ answers, skipWarning, onEdit, onGoBack, onSubmit, onSubm
 
       {/* Validation warning */}
       {skipWarning && (
-        <div className="mx-6 mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col gap-3">
+        <div className="mx-6 mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col gap-3" role="alert">
           <div className="flex items-start gap-2.5">
-            <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="font-body text-sm text-amber-800 leading-snug">
+            <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="font-body text-small text-amber-800 leading-snug">
               You have <span className="font-semibold">{skippedCount} unanswered question{skippedCount > 1 ? 's' : ''}</span>.
               You can still submit or go back to answer them.
             </p>
@@ -390,13 +416,13 @@ function ReviewScreen({ answers, skipWarning, onEdit, onGoBack, onSubmit, onSubm
           <div className="flex gap-2 pl-6">
             <button
               onClick={onSubmitAnyway}
-              className="px-4 py-2 rounded-lg bg-amber-500 text-white font-body text-xs font-semibold hover:bg-amber-600 transition-colors"
+              className="focus-ring px-4 py-2 rounded-lg bg-amber-500 text-white font-body text-eyebrow font-semibold uppercase hover:bg-amber-600 transition-colors duration-fast"
             >
               Submit Anyway
             </button>
             <button
               onClick={onReviewSkipped}
-              className="px-4 py-2 rounded-lg border border-amber-300 text-amber-700 font-body text-xs font-semibold hover:bg-amber-100 transition-colors"
+              className="focus-ring px-4 py-2 rounded-lg border border-amber-300 text-amber-700 font-body text-eyebrow font-semibold uppercase hover:bg-amber-100 transition-colors duration-fast"
             >
               Review Skipped
             </button>
@@ -405,23 +431,17 @@ function ReviewScreen({ answers, skipWarning, onEdit, onGoBack, onSubmit, onSubm
       )}
 
       {/* Sticky bottom bar */}
-      <div className="px-6 py-5 border-t border-navy/6 bg-cream/60 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-4">
-        <button
-          onClick={onGoBack}
-          className="inline-flex items-center justify-center gap-1.5 px-5 py-3 rounded-xl font-body text-sm font-medium text-navy/60 hover:text-navy hover:bg-navy/5 border border-navy/10 transition-all"
-        >
-          <ChevronLeft size={15} />
+      <div className="px-6 py-5 border-t border-navy/[0.06] bg-cream/60 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-4">
+        <Button variant="secondary" size="md" onClick={onGoBack} className="!rounded-xl">
+          <ChevronLeft size={15} aria-hidden="true" />
           Go Back
-        </button>
-        <button
-          onClick={onSubmit}
-          className="btn-gold flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl font-body text-sm font-semibold"
-        >
+        </Button>
+        <Button variant="primary" size="md" onClick={onSubmit} className="!rounded-xl flex-1 sm:flex-none">
           Submit & See Results
-          <ChevronRight size={15} />
-        </button>
+          <ChevronRight size={15} aria-hidden="true" />
+        </Button>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -446,7 +466,7 @@ function ScanGrid() {
       el.setAttribute('x1', s[0]); el.setAttribute('y1', s[1])
       el.setAttribute('x2', s[2]); el.setAttribute('y2', s[3])
       const len = Math.sqrt((s[2] - s[0]) ** 2 + (s[3] - s[1]) ** 2)
-      el.setAttribute('stroke', i < 8 ? '#C9A84C' : 'rgba(201,168,76,0.25)')
+      el.style.stroke = i < 8 ? 'var(--color-gold)' : 'rgba(201,168,76,0.25)'
       el.setAttribute('stroke-width', i < 8 ? '1.5' : '0.8')
       el.setAttribute('stroke-dasharray', `${len}`)
       el.setAttribute('stroke-dashoffset', `${len}`)
@@ -485,7 +505,8 @@ function LoadingScreen() {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <ScanGrid />
-      <div className="flex font-display font-semibold text-2xl text-navy mb-2" aria-label="Analyzing your profile">
+      <Eyebrow dot className="mb-4">Analyzing your responses</Eyebrow>
+      <div className="flex font-display font-semibold text-h2 text-navy mb-2 tracking-tight" aria-label="Analyzing your profile">
         {'Analyzing your profile…'.split('').map((ch, i) => (
           <span
             key={i}
@@ -496,14 +517,16 @@ function LoadingScreen() {
           </span>
         ))}
       </div>
-      <p className="font-body text-sm text-navy/50 mb-8 max-w-xs">Matching your answers against 6 tech career paths</p>
-      <div className="w-64 h-1.5 bg-navy/10 rounded-full overflow-hidden">
+      <p className="font-body text-small text-navy/60 mb-8 max-w-xs leading-snug">
+        Matching your answers against 6 tech career paths
+      </p>
+      <div className="w-64 h-1.5 bg-navy/[0.1] rounded-full overflow-hidden">
         <div
-          className="h-full bg-gold rounded-full transition-all ease-out"
+          className="h-full bg-gradient-to-r from-gold to-gold-light rounded-full transition-[width] ease-out"
           style={{ width: `${progress}%`, transitionDuration: '2400ms' }}
         />
       </div>
-      <p className="font-body text-xs text-navy/30 mt-2 tabular-nums">{progress}%</p>
+      <p className="font-body text-eyebrow uppercase text-navy/50 mt-3 tabular">{progress}%</p>
     </div>
   )
 }

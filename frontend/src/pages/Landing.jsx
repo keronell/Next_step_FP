@@ -1,14 +1,37 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sparkles, ArrowDown } from 'lucide-react'
-import { useReveal } from '../hooks/useReveal'
+import { motion } from 'framer-motion'
+import Button from '../components/ui/Button.jsx'
+import Badge from '../components/ui/Badge.jsx'
+import Eyebrow from '../components/ui/Eyebrow.jsx'
+
+const container = {
+  hidden: {},
+  show: {
+    transition: { staggerChildren: 0.12, delayChildren: 0.1 },
+  },
+}
+
+const item = {
+  hidden: { opacity: 0, y: 28, filter: 'blur(6px)' },
+  show: {
+    opacity: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: { duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+}
 
 function Hero({ onStart }) {
-  const revealRef = useReveal(0.05)
   const canvasRef = useRef(null)
+  const [pulseOn, setPulseOn] = useState(true)
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (mq.matches) return
+
     const ctx = canvas.getContext('2d')
     let animId
     let particles = []
@@ -16,7 +39,8 @@ function Hero({ onStart }) {
     const resize = () => {
       canvas.width = canvas.offsetWidth
       canvas.height = canvas.offsetHeight
-      particles = Array.from({ length: 80 }, () => ({
+      const count = window.innerWidth < 640 ? 28 : 80
+      particles = Array.from({ length: count }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
         vx: (Math.random() - 0.5) * 0.28,
@@ -46,11 +70,8 @@ function Hero({ onStart }) {
       animId = requestAnimationFrame(draw)
     }
 
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (!mq.matches) {
-      resize()
-      draw()
-    }
+    resize()
+    draw()
     window.addEventListener('resize', resize)
     return () => {
       cancelAnimationFrame(animId)
@@ -59,84 +80,112 @@ function Hero({ onStart }) {
   }, [])
 
   const handleStart = () => {
+    setPulseOn(false)
     onStart()
     document.getElementById('assessment')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
     <section id="hero" className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-6 pt-8 pb-24">
+      {/* Aurora gradient background */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-cream via-cream to-[#F0EAD8]" />
+        <div className="absolute -top-1/4 left-[15%] h-[30rem] w-[30rem] rounded-full bg-gold/25 opacity-60 blur-3xl animate-aurora-1" />
+        <div className="absolute top-[10%] right-[10%] h-[26rem] w-[26rem] rounded-full bg-gold-light/25 opacity-50 blur-3xl animate-aurora-2" />
+        <div className="absolute -bottom-1/4 left-[30%] h-[28rem] w-[28rem] rounded-full bg-navy/10 opacity-40 blur-3xl animate-aurora-1 [animation-delay:6s]" />
+      </div>
+
       {/* Particle canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
 
-      {/* Soft gradient mesh */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-cream via-cream to-[#F0EAD8] opacity-60" />
-
       {/* Content */}
-      <div ref={revealRef} className="reveal relative z-10 flex flex-col items-center text-center max-w-4xl">
-        {/* Eyebrow */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gold/10 border border-gold/30 mb-8">
-          <Sparkles size={13} className="text-gold" />
-          <span className="font-body text-xs font-semibold text-gold tracking-wider uppercase">
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="relative z-10 flex flex-col items-center text-center max-w-4xl"
+      >
+        {/* Eyebrow badge */}
+        <motion.div variants={item}>
+          <Badge tone="gold" icon={Sparkles} className="mb-8 border-gold/40">
             Career Discovery Platform
-          </span>
-        </div>
+          </Badge>
+        </motion.div>
 
         {/* Headline */}
-        <h1 className="font-display font-bold text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-navy leading-[1.08] tracking-tight mb-6">
+        <motion.h1
+          variants={item}
+          className="font-display font-bold text-display text-navy tracking-tight text-balance mb-6"
+        >
           Discover Your
           <br />
           <span className="italic text-gold relative inline-block">
             Next Step
-            <span className="gold-underline" />
+            <motion.span
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ delay: 0.9, duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="absolute -bottom-1 left-0 right-0 h-[2px] origin-left bg-gradient-to-r from-transparent via-gold to-transparent"
+            />
           </span>
-        </h1>
+        </motion.h1>
 
         {/* Subtext */}
-        <p className="font-body text-lg sm:text-xl text-navy/60 max-w-xl leading-relaxed mb-10">
+        <motion.p
+          variants={item}
+          className="font-body text-body text-navy/65 max-w-[52ch] leading-snug mb-10"
+        >
           Answer 10 thoughtful questions and get matched with your ideal tech career — plus a clear, personalized learning roadmap to get there.
-        </p>
+        </motion.p>
 
         {/* CTA */}
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <button
+        <motion.div variants={item} className="flex flex-col sm:flex-row items-center gap-4">
+          <Button
+            variant="primary"
+            size="lg"
             onClick={handleStart}
-            className="btn-gold btn-gold-pulse px-8 py-4 rounded-full text-base font-semibold font-body flex items-center gap-2 min-w-[200px] justify-center"
+            className={`${pulseOn ? 'btn-gold-pulse' : ''} min-w-[200px]`}
           >
-            <Sparkles size={16} />
+            <Sparkles size={16} aria-hidden="true" />
             Start Assessment
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
             onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-            className="font-body text-sm text-navy/50 hover:text-navy transition-colors flex items-center gap-1.5 group"
+            className="group !px-3"
           >
             See how it works
-            <ArrowDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
-          </button>
-        </div>
+            <ArrowDown size={14} className="group-hover:translate-y-0.5 transition-transform" aria-hidden="true" />
+          </Button>
+        </motion.div>
 
         {/* Social proof */}
-        <div className="mt-14 flex items-center gap-6 opacity-50">
-          <div className="flex -space-x-2">
-            {['#C9A84C', '#1A2D47', '#C9A84C'].map((bg, i) => (
-              <div
-                key={i}
-                className="w-8 h-8 rounded-full border-2 border-cream flex items-center justify-center text-xs font-bold text-cream"
-                style={{ background: bg }}
-              >
-                {String.fromCharCode(65 + i)}
-              </div>
-            ))}
+        <motion.div variants={item} className="mt-14 flex flex-col items-center gap-3">
+          <Eyebrow dot>Trusted by</Eyebrow>
+          <div className="flex items-center gap-4 opacity-70">
+            <div className="flex -space-x-2">
+              {['var(--color-gold)', 'var(--color-navy-light)', 'var(--color-gold)'].map((bg, i) => (
+                <div
+                  key={i}
+                  className="w-8 h-8 rounded-full border-2 border-cream flex items-center justify-center text-xs font-bold text-cream"
+                  style={{ background: bg }}
+                >
+                  {String.fromCharCode(65 + i)}
+                </div>
+              ))}
+            </div>
+            <p className="font-body text-small text-navy/55">
+              <span className="tabular font-semibold text-navy/75">2,400+</span> learners finding their path
+            </p>
           </div>
-          <p className="font-body text-sm text-navy/50">
-            Join thousands of tech learners finding their path
-          </p>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-40">
         <div className="w-px h-12 bg-gradient-to-b from-transparent via-navy to-transparent" />
-        <ArrowDown size={14} className="text-navy animate-bounce" />
+        <ArrowDown size={14} className="text-navy animate-bounce" aria-hidden="true" />
       </div>
     </section>
   )
