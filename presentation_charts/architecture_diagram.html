@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NextStep — System Architecture</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#F8F8F8;
+    font-family:'Segoe UI',Helvetica,Arial,sans-serif;
+    display:flex;flex-direction:column;align-items:center;
+    padding:32px 20px 40px;
+  }
+  h1{font-size:21px;font-weight:700;color:#1C1C1E;margin-bottom:5px}
+  p.sub{font-size:12px;color:#8E8E93;margin-bottom:22px}
+  svg{max-width:100%;height:auto}
+  .legend{display:flex;gap:22px;margin-top:18px}
+  .leg{display:flex;align-items:center;gap:7px;font-size:12px;color:#444}
+  .dot{width:13px;height:13px;border-radius:3px;border:2px solid;flex-shrink:0}
+  .dot.g{background:#D5F5E3;border-color:#27AE60}
+  .dot.y{background:#FEF9E7;border-color:#E59B10}
+</style>
+</head>
+<body>
+<h1>NextStep &mdash; System Architecture</h1>
+<p class="sub">Component status &middot; current sprint</p>
+
+<svg width="1200" height="480" viewBox="0 0 1200 480"
+     xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <!-- single arrowhead; orient=auto rotates it for any direction -->
+  <marker id="ah" viewBox="0 0 10 8" refX="10" refY="4"
+          markerWidth="10" markerHeight="8" orient="auto"
+          markerUnits="userSpaceOnUse">
+    <polygon points="0,0 10,4 0,8" fill="#555"/>
+  </marker>
+</defs>
+
+<!-- ═══════════════════════════════════════════════════════════ CLIENT -->
+<rect x="10" y="55" width="190" height="215" rx="10"
+      fill="rgba(74,124,199,0.06)" stroke="#4A7CC7" stroke-width="2.2"/>
+<text x="23" y="76" font-size="11" font-weight="bold" fill="#4A7CC7"
+      font-family="Segoe UI,Arial,sans-serif">CLIENT</text>
+<text x="23" y="91" font-size="9.5" fill="#7A9FD4"
+      font-family="Segoe UI,Arial,sans-serif">FRONTEND</text>
+
+<!-- Frontend (React) — GREEN (done) -->
+<rect x="27" y="108" width="158" height="72" rx="7"
+      fill="#D5F5E3" stroke="#27AE60" stroke-width="2"/>
+<text x="106" y="141" text-anchor="middle" font-size="12.5" font-weight="bold"
+      fill="#1A7040" font-family="Segoe UI,Arial,sans-serif">Frontend</text>
+<text x="106" y="159" text-anchor="middle" font-size="11" fill="#1A7040"
+      font-family="Segoe UI,Arial,sans-serif">(React)</text>
+
+
+<!-- ═══════════════════════════════════════════════════════════ SERVER -->
+<rect x="225" y="15" width="555" height="260" rx="10"
+      fill="rgba(61,168,106,0.05)" stroke="#3DA86A" stroke-width="2.2"/>
+<text x="238" y="37" font-size="11" font-weight="bold" fill="#3DA86A"
+      font-family="Segoe UI,Arial,sans-serif">SERVER</text>
+<text x="238" y="52" font-size="9.5" fill="#66BB8A"
+      font-family="Segoe UI,Arial,sans-serif">BACKEND / API</text>
+
+<!-- BACKEND inner (dashed blue) -->
+<rect x="244" y="60" width="520" height="202" rx="6"
+      fill="rgba(74,124,199,0.05)" stroke="#5D8FD6"
+      stroke-width="1.6" stroke-dasharray="5,3"/>
+<text x="256" y="77" font-size="9.5" font-weight="bold" fill="#5D8FD6"
+      font-family="Segoe UI,Arial,sans-serif">BACKEND (FastAPI / Flask)</text>
+
+<!-- Questionnaire Module — GREEN -->
+<rect x="258" y="90" width="148" height="64" rx="6"
+      fill="#D5F5E3" stroke="#27AE60" stroke-width="2"/>
+<text x="332" y="119" text-anchor="middle" font-size="11.5" font-weight="bold"
+      fill="#1A7040" font-family="Segoe UI,Arial,sans-serif">Questionnaire</text>
+<text x="332" y="136" text-anchor="middle" font-size="10.5" fill="#1A7040"
+      font-family="Segoe UI,Arial,sans-serif">Module</text>
+
+<!-- Matching Module — YELLOW (in progress) -->
+<rect x="420" y="90" width="126" height="64" rx="6"
+      fill="#FEF9E7" stroke="#E59B10" stroke-width="2"/>
+<text x="483" y="119" text-anchor="middle" font-size="11.5" font-weight="bold"
+      fill="#784E00" font-family="Segoe UI,Arial,sans-serif">Matching</text>
+<text x="483" y="136" text-anchor="middle" font-size="10.5" fill="#784E00"
+      font-family="Segoe UI,Arial,sans-serif">Module</text>
+
+<!-- Roadmap Module — YELLOW (in progress) -->
+<rect x="558" y="90" width="126" height="64" rx="6"
+      fill="#FEF9E7" stroke="#E59B10" stroke-width="2"/>
+<text x="621" y="119" text-anchor="middle" font-size="11.5" font-weight="bold"
+      fill="#784E00" font-family="Segoe UI,Arial,sans-serif">Roadmap</text>
+<text x="621" y="136" text-anchor="middle" font-size="10.5" fill="#784E00"
+      font-family="Segoe UI,Arial,sans-serif">Module</text>
+
+<!-- RAG Integration Module — GREEN -->
+<rect x="382" y="176" width="218" height="64" rx="6"
+      fill="#D5F5E3" stroke="#27AE60" stroke-width="2"/>
+<text x="491" y="206" text-anchor="middle" font-size="11.5" font-weight="bold"
+      fill="#1A7040" font-family="Segoe UI,Arial,sans-serif">RAG Integration</text>
+<text x="491" y="223" text-anchor="middle" font-size="10.5" fill="#1A7040"
+      font-family="Segoe UI,Arial,sans-serif">Module</text>
+
+
+<!-- ════════════════════════════════════════════════════════════ DATA -->
+<rect x="800" y="15" width="390" height="260" rx="10"
+      fill="rgba(232,132,58,0.05)" stroke="#E8843A" stroke-width="2.2"/>
+<text x="813" y="37" font-size="11" font-weight="bold" fill="#E8843A"
+      font-family="Segoe UI,Arial,sans-serif">DATA</text>
+
+<!-- PostgreSQL → Supabase — YELLOW -->
+<rect x="815" y="55" width="362" height="80" rx="6"
+      fill="#FEF9E7" stroke="#E59B10" stroke-width="2"/>
+<text x="996" y="91" text-anchor="middle" font-size="12" font-weight="bold"
+      fill="#784E00" font-family="Segoe UI,Arial,sans-serif">PostgreSQL &#x2192; Supabase</text>
+<text x="996" y="110" text-anchor="middle" font-size="9.5" fill="#A07820"
+      font-family="Segoe UI,Arial,sans-serif">In progress &middot; transitioning</text>
+
+<!-- RAG Vector Store — YELLOW -->
+<rect x="815" y="165" width="362" height="80" rx="6"
+      fill="#FEF9E7" stroke="#E59B10" stroke-width="2"/>
+<text x="996" y="201" text-anchor="middle" font-size="12" font-weight="bold"
+      fill="#784E00" font-family="Segoe UI,Arial,sans-serif">RAG Vector Store</text>
+<text x="996" y="220" text-anchor="middle" font-size="9.5" fill="#A07820"
+      font-family="Segoe UI,Arial,sans-serif">(ChromaDB)</text>
+
+
+<!-- ═══════════════════════════════════════════ EXTERNAL SERVICE -->
+<rect x="800" y="298" width="390" height="160" rx="10"
+      fill="rgba(155,89,182,0.05)" stroke="#9B59B6" stroke-width="2.2"/>
+<text x="813" y="320" font-size="11" font-weight="bold" fill="#9B59B6"
+      font-family="Segoe UI,Arial,sans-serif">EXTERNAL SERVICE</text>
+
+<!-- Scraping Service (Playwright) — GREEN -->
+<rect x="837" y="336" width="316" height="80" rx="6"
+      fill="#D5F5E3" stroke="#27AE60" stroke-width="2"/>
+<text x="995" y="372" text-anchor="middle" font-size="12" font-weight="bold"
+      fill="#1A7040" font-family="Segoe UI,Arial,sans-serif">Scraping Service</text>
+<text x="995" y="391" text-anchor="middle" font-size="10.5" fill="#1A7040"
+      font-family="Segoe UI,Arial,sans-serif">(Playwright)</text>
+
+
+<!-- ═══════════════════════════════════════════════════════════ ARROWS -->
+
+<!-- 1 · Frontend → BACKEND  :  REST API (HTTPS) -->
+<line x1="185" y1="144" x2="244" y2="144"
+      stroke="#555" stroke-width="2" marker-end="url(#ah)"/>
+<text x="214" y="139" text-anchor="middle" font-size="8.5" fill="#555"
+      font-family="Segoe UI,Arial,sans-serif">REST API (HTTPS)</text>
+
+<!-- 2 · BACKEND → PostgreSQL  :  SQL Queries -->
+<line x1="764" y1="95" x2="815" y2="95"
+      stroke="#555" stroke-width="2" marker-end="url(#ah)"/>
+<text x="789" y="90" text-anchor="middle" font-size="8.5" fill="#555"
+      font-family="Segoe UI,Arial,sans-serif">SQL Queries</text>
+
+<!-- 3 · RAG Vector Store → BACKEND  :  Semantic Retrieval (arrow goes LEFT) -->
+<line x1="815" y1="210" x2="764" y2="210"
+      stroke="#555" stroke-width="2" marker-end="url(#ah)"/>
+<text x="789" y="205" text-anchor="middle" font-size="8.5" fill="#555"
+      font-family="Segoe UI,Arial,sans-serif">Semantic Retrieval</text>
+
+<!-- 4 · Scraping → PostgreSQL  :  Data Ingestion (job postings), dashed -->
+<line x1="950" y1="336" x2="950" y2="135"
+      stroke="#555" stroke-width="2" stroke-dasharray="5,3"
+      marker-end="url(#ah)"/>
+<text x="940" y="245" text-anchor="end" font-size="8.5" fill="#555"
+      font-family="Segoe UI,Arial,sans-serif">Data Ingestion</text>
+<text x="940" y="258" text-anchor="end" font-size="8.5" fill="#555"
+      font-family="Segoe UI,Arial,sans-serif">(job postings)</text>
+
+<!-- 5 · Scraping → RAG Vector Store  :  Data Ingestion (embeddings), dashed -->
+<line x1="1042" y1="336" x2="1042" y2="245"
+      stroke="#555" stroke-width="2" stroke-dasharray="5,3"
+      marker-end="url(#ah)"/>
+<text x="1052" y="292" text-anchor="start" font-size="8.5" fill="#555"
+      font-family="Segoe UI,Arial,sans-serif">Data Ingestion</text>
+<text x="1052" y="305" text-anchor="start" font-size="8.5" fill="#555"
+      font-family="Segoe UI,Arial,sans-serif">(embeddings)</text>
+
+</svg>
+
+<div class="legend">
+  <div class="leg"><div class="dot g"></div>Done / implemented</div>
+  <div class="leg"><div class="dot y"></div>In progress</div>
+</div>
+</body>
+</html>
