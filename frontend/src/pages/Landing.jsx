@@ -35,20 +35,32 @@ function Hero({ onStart }) {
     const ctx = canvas.getContext('2d')
     let animId
     let particles = []
+    let started = false
 
-    const resize = () => {
-      canvas.width = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
+    const seed = (w, h) => {
       const count = window.innerWidth < 640 ? 28 : 80
       particles = Array.from({ length: count }, () => ({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
+        x: Math.random() * w,
+        y: Math.random() * h,
         vx: (Math.random() - 0.5) * 0.28,
         vy: (Math.random() - 0.5) * 0.28,
-        r: Math.random() * 1.4 + 0.4,
-        alpha: Math.random() * 0.35 + 0.1,
-        gold: Math.random() < 0.15,
+        r: Math.random() * 2.2 + 1.3,
+        alpha: Math.random() * 0.4 + 0.4,
+        gold: Math.random() < 0.4,
       }))
+    }
+
+    const resize = () => {
+      const w = canvas.offsetWidth
+      const h = canvas.offsetHeight
+      if (w === 0 || h === 0) return // not laid out yet — wait for the observer
+      canvas.width = w
+      canvas.height = h
+      seed(w, h)
+      if (!started) {
+        started = true
+        draw()
+      }
     }
 
     const draw = () => {
@@ -64,18 +76,21 @@ function Hero({ onStart }) {
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
         ctx.fillStyle = p.gold
           ? `rgba(201,168,76,${p.alpha})`
-          : `rgba(160,190,210,${p.alpha * 0.45})`
+          : `rgba(40,58,90,${p.alpha * 0.7})`
         ctx.fill()
       })
       animId = requestAnimationFrame(draw)
     }
 
-    resize()
-    draw()
-    window.addEventListener('resize', resize)
+    // ResizeObserver fires as soon as the canvas has a real size (and on any
+    // later size change), so it doesn't matter when layout/fonts settle.
+    const observer = new ResizeObserver(resize)
+    observer.observe(canvas)
+    resize() // also try immediately in case it's already sized
+
     return () => {
       cancelAnimationFrame(animId)
-      window.removeEventListener('resize', resize)
+      observer.disconnect()
     }
   }, [])
 
