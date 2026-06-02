@@ -8,18 +8,21 @@ const STEPS = [
   {
     number: '01',
     icon: ClipboardList,
+    art: '/illustrations/step-1.png',
     title: 'Answer 10 Questions',
     description: 'Tell us about your skills, interests, and work style through a quick, thoughtfully designed quiz.',
   },
   {
     number: '02',
     icon: BarChart3,
+    art: '/illustrations/step-2.png',
     title: 'Get Matched',
     description: 'Our scoring engine analyzes your answers and surfaces your top 3 tech career matches — with percentage fit.',
   },
   {
     number: '03',
     icon: Map,
+    art: '/illustrations/step-3.png',
     title: 'Follow Your Roadmap',
     description: 'Explore a visual learning tree for your chosen career, from beginner concepts to advanced mastery.',
   },
@@ -105,9 +108,20 @@ function StepCard({ step, index }) {
           Step {step.number}
         </Badge>
 
-        {/* Icon circle */}
-        <div className="w-12 h-12 rounded-full flex items-center justify-center mb-5 bg-gold/12 border border-gold/30 transition-transform duration-base group-hover:scale-110 group-hover:rotate-6">
-          <Icon size={22} className="text-gold" aria-hidden="true" />
+        {/* Illustration tile */}
+        <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center mb-5 bg-gold/12 border border-gold/30 transition-transform duration-base group-hover:scale-110 group-hover:rotate-6">
+          {step.art ? (
+            <img
+              src={step.art}
+              alt={step.title}
+              width={64}
+              height={64}
+              loading="lazy"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Icon size={22} className="text-gold" aria-hidden="true" />
+          )}
         </div>
 
         <h3 className="font-display font-semibold text-h3 text-navy mb-3">

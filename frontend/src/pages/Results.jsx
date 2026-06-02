@@ -10,6 +10,16 @@ const ICON_MAP = {
   Monitor, Server, BarChart2, Layers, Compass, Pen,
 }
 
+// Abstract-geometric illustrations (palette-locked), keyed by career id.
+const CAREER_ART = {
+  'frontend':        '/illustrations/career-frontend.png',
+  'backend':         '/illustrations/career-backend.png',
+  'data-science':    '/illustrations/career-data-science.png',
+  'devops':          '/illustrations/career-devops.png',
+  'product-manager': '/illustrations/career-product-manager.png',
+  'ux-designer':     '/illustrations/career-ux-designer.png',
+}
+
 const RANK_STYLES = [
   { icon: Trophy, label: 'Best Match', tone: 'gold' },
   { icon: Medal,  label: 'Strong Match', tone: 'neutral' },
@@ -54,6 +64,7 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
   const rankStyle = RANK_STYLES[rank]
   const RankIcon = rankStyle.icon
   const CareerIcon = ICON_MAP[career.icon] || Monitor
+  const art = CAREER_ART[career.id]
 
   useEffect(() => {
     let raf
@@ -124,10 +135,21 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
         {/* Career icon + Match % */}
         <div className="flex items-center justify-between mb-2">
           <div
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-transform duration-base group-hover:scale-110
+            className={`w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center transition-transform duration-base group-hover:scale-110
               ${isTop ? 'bg-gold/15 border border-gold/30' : 'bg-navy/[0.04] border border-navy/[0.08]'}`}
           >
-            <CareerIcon size={18} className={isTop ? 'text-gold' : 'text-navy/70'} aria-hidden="true" />
+            {art ? (
+              <img
+                src={art}
+                alt={career.title}
+                width={56}
+                height={56}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <CareerIcon size={20} className={isTop ? 'text-gold' : 'text-navy/70'} aria-hidden="true" />
+            )}
           </div>
           <div className="text-right">
             <span className="font-display font-bold text-h2 text-navy tabular">
