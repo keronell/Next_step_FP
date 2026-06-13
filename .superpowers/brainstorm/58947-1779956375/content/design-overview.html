@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Animation Design — Next Step</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #070c14;
+    color: #d0dce8;
+    padding: 40px 24px 80px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #556677;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .sub { text-align: center; font-size: 0.82rem; color: #334455; margin-bottom: 44px; }
+
+  .section {
+    max-width: 960px;
+    margin: 0 auto 40px;
+    border: 1px solid #131f2e;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 24px;
+    background: #0b1420;
+    border-bottom: 1px solid #131f2e;
+  }
+  .badge {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+  .badge-a { background: rgba(180,200,220,0.12); color: #99bbcc; border: 1px solid rgba(180,200,220,0.2); }
+  .badge-b { background: rgba(201,168,76,0.12); color: #C9A84C; border: 1px solid rgba(201,168,76,0.25); }
+  .badge-c { background: rgba(100,180,120,0.12); color: #6ab87a; border: 1px solid rgba(100,180,120,0.2); }
+  .badge-mix { background: linear-gradient(135deg, rgba(201,168,76,0.2), rgba(100,180,120,0.2)); color: #b8d4a0; border: 1px solid rgba(180,200,160,0.2); }
+
+  .section-head h2 { font-size: 0.95rem; font-weight: 600; color: #c8d8e8; }
+  .section-head .style-tag {
+    margin-left: auto;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .tag-a { color: #99bbcc; background: rgba(180,200,220,0.08); border: 1px solid rgba(180,200,220,0.15); }
+  .tag-b { color: #C9A84C; background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); }
+  .tag-c { color: #6ab87a; background: rgba(100,180,120,0.08); border: 1px solid rgba(100,180,120,0.15); }
+  .tag-mix { color: #b8d0b0; background: rgba(180,200,160,0.07); border: 1px solid rgba(180,200,160,0.18); }
+
+  .section-body { padding: 24px; background: #080e18; }
+
+  .items { display: flex; flex-direction: column; gap: 14px; }
+  .item {
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .item-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .icon-a { background: rgba(180,200,220,0.08); }
+  .icon-b { background: rgba(201,168,76,0.08); }
+  .icon-c { background: rgba(100,180,120,0.08); }
+  .icon-mix { background: rgba(180,200,160,0.08); }
+  .item-text h4 { font-size: 0.82rem; font-weight: 600; color: #c8d8e8; margin-bottom: 3px; }
+  .item-text p { font-size: 0.76rem; color: #445566; line-height: 1.55; }
+  .item-text code {
+    font-size: 0.7rem;
+    background: rgba(255,255,255,0.04);
+    color: #C9A84C;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: monospace;
+  }
+
+  .divider {
+    height: 1px;
+    background: #0f1c28;
+    margin: 0;
+  }
+
+  /* mini live demo strips */
+  .demo-strip {
+    height: 72px;
+    position: relative;
+    overflow: hidden;
+    border-top: 1px solid #0f1c28;
+    background: #050a10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  /* A — particle strip */
+  #strip-a canvas { position: absolute; inset: 0; }
+  #strip-a .text-a {
+    position: relative; z-index: 2;
+    font-size: 1.1rem; font-weight: 700; color: #FAF7F2;
+    opacity: 0; animation: riseIn 0.8s 0.3s forwards;
+  }
+  #strip-a .text-a em { color: #C9A84C; font-style: italic; }
+  @keyframes riseIn { to { opacity: 1; } }
+
+  /* B — line strip */
+  #strip-b { gap: 0; }
+  #strip-b svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #strip-b .scan-text {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .scan-chars { display: flex; gap: 0; }
+  .sc { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.15em; color: #C9A84C;
+    opacity: 0; transform: scaleY(0.3); animation: charIn 0.4s forwards; }
+  .scan-bar-w { width: 120px; height: 2px; background: #0f1825; border-radius: 2px; overflow: hidden; }
+  .scan-bar-f { height: 100%; width: 0; background: #C9A84C; animation: scanFill 1.6s 0.5s ease forwards; border-radius: 2px; }
+  @keyframes charIn { to { opacity: 1; transform: scaleY(1); } }
+  @keyframes scanFill { to { width: 100%; } }
+
+  /* C — card strip */
+  #strip-c { gap: 8px; padding: 0 20px; }
+  .mini-c {
+    flex: 1; max-width: 90px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 7px;
+    padding: 8px 10px;
+    opacity: 0; transform: translateY(10px);
+    animation: slideUp 0.5s forwards;
+  }
+  .mini-c .pct { font-size: 0.95rem; font-weight: 700; color: #C9A84C; }
+  .mini-c .lbl { font-size: 0.55rem; color: #445566; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 1px; }
+  .mini-c .bar-w { margin-top: 5px; height: 2px; background: rgba(255,255,255,0.04); border-radius: 2px; overflow: hidden; }
+  .mini-c .bar-f { height: 100%; width: 0; border-radius: 2px;
+    background: linear-gradient(90deg, #C9A84C, #E2C76B); animation: mcFill 1s ease forwards; }
+  @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+  @keyframes mcFill { to { width: var(--w); } }
+
+  .footer-note {
+    max-width: 960px;
+    margin: 8px auto 0;
+    font-size: 0.75rem;
+    color: #2a3d50;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .footer-note em { color: #3d5566; font-style: normal; }
+</style>
+</head>
+<body>
+
+<h1>Animation Design Plan</h1>
+<p class="sub">What gets built — all four zones, all three styles</p>
+
+<!-- ZONE 1: LANDING -->
+<div class="section">
+  <div class="section-head">
+    <div class="badge badge-a">A</div>
+    <h2>Landing Page Hero</h2>
+    <span class="style-tag tag-a">Particle Drift</span>
+  </div>
+  <div class="section-body">
+    <div class="items">
+      <div class="item">
+        <div class="item-icon icon-a">✦</div>
+        <div class="item-text">
+          <h4>Replace floating orbs → canvas particle field</h4>
+          <p>~80 tiny dots drifting slowly. 15% gold-tinted, rest pale blue-white. No clicks required — ambient breathing energy replaces the current CSS blob animations.</p>
+        </div>
+      </div>
+      <div class="item">
+        <div class="item-icon icon-a">↑</div>
+        <div class="item-text">
+          <h4>Headline rise + gold underline draw</h4>
+          <p>Hero text fades up from <code>translateY(16px)</code>. A thin gold line draws under "Next Step" using <code>scaleX(0→1)</code> after the headline settles.</p>
+        </div>
+      </div>
+      <div class="item">
+        <div class="item-icon icon-a">◎</div>
+        <div class="item-text">
+          <h4>CTA button breathes</h4>
+          <p>Gold button has a very subtle <code>box-shadow</code> pulse (2s loop, low amplitude). Hover: slight glow intensifies. No other movement.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="demo-strip" id="strip-a">
+    <canvas id="canvas-strip-a"></canvas>
+    <div class="text-a">Discover Your <em>Next Step</em></div>
+  </div>
+</div>
+
+<!-- ZONE 2: LOADING / SCANNING -->
+<div class="section">
+  <div class="section-head">
+    <div class="badge badge-b">B</div>
+    <h2>Loading · Scanning · Matching</h2>
+    <span class="style-tag tag-b">Morphic Lines</span>
+  </div>
+  <div class="section-body">
+    <div class="items">
+      <div class="item">
+        <div class="item-icon icon-b">⊞</div>
+        <div class="item-text">
+          <h4>Replace spinner → SVG grid scan</h4>
+          <p>A <code>300×300</code> SVG grid of fine lines draws itself in, corner-outward. A horizontal scan line sweeps top→bottom with a gold glow. This replaces the current CSS spinner.</p>
+        </div>
+      </div>
+      <div class="item">
+        <div class="item-icon icon-b">▮</div>
+        <div class="item-text">
+          <h4>Character-stamp status text</h4>
+          <p>"ANALYZING PROFILE…" stamps in letter by letter with a <code>scaleY(0.3→1)</code> per character. Each character is delayed by <code>40ms</code>.</p>
+        </div>
+      </div>
+      <div class="item">
+        <div class="item-icon icon-b">▬</div>
+        <div class="item-text">
+          <h4>Precision progress bar</h4>
+          <p>Thin gold bar fills from left with <code>cubic-bezier(0.4,0,0.2,1)</code> over 2.4s. No easing bounce — razor-precise fill. Replaces existing bar.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="demo-strip" id="strip-b">
+    <svg id="svg-strip-b"></svg>
+    <div class="scan-text" style="position:relative;z-index:2">
+      <div class="scan-chars" id="scan-chars"></div>
+      <div class="scan-bar-w"><div class="scan-bar-f"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ZONE 3: MAIN APP + RESULTS -->
+<div class="section">
+  <div class="section-head">
+    <div class="badge badge-c">C</div>
+    <h2>Main App · Quiz · Results</h2>
+    <span class="style-tag tag-c">Liquid Reveal</span>
+  </div>
+  <div class="section-body">
+    <div class="items">
+      <div class="item">
+        <div class="item-icon icon-c">⊡</div>
+        <div class="item-text">
+          <h4>Quiz option cards stagger in per question</h4>
+          <p>Each time a new question loads, the 4 answer cards slide up staggered (<code>0, 60, 120, 180ms</code> delay). Selected answer scales slightly and the card gets a gold border flash.</p>
+        </div>
+      </div>
+      <div class="item">
+        <div class="item-icon icon-c">▦</div>
+        <div class="item-text">
+          <h4>HowItWorks cards pour in on scroll</h4>
+          <p>Step cards stagger in from bottom when scrolled into view. Connecting lines between steps draw left-to-right using <code>scaleX</code> after the first card settles.</p>
+        </div>
+      </div>
+      <div class="item">
+        <div class="item-icon icon-c">%</div>
+        <div class="item-text">
+          <h4>Results: staggered cards + count-up</h4>
+          <p>3 career cards slide up <code>0, 150, 300ms</code> apart. Each card's percentage counter counts <code>0→target</code> with smoothstep easing over <code>900ms</code>. Match bar fills as the number rises.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="demo-strip" id="strip-c">
+    <div class="mini-c" id="mc-1" style="animation-delay:0s">
+      <div class="pct" id="p1">0%</div>
+      <div class="lbl">Frontend</div>
+      <div class="bar-w"><div class="bar-f" style="--w:94%; animation-delay:0.1s"></div></div>
+    </div>
+    <div class="mini-c" id="mc-2" style="animation-delay:0.15s">
+      <div class="pct" id="p2">0%</div>
+      <div class="lbl">UX Design</div>
+      <div class="bar-w"><div class="bar-f" style="--w:74%; animation-delay:0.25s"></div></div>
+    </div>
+    <div class="mini-c" id="mc-3" style="animation-delay:0.3s">
+      <div class="pct" id="p3">0%</div>
+      <div class="lbl">Data Sci</div>
+      <div class="bar-w"><div class="bar-f" style="--w:62%; animation-delay:0.4s"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ZONE 4: ROADMAP -->
+<div class="section">
+  <div class="section-head">
+    <div class="badge badge-mix">✦</div>
+    <h2>Roadmap SVG Tree</h2>
+    <span class="style-tag tag-mix">B paths · C nodes</span>
+  </div>
+  <div class="section-body">
+    <div class="items">
+      <div class="item">
+        <div class="item-icon icon-b">⌇</div>
+        <div class="item-text">
+          <h4>B — Connector paths draw themselves</h4>
+          <p>Each SVG elbow path uses <code>stroke-dashoffset</code> animation (already partially built). Enhancement: a travelling gold glow dot moves along the path just before the line completes. Staggered <code>i × 80ms</code> per edge.</p>
+        </div>
+      </div>
+      <div class="item">
+        <div class="item-icon icon-c">⊡</div>
+        <div class="item-text">
+          <h4>C — Node cards slide in after their path</h4>
+          <p>Each node rect fades in with <code>translateY(8px→0)</code> timed to fire <code>200ms</code> after its connecting path completes. Staggered per-section so nodes don't all pop at once.</p>
+        </div>
+      </div>
+      <div class="item">
+        <div class="item-icon icon-mix">⊙</div>
+        <div class="item-text">
+          <h4>Section headers stamp in (B-style)</h4>
+          <p>When a section expands, the header text uses the character-stamp from B (fast, ~30ms/char). Collapse uses a quick fade out.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="footer-note">
+  All animations respect <em>prefers-reduced-motion</em> — particles stop, reveals become instant fades.
+  <br>Implementation will touch: <em>Landing.jsx · Questionnaire.jsx · Results.jsx · Roadmap.jsx · index.css</em>
+</p>
+
+<script>
+/* Strip A — particles */
+(function(){
+  const c = document.getElementById('canvas-strip-a');
+  const ctx = c.getContext('2d');
+  const p = c.parentElement;
+  let w,h,pts;
+  function resize(){ w=c.width=p.offsetWidth; h=c.height=p.offsetHeight; }
+  function init(){ pts=Array.from({length:50},()=>({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,r:Math.random()*1.2+.3,a:Math.random()*.35+.1,g:Math.random()<.15})); }
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    pts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=w; if(p.x>w)p.x=0;
+      if(p.y<0)p.y=h; if(p.y>h)p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.g?`rgba(201,168,76,${p.a})`:`rgba(160,190,210,${p.a*.5})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  resize(); init(); draw();
+  window.addEventListener('resize',()=>{resize();init();});
+})();
+
+/* Strip B — lines + chars */
+(function(){
+  const svg = document.getElementById('svg-strip-b');
+  const ns = 'http://www.w3.org/2000/svg';
+  const pw = svg.parentElement.offsetWidth;
+  const ph = 72;
+  // corner lines
+  const segs = [
+    [0,0,pw/3,0],[0,0,0,ph],[pw,0,pw-pw/3,0],[pw,0,pw,ph],
+    [0,ph,pw/3,ph],[pw,ph,pw-pw/3,ph],
+    [pw/3,0,pw/3,ph/3],[pw-pw/3,0,pw-pw/3,ph/3],
+  ];
+  segs.forEach((s,i)=>{
+    const l = document.createElementNS(ns,'line');
+    l.setAttribute('x1',s[0]); l.setAttribute('y1',s[1]);
+    l.setAttribute('x2',s[2]); l.setAttribute('y2',s[3]);
+    const len = Math.sqrt((s[2]-s[0])**2+(s[3]-s[1])**2);
+    l.setAttribute('stroke',i<4?'rgba(201,168,76,0.4)':'rgba(30,45,60,0.8)');
+    l.setAttribute('stroke-width','0.8');
+    l.setAttribute('stroke-dasharray',len);
+    l.setAttribute('stroke-dashoffset',len);
+    l.style.transition=`stroke-dashoffset ${0.5+i*.07}s ${i*.05}s ease`;
+    svg.appendChild(l);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>l.setAttribute('stroke-dashoffset','0')));
+  });
+
+  const word = 'SCANNING';
+  const cont = document.getElementById('scan-chars');
+  [...word].forEach((ch,i)=>{
+    const s = document.createElement('span');
+    s.className='sc';
+    s.textContent=ch;
+    s.style.animationDelay=(0.3+i*.05)+'s';
+    cont.appendChild(s);
+  });
+})();
+
+/* Strip C — count-up */
+(function(){
+  const targets = [94,74,62];
+  const ids = ['p1','p2','p3'];
+  function run(){
+    targets.forEach((t,i)=>{
+      const el=document.getElementById(ids[i]);
+      const start=performance.now();
+      const dur=800;
+      function step(now){
+        const prog=Math.min((now-start)/dur,1);
+        const smooth=prog*prog*(3-2*prog);
+        el.textContent=Math.round(smooth*t)+'%';
+        if(prog<1) requestAnimationFrame(step);
+      }
+      setTimeout(()=>requestAnimationFrame(step), i*150+200);
+    });
+  }
+  run();
+  setInterval(()=>{
+    // reset bars
+    document.querySelectorAll('.bar-f').forEach(b=>{
+      b.style.animation='none'; b.offsetHeight; b.style.animation='';
+    });
+    document.querySelectorAll('.mini-c').forEach(c=>{
+      c.style.animation='none'; c.offsetHeight; c.style.animation='';
+    });
+    run();
+  }, 3200);
+})();
+</script>
+
+</body>
+</html>

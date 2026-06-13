@@ -1,289 +1,185 @@
-import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
-import { useToast } from '../components/ToastContainer'
-import { ResultsSkeleton } from '../components/LoadingSkeleton'
-import './Results.css'
+import { useEffect, useState } from 'react'
+import { Monitor, Server, BarChart2, Layers, Compass, Pen, ChevronRight, Trophy, Medal, Award } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { useReveal } from '../hooks/useReveal'
+import Badge from '../components/ui/Badge.jsx'
+import Button from '../components/ui/Button.jsx'
+import SectionHeading from '../components/ui/SectionHeading.jsx'
 
-function Results({ sessionId }) {
-  const navigate = useNavigate()
-  const { showToast } = useToast()
-  const [results, setResults] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [selectedRole, setSelectedRole] = useState(null)
-  const [comparisonMode, setComparisonMode] = useState(false)
-  const [selectedForComparison, setSelectedForComparison] = useState([])
-  const adaptiveResultsProcessed = useRef(false)
-  const [adaptiveSessionId, setAdaptiveSessionId] = useState(null)
+const ICON_MAP = {
+  Monitor, Server, BarChart2, Layers, Compass, Pen,
+}
 
-  // Debug: log when results change
-  useEffect(() => {
-    if (results) {
-      console.log('Results state updated:', results)
-      console.log('Top roles:', results.top_roles)
-      if (results.top_roles && results.top_roles.length > 0) {
-        console.log('First role in state:', results.top_roles[0])
-        console.log('First role score in state:', results.top_roles[0].score)
-      }
-    }
-  }, [results])
+const RANK_STYLES = [
+  { icon: Trophy, label: 'Best Match', tone: 'gold' },
+  { icon: Medal,  label: 'Strong Match', tone: 'neutral' },
+  { icon: Award,  label: 'Good Fit', tone: 'neutral' },
+]
 
-  useEffect(() => {
-    // Get session ID from localStorage (may have been updated by adaptive quiz)
-    const currentSessionId = localStorage.getItem('sessionId') || sessionId
-    
-    if (!currentSessionId) {
-      navigate('/')
-      return
-    }
-    
-    console.log('Results page - using sessionId:', currentSessionId)
+function Results({ phase, results, onSelectCareer, selectedCareer }) {
+  const revealRef = useReveal(0.1)
 
-    // Prevent processing if we've already handled adaptive results
-    if (adaptiveResultsProcessed.current) {
-      console.log('Adaptive results already processed, skipping')
-      return
-    }
-
-    // Check if this is adaptive quiz results
-    const adaptiveResults = sessionStorage.getItem('adaptiveResults')
-    if (adaptiveResults) {
-      try {
-        adaptiveResultsProcessed.current = true // Mark as processed
-        const data = JSON.parse(adaptiveResults)
-        console.log('Adaptive results data:', data)
-        console.log('Top 5 jobs:', data.top_5_jobs)
-        
-        // Convert adaptive format to standard format
-        const topRoles = data.top_5_jobs.map(job => {
-          console.log('Processing job:', job.id, 'match_score:', job.match_score, 'type:', typeof job.match_score)
-          // Ensure match_score is converted to number and used as score
-          const score = typeof job.match_score === 'number' ? job.match_score : 
-                       typeof job.match_score === 'string' ? parseFloat(job.match_score) : 0
-          console.log('Final score for', job.id, ':', score)
-          return {
-            ...job,
-            score: score,
-            // Adaptive quiz doesn't have reasons, so don't show skill gaps
-            reasons: []
-          }
-        })
-        
-        console.log('Final top_roles:', topRoles)
-        console.log('First role score:', topRoles[0]?.score, 'match_score:', topRoles[0]?.match_score)
-        
-        const resultsData = {
-          top_roles: topRoles,
-          questions_answered: data.questions_answered
-        }
-        
-        // Store adaptive session ID if provided
-        if (data.session_id) {
-          setAdaptiveSessionId(data.session_id)
-          localStorage.setItem('sessionId', data.session_id)  // Update localStorage
-          console.log('Stored adaptive session ID:', data.session_id)
-        }
-        
-        console.log('Setting results:', resultsData)
-        // Remove from sessionStorage IMMEDIATELY to prevent re-triggering
-        sessionStorage.removeItem('adaptiveResults')
-        setResults(resultsData)
-        setLoading(false)
-        // IMPORTANT: Return early to prevent standard quiz computation
-        return
-      } catch (e) {
-        console.error('Failed to parse adaptive results:', e)
-        // If parsing fails, remove the bad data and continue to standard quiz
-        sessionStorage.removeItem('adaptiveResults')
-        adaptiveResultsProcessed.current = false // Reset flag on error
-      }
-    }
-
-    // Only fetch standard quiz results if we don't have adaptive results
-    // This should only run for standard quiz, not adaptive
-    console.log('Fetching standard quiz results for session:', currentSessionId)
-    axios.post(`/api/sessions/${currentSessionId}/compute`)
-      .then(response => {
-        console.log('Standard quiz results received:', response.data)
-        setResults(response.data)
-        setLoading(false)
-      })
-      .catch(error => {
-        console.error('Failed to load results:', error)
-        setLoading(false)
-      })
-  }, [sessionId, navigate])
-
-  const handleSelectRole = async (roleId) => {
-    setSelectedRole(roleId)
-    try {
-      // Get current session ID - prefer adaptive session ID if available, then localStorage, then prop
-      const currentSessionId = adaptiveSessionId || localStorage.getItem('sessionId') || sessionId
-      console.log('Generating roadmap for session:', currentSessionId, 'role:', roleId)
-      console.log('Session ID sources - adaptiveSessionId:', adaptiveSessionId, 'localStorage:', localStorage.getItem('sessionId'), 'prop:', sessionId)
-      await axios.post(`/api/sessions/${currentSessionId}/roadmap`, { role_id: roleId })
-      navigate('/roadmap')
-    } catch (error) {
-      console.error('Failed to generate roadmap:', error)
-      const errorMessage = error.response?.data?.error || error.message || 'Unknown error'
-      console.error('Roadmap error details:', {
-        message: errorMessage,
-        status: error.response?.status,
-        data: error.response?.data
-      })
-      showToast(`Failed to generate roadmap: ${errorMessage}`, 'error')
-    }
-  }
-
-  const toggleComparison = (roleId) => {
-    if (selectedForComparison.includes(roleId)) {
-      setSelectedForComparison(selectedForComparison.filter(id => id !== roleId))
-    } else {
-      if (selectedForComparison.length < 3) {
-        setSelectedForComparison([...selectedForComparison, roleId])
-      } else {
-        showToast('You can compare up to 3 roles at once', 'warning')
-      }
-    }
-  }
-
-  const toggleComparisonMode = () => {
-    setComparisonMode(!comparisonMode)
-    if (comparisonMode) {
-      setSelectedForComparison([])
-    }
-  }
-
-  const getSelectedRoles = () => {
-    return results.top_roles.filter(role => selectedForComparison.includes(role.id))
-  }
-
-  if (loading) {
-    return (
-      <div className="results">
-        <div className="results-hero-section">
-          <div className="results-hero-image"></div>
-          <div className="results-hero-overlay"></div>
-        </div>
-        <ResultsSkeleton />
-      </div>
-    )
-  }
-
-  if (!results) {
-    return <div className="results-error">No results available</div>
-  }
-
-  // Debug: log what we're about to render
-  console.log('Rendering results:', results)
-  console.log('First role in results:', results.top_roles?.[0])
-  console.log('First role score:', results.top_roles?.[0]?.score)
+  if (phase !== 'results_ready' || !results) return null
 
   return (
-    <div className="results">
-      <div className="results-hero-section">
-        <div className="results-hero-image"></div>
-        <div className="results-hero-overlay"></div>
+    <section id="results" className="py-24 px-6 bg-navy/[0.02]">
+      <div className="max-w-6xl mx-auto">
+        <div ref={revealRef} className="reveal mb-14">
+          <SectionHeading
+            eyebrow="Your Results"
+            title="Your top career matches"
+            lede="Based on your answers, here are the tech roles where you’re most likely to thrive."
+            align="center"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {results.map((career, i) => (
+            <CareerCard
+              key={career.id}
+              career={career}
+              rank={i}
+              isSelected={selectedCareer === career.id}
+              onSelect={() => onSelectCareer(career.id)}
+            />
+          ))}
+        </div>
       </div>
-      <div className="results-container">
-        <div className="results-header-actions">
-          <div>
-            <h1>Your Career Matches</h1>
-            <p className="results-subtitle">
-              Based on your answers, here are the top 5 roles that match your profile:
-            </p>
-          </div>
-          <button 
-            className={`comparison-toggle ${comparisonMode ? 'active' : ''}`}
-            onClick={toggleComparisonMode}
+    </section>
+  )
+}
+
+function CareerCard({ career, rank, isSelected, onSelect }) {
+  const [displayPercent, setDisplayPercent] = useState(0)
+  const rankStyle = RANK_STYLES[rank]
+  const RankIcon = rankStyle.icon
+  const CareerIcon = ICON_MAP[career.icon] || Monitor
+
+  useEffect(() => {
+    let raf
+    const timer = setTimeout(() => {
+      const start = Date.now()
+      const duration = 1100
+      const target = career.matchPercent
+      // Elastic-out style: 1 + c3*(t-1)^3 + c1*(t-1)^2 (Penner overshoot)
+      const ease = (t) => {
+        const c1 = 1.70158
+        const c3 = c1 + 1
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
+      }
+      const tick = () => {
+        const elapsed = Date.now() - start
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = ease(progress)
+        setDisplayPercent(Math.round(Math.max(0, eased) * target))
+        if (progress < 1) raf = requestAnimationFrame(tick)
+      }
+      raf = requestAnimationFrame(tick)
+    }, rank * 180)
+    return () => { clearTimeout(timer); cancelAnimationFrame(raf) }
+  }, [career.matchPercent, rank])
+
+  const isTop = rank === 0
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.55, delay: rank * 0.12, ease: [0.25, 0.46, 0.45, 0.94] }}
+      whileHover={{ y: -6 }}
+      className={`group relative flex flex-col overflow-hidden rounded-card bg-white transition-[border-color,box-shadow] duration-base
+        ${isSelected
+          ? 'border border-gold shadow-lg shadow-gold/15 ring-2 ring-gold/30'
+          : isTop
+          ? 'border border-gold/30 shadow-sm hover:border-gold/55 hover:shadow-[0_20px_50px_-18px_rgba(201,168,76,0.45)]'
+          : 'border border-navy/[0.08] shadow-sm hover:border-gold/40 hover:shadow-[0_16px_40px_-18px_rgba(15,27,45,0.25)]'
+        }`}
+    >
+      {/* Best-match ambient glow */}
+      {isTop && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full bg-gold/25 blur-3xl opacity-60 group-hover:opacity-90 transition-opacity duration-base"
+        />
+      )}
+
+      {/* Top accent bar — gold gradient on rank-1, soft neutral on others */}
+      <div
+        className="relative z-10 h-1 w-full"
+        style={{
+          background: isTop
+            ? 'linear-gradient(to right, var(--color-gold-light), var(--color-gold))'
+            : 'linear-gradient(to right, rgba(15,27,45,0.08), rgba(15,27,45,0.18))'
+        }}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 p-6 flex flex-col flex-1">
+        {/* Rank badge */}
+        <Badge tone={rankStyle.tone} icon={RankIcon} className="self-start mb-4">
+          {rankStyle.label}
+        </Badge>
+
+        {/* Career icon + Match % */}
+        <div className="flex items-center justify-between mb-2">
+          <div
+            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-transform duration-base group-hover:scale-110
+              ${isTop ? 'bg-gold/15 border border-gold/30' : 'bg-navy/[0.04] border border-navy/[0.08]'}`}
           >
-            {comparisonMode ? '✓ Comparison Mode' : 'Compare Roles'}
-          </button>
-        </div>
-
-        {comparisonMode && selectedForComparison.length > 0 && (
-          <div className="comparison-view">
-            <h2 className="comparison-title">Role Comparison</h2>
-            <div className="comparison-grid">
-              {getSelectedRoles().map(role => {
-                const displayScore = role.score ?? role.match_score ?? 0
-                return (
-                <div key={role.id} className="comparison-card">
-                  <h3>{role.name}</h3>
-                  <div className="comparison-score">{displayScore}% Match</div>
-                  <p className="comparison-description">{role.description}</p>
-                  {role.reasons && role.reasons.length > 0 && (
-                    <div className="comparison-reasons">
-                      <strong>Key Areas:</strong>
-                      <ul>
-                        {role.reasons.slice(0, 3).map((reason, idx) => (
-                          <li key={idx}>{reason.message}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-                )
-              })}
-            </div>
+            <CareerIcon size={18} className={isTop ? 'text-gold' : 'text-navy/70'} aria-hidden="true" />
           </div>
-        )}
-
-        <div className="roles-grid">
-          {results.top_roles.map((role, index) => {
-            // Debug each role being rendered
-            console.log(`Rendering role ${index}:`, role.id, 'score:', role.score, 'match_score:', role.match_score, 'all keys:', Object.keys(role))
-            const displayScore = role.score ?? role.match_score ?? 0
-            console.log(`Display score for ${role.id}:`, displayScore)
-            return (
-            <div key={role.id} className="role-card">
-              <div className="role-header">
-                <div className="role-rank">#{index + 1}</div>
-                <div className="role-score" data-score={displayScore}>{displayScore}% Match</div>
-              </div>
-              <h2 className="role-name">{role.name}</h2>
-              <p className="role-description">{role.description}</p>
-              
-              {role.reasons && role.reasons.length > 0 && (
-                <div className="role-gaps">
-                  <div className="gaps-title">Key areas to improve:</div>
-                  <ul className="gaps-list">
-                    {role.reasons.map((reason, idx) => (
-                      <li key={idx}>{reason.message}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="role-actions">
-                {comparisonMode && (
-                  <button
-                    className={`compare-button ${selectedForComparison.includes(role.id) ? 'selected' : ''}`}
-                    onClick={() => toggleComparison(role.id)}
-                  >
-                    {selectedForComparison.includes(role.id) ? '✓ Comparing' : '+ Compare'}
-                  </button>
-                )}
-                <button
-                  className={`select-role-button ${selectedRole === role.id ? 'selected' : ''}`}
-                  onClick={() => handleSelectRole(role.id)}
-                  disabled={selectedRole === role.id}
-                >
-                  <span>{selectedRole === role.id ? 'Generating Roadmap...' : 'Select This Role'}</span>
-                </button>
-              </div>
-            </div>
-            )
-          })}
+          <div className="text-right">
+            <span className="font-display font-bold text-h2 text-navy tabular">
+              {displayPercent}
+            </span>
+            <span className="font-body text-h3 text-gold font-semibold">%</span>
+          </div>
         </div>
 
-        <div className="results-footer">
-          <p>Select a role above to generate your personalized learning roadmap</p>
+        {/* Gradient match micro-bar */}
+        <div className="h-1 bg-navy/[0.08] rounded-full overflow-hidden mb-4">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-gold to-gold-light transition-[width] ease-out"
+            style={{ width: `${displayPercent}%`, transitionDuration: '700ms' }}
+          />
         </div>
+
+        {/* Title */}
+        <h3 className="font-display font-semibold text-h3 text-navy mb-2 tracking-tight">
+          {career.title}
+        </h3>
+
+        {/* Description */}
+        <p className="font-body text-small text-navy/65 leading-relaxed mb-5 flex-1">
+          {career.description}
+        </p>
+
+        {/* Key skills */}
+        <div className="flex flex-wrap gap-1.5 mb-6">
+          {career.keySkills.slice(0, 4).map((skill) => (
+            <span
+              key={skill}
+              className="px-2.5 py-1 rounded-full bg-navy/[0.04] border border-navy/[0.08] text-eyebrow font-body text-navy/65 font-medium uppercase"
+            >
+              {skill}
+            </span>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <Button
+          variant={isSelected ? 'primary' : 'secondary'}
+          size="md"
+          onClick={onSelect}
+          className="!rounded-xl w-full"
+        >
+          {isSelected ? 'Viewing Roadmap' : 'View Roadmap'}
+          <ChevronRight size={14} aria-hidden="true" />
+        </Button>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 export default Results
-
