@@ -16,3 +16,6 @@ backend/data/*.db
 dist/
 build/
 
+
+# ChromaDB generated vector store
+data/jobs/chroma/
