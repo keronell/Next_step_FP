@@ -1,0 +1,14 @@
+{
+  "warmup_questions": 3,
+  "max_questions": 20,
+  "min_questions": 10,
+  "target_jobs_remaining": 5,
+  "elimination_threshold": 0.3,
+  "early_stop_threshold": 7,
+  "similarity_weights": {
+    "Likert5": 1.0,
+    "SingleChoice": 0.8,
+    "MultiChoice": 0.7,
+    "Numeric": 0.6
+  }
+}

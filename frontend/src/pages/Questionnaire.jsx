@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { useToast } from '../components/ToastContainer'
+import { QuestionnaireSkeleton } from '../components/LoadingSkeleton'
 import './Questionnaire.css'
 
 function Questionnaire({ sessionId }) {
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [questions, setQuestions] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState({})
@@ -53,16 +56,22 @@ function Questionnaire({ sessionId }) {
 
   const computeResults = async () => {
     try {
+      showToast('Computing your results...', 'info', 2000)
       await axios.post(`/api/sessions/${sessionId}/compute`)
+      showToast('Results ready!', 'success')
       navigate('/results')
     } catch (error) {
       console.error('Failed to compute results:', error)
-      alert('Failed to compute results. Please try again.')
+      showToast('Failed to compute results. Please try again.', 'error')
     }
   }
 
   if (loading) {
-    return <div className="questionnaire-loading">Loading questions...</div>
+    return (
+      <div className="questionnaire">
+        <QuestionnaireSkeleton />
+      </div>
+    )
   }
 
   if (questions.length === 0) {

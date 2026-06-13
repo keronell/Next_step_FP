@@ -1,0 +1,193 @@
+{
+  "INTEREST_LABELS": {
+    "INTEREST_VISUAL_DESIGN": {
+      "description": "Interest in how things look, visual layout, making things visually appealing",
+      "keywords": ["visual", "layout", "design", "look", "appearance", "color", "aesthetic", "visual layout", "make things look", "polished", "user interface", "UI", "frontend"],
+      "weight": 1.0
+    },
+    "INTEREST_USER_EXPERIENCE": {
+      "description": "Interest in how people use things, making things easy to use, understanding user needs",
+      "keywords": ["user", "experience", "people", "use", "easy to use", "understand users", "user needs", "customer", "satisfaction", "UX", "user research", "wireframe", "design system", "flow"],
+      "weight": 1.0
+    },
+    "INTEREST_DATA_WORK": {
+      "description": "Interest in working with information, numbers, finding patterns in data, measuring things",
+      "keywords": ["data", "information", "numbers", "measure", "metric", "pattern", "analysis", "statistic", "quantitative", "data pipeline", "data model", "data cleaning", "warehouse", "SQL", "dataset"],
+      "weight": 1.0
+    },
+    "INTEREST_PREDICTIVE_ANALYTICS": {
+      "description": "Interest in predicting outcomes, forecasting, using patterns to make predictions",
+      "keywords": ["predict", "forecast", "outcome", "pattern", "model", "algorithm", "prediction", "forecasting", "machine learning", "ML", "predictive model", "model drift", "inference", "training"],
+      "weight": 1.0
+    },
+    "INTEREST_SYSTEM_BUILDING": {
+      "description": "Interest in building systems that work behind the scenes, making things run smoothly",
+      "keywords": ["system", "infrastructure", "behind the scenes", "run smoothly", "server", "platform", "make things work", "backend", "API", "service", "database"],
+      "weight": 1.0
+    },
+    "INTEREST_QUALITY_ASSURANCE": {
+      "description": "Interest in making sure things work correctly, testing, finding problems before they happen",
+      "keywords": ["test", "testing", "quality", "make sure", "works correctly", "find problems", "bug", "validation", "check", "QA", "test plan", "automation"],
+      "weight": 1.0
+    },
+    "INTEREST_RELIABILITY_MAINTENANCE": {
+      "description": "Interest in keeping things running, preventing problems, monitoring and fixing issues",
+      "keywords": ["reliability", "keep running", "prevent problems", "monitor", "fix", "incident", "maintenance", "stability", "devops", "SRE", "CI/CD", "infrastructure", "monitoring", "deployment"],
+      "weight": 1.0
+    },
+    "INTEREST_PROTECTION_SECURITY": {
+      "description": "Interest in protecting systems and information, preventing unauthorized access, safety",
+      "keywords": ["security", "protect", "safety", "prevent unauthorized", "secure", "threat", "vulnerability", "authentication", "threat model", "penetration", "IAM", "encryption"],
+      "weight": 1.0
+    },
+    "INTEREST_PLANNING_STRATEGY": {
+      "description": "Interest in planning, prioritizing, organizing work, making strategic decisions",
+      "keywords": ["plan", "planning", "prioritize", "organize", "strategy", "roadmap", "coordinate", "requirements", "product manager", "user research"],
+      "weight": 1.0
+    },
+    "INTEREST_INSIGHTS_ANALYSIS": {
+      "description": "Interest in understanding why things happen, finding insights, making data useful",
+      "keywords": ["insight", "understand why", "analysis", "discover", "find out", "explain", "dashboard", "visualization", "metric", "business question", "A/B test", "outlier", "analytics"],
+      "weight": 1.0
+    },
+    "INTEREST_AUTOMATION": {
+      "description": "Interest in making repetitive tasks automatic, saving time through automation",
+      "keywords": ["automate", "automatic", "repetitive task", "save time", "efficiency", "workflow", "streamline", "optimization", "process"],
+      "weight": 0.9
+    },
+    "INTEREST_RAPID_EXPERIMENTATION": {
+      "description": "Interest in quickly trying new ideas, experimenting, building prototypes fast",
+      "keywords": ["experiment", "try new ideas", "prototype", "quick", "rapid", "test idea", "iteration", "experimental", "building prototypes"],
+      "weight": 0.9
+    },
+    "INTEREST_EXPLANATION_WRITING": {
+      "description": "Interest in explaining things clearly, writing documentation, helping others understand",
+      "keywords": ["explain", "writing", "documentation", "help understand", "clarify", "guide", "story", "communication", "blog", "document", "technical writing"],
+      "weight": 0.8
+    },
+    "INTEREST_PRESENTING_INFORMATION": {
+      "description": "Interest in showing information visually, creating charts and graphs, making data understandable",
+      "keywords": ["visualize", "show information", "chart", "graph", "present", "display", "visual representation", "visualization", "visual", "infographic", "dashboard"],
+      "weight": 0.9
+    },
+    "INTEREST_SCALABLE_DESIGN": {
+      "description": "Interest in designing systems that can handle growth, building for scale, architecture",
+      "keywords": ["scale", "scalability", "handle growth", "architecture", "design system", "grow", "expand", "system design", "system that scales", "distributed"],
+      "weight": 1.0
+    }
+  },
+  "TRAIT_LABELS": {
+    "TRAIT_CREATIVITY": {
+      "description": "Creative thinking, coming up with new ideas, innovation",
+      "keywords": ["creative", "new idea", "innovate", "brainstorm", "invent", "unconventional", "original", "innovation", "ideation"],
+      "weight": 1.0
+    },
+    "TRAIT_ANALYTICAL": {
+      "description": "Logical thinking, careful reasoning, problem-solving step by step",
+      "keywords": ["analytical", "reasoning", "logic", "problem", "step by step", "think through", "puzzle", "careful", "root cause", "edge case"],
+      "weight": 1.0
+    },
+    "TRAIT_ATTENTION_TO_DETAIL": {
+      "description": "Paying close attention to details, being thorough and precise",
+      "keywords": ["detail", "thorough", "precise", "careful", "meticulous", "attention", "polish", "accuracy", "detail-oriented", "edge case"],
+      "weight": 0.9
+    },
+    "TRAIT_COLLABORATIVE": {
+      "description": "Working well with others, team player, cooperation",
+      "keywords": ["team", "collaborate", "work together", "cooperate", "partner", "together", "group", "coordinate"],
+      "weight": 0.9
+    },
+    "TRAIT_COMMUNICATION": {
+      "description": "Explaining things clearly, good at talking and writing, helping others understand",
+      "keywords": ["communicate", "explain", "talk", "present", "clarify", "discuss", "writing", "speak", "analogy"],
+      "weight": 0.9
+    },
+    "TRAIT_INDEPENDENCE": {
+      "description": "Working independently, self-directed, taking ownership",
+      "keywords": ["independent", "self-directed", "own", "autonomous", "self", "take charge", "ownership", "autonomy"],
+      "weight": 0.9
+    },
+    "TRAIT_RESILIENCE": {
+      "description": "Handling pressure well, bouncing back from setbacks, adapting to challenges",
+      "keywords": ["resilient", "pressure", "bounce back", "adapt", "challenge", "tough", "persevere", "overcome", "stress"],
+      "weight": 0.8
+    },
+    "TRAIT_EMPATHY": {
+      "description": "Understanding how others feel, caring about users and people's needs",
+      "keywords": ["empathy", "understand others", "care", "feel", "people", "emotional", "user needs", "consideration", "user", "customer", "understand"],
+      "weight": 0.8
+    },
+    "TRAIT_DECISIVENESS": {
+      "description": "Making decisions confidently, being assertive, leadership",
+      "keywords": ["decide", "confident", "lead", "assertive", "determined", "firm", "leadership", "decisive"],
+      "weight": 0.8
+    },
+    "TRAIT_CURIOSITY": {
+      "description": "Wanting to learn, exploring new things, growth mindset",
+      "keywords": ["learn", "learning", "curious", "explore", "grow", "discover", "interested", "improve", "growth", "study"],
+      "weight": 0.9
+    },
+    "TRAIT_ORGANIZATION": {
+      "description": "Liking structure and organization, systematic approach, planning ahead",
+      "keywords": ["organize", "structure", "systematic", "plan", "order", "methodical", "organized", "system", "process"],
+      "weight": 0.8
+    },
+    "TRAIT_FLEXIBILITY": {
+      "description": "Adapting to change, comfortable with uncertainty, flexible approach",
+      "keywords": ["flexible", "adapt", "change", "uncertain", "vague", "adjust", "versatile", "open", "ambiguous"],
+      "weight": 0.8
+    }
+  },
+  "ORIENTATION_LABELS": {
+    "ORIENTATION_DATA_ORIENTED": {
+      "description": "Focus on data, numbers, measurements, making decisions based on evidence",
+      "keywords": ["data", "numbers", "measure", "evidence", "statistic", "quantitative", "based on data", "metric", "distribution", "analytics", "measurement"],
+      "weight": 1.0
+    },
+    "ORIENTATION_SYSTEM_ORIENTED": {
+      "description": "Focus on how systems work, infrastructure, technical depth",
+      "keywords": ["system", "infrastructure", "how things work", "technical", "platform", "foundation", "deep", "low-level", "core"],
+      "weight": 1.0
+    },
+    "ORIENTATION_PEOPLE_FOCUSED": {
+      "description": "Focus on people and users, customer experience, human-centered",
+      "keywords": ["people", "user", "customer", "experience", "human", "needs", "satisfaction", "people-focused", "product", "impact"],
+      "weight": 1.0
+    },
+    "ORIENTATION_BUSINESS_FOCUSED": {
+      "description": "Focus on business value, impact, strategic thinking, results that matter",
+      "keywords": ["business", "value", "impact", "strategy", "results", "revenue", "commercial", "outcome", "ROI"],
+      "weight": 0.9
+    },
+    "ORIENTATION_TECHNOLOGY_FOCUSED": {
+      "description": "Focus on technology, new tools, innovation, cutting-edge solutions",
+      "keywords": ["technology", "tech", "innovation", "new tools", "advanced", "modern", "cutting-edge", "technical"],
+      "weight": 0.9
+    },
+    "ORIENTATION_RESEARCH_FOCUSED": {
+      "description": "Focus on deep investigation, research, understanding root causes",
+      "keywords": ["research", "investigate", "deep", "understand", "root cause", "explore", "study", "investigation", "experiment", "deep work"],
+      "weight": 0.9
+    },
+    "ORIENTATION_RESULTS_FOCUSED": {
+      "description": "Focus on getting things done, delivering outcomes, execution",
+      "keywords": ["results", "get things done", "deliver", "outcome", "execute", "achieve", "accomplish", "implement", "ship", "deploy"],
+      "weight": 0.9
+    },
+    "ORIENTATION_EXCELLENCE_FOCUSED": {
+      "description": "Focus on quality, doing things well, craftsmanship, high standards",
+      "keywords": ["quality", "excellence", "well", "craftsmanship", "standards", "best", "perfection", "polish", "craft", "best practice"],
+      "weight": 0.9
+    },
+    "ORIENTATION_SPEED_FOCUSED": {
+      "description": "Focus on moving fast, rapid iteration, quick results",
+      "keywords": ["speed", "fast", "rapid", "quick", "iteration", "fast-moving", "quickly", "startup", "agile"],
+      "weight": 0.8
+    },
+    "ORIENTATION_STABILITY_FOCUSED": {
+      "description": "Focus on reliability, consistency, long-term thinking",
+      "keywords": ["stable", "reliable", "consistent", "long-term", "steady", "dependable", "maintain"],
+      "weight": 0.8
+    }
+  }
+}

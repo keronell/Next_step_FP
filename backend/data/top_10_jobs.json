@@ -1,0 +1,117 @@
+[
+  {
+    "id": "frontend",
+    "name": "Frontend Developer",
+    "description": "Builds user-facing web applications using HTML, CSS, and JavaScript",
+    "required_skills": {
+      "Frontend Development": 4,
+      "UI/UX Design": 3,
+      "JavaScript": 4,
+      "React": 3,
+      "CSS": 4,
+      "HTML": 4
+    }
+  },
+  {
+    "id": "backend",
+    "name": "Backend Developer",
+    "description": "Develops server-side logic and APIs",
+    "required_skills": {
+      "Backend Development": 4,
+      "API Design": 4,
+      "Database": 3,
+      "Problem Solving": 4,
+      "System Design": 3
+    }
+  },
+  {
+    "id": "fullstack",
+    "name": "Full Stack Developer",
+    "description": "Works on both frontend and backend systems",
+    "required_skills": {
+      "Frontend Development": 3,
+      "Backend Development": 3,
+      "JavaScript": 4,
+      "Database": 3,
+      "Problem Solving": 4
+    }
+  },
+  {
+    "id": "qa",
+    "name": "QA Engineer",
+    "description": "Ensures software quality through testing",
+    "required_skills": {
+      "Testing": 4,
+      "Problem Solving": 3,
+      "Attention to Detail": 4,
+      "Communication": 3
+    }
+  },
+  {
+    "id": "devops",
+    "name": "DevOps Engineer",
+    "description": "Manages infrastructure and deployment pipelines",
+    "required_skills": {
+      "DevOps": 4,
+      "System Administration": 3,
+      "CI/CD": 4,
+      "Cloud": 3,
+      "Problem Solving": 3
+    }
+  },
+  {
+    "id": "architect",
+    "name": "Software Architect",
+    "description": "Designs system architecture and technical strategy",
+    "required_skills": {
+      "System Design": 5,
+      "Architecture": 5,
+      "Problem Solving": 4,
+      "Technical Leadership": 4
+    }
+  },
+  {
+    "id": "ml-engineer",
+    "name": "ML Engineer",
+    "description": "Builds and deploys machine learning models",
+    "required_skills": {
+      "Machine Learning": 4,
+      "Python": 4,
+      "Data Science": 3,
+      "Statistics": 3
+    }
+  },
+  {
+    "id": "data-scientist",
+    "name": "Data Scientist",
+    "description": "Analyzes data to extract insights",
+    "required_skills": {
+      "Data Science": 4,
+      "Statistics": 4,
+      "Python": 4,
+      "Data Analysis": 4
+    }
+  },
+  {
+    "id": "product-manager",
+    "name": "Product Manager",
+    "description": "Defines product strategy and roadmap",
+    "required_skills": {
+      "Product Management": 4,
+      "Communication": 4,
+      "Strategic Thinking": 4,
+      "Problem Solving": 3
+    }
+  },
+  {
+    "id": "ux-designer",
+    "name": "UX Designer",
+    "description": "Designs user experiences and interfaces",
+    "required_skills": {
+      "UI/UX Design": 5,
+      "User Research": 4,
+      "Prototyping": 4,
+      "Communication": 3
+    }
+  }
+]

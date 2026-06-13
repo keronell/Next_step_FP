@@ -204,6 +204,30 @@
   z-index: 1;
 }
 
+.quiz-options {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.start-button.primary {
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+}
+
+.start-button.adaptive {
+  background: linear-gradient(135deg, #008BFF 0%, #E4FF30 100%);
+  color: #362F4F;
+}
+
+.start-button small {
+  display: block;
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin-top: 0.3rem;
+  font-weight: 400;
+}
+
 .landing-features {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

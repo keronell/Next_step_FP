@@ -1,0 +1,176 @@
+{
+  "INTEREST_VISUAL_DESIGN": {
+    "UI/UX Design": 0.9,
+    "Frontend Development": 0.7
+  },
+  "INTEREST_USER_EXPERIENCE": {
+    "UI/UX Design": 0.9,
+    "User Research": 0.8,
+    "Communication": 0.6
+  },
+  "INTEREST_DATA_WORK": {
+    "Data Analysis": 0.8,
+    "SQL": 0.7,
+    "Data Engineering": 0.6
+  },
+  "INTEREST_PREDICTIVE_ANALYTICS": {
+    "Machine Learning": 0.9,
+    "Data Science": 0.8,
+    "Statistics": 0.7
+  },
+  "INTEREST_SYSTEM_BUILDING": {
+    "Backend Development": 0.9,
+    "System Design": 0.8,
+    "API Design": 0.7
+  },
+  "INTEREST_QUALITY_ASSURANCE": {
+    "Testing": 0.9,
+    "Problem Solving": 0.6,
+    "Attention to Detail": 0.7
+  },
+  "INTEREST_RELIABILITY_MAINTENANCE": {
+    "DevOps": 0.9,
+    "System Administration": 0.7,
+    "Problem Solving": 0.6
+  },
+  "INTEREST_PROTECTION_SECURITY": {
+    "Cybersecurity": 0.9,
+    "Network Security": 0.8,
+    "Problem Solving": 0.6
+  },
+  "INTEREST_PLANNING_STRATEGY": {
+    "Product Management": 0.9,
+    "Strategic Thinking": 0.8,
+    "Communication": 0.6
+  },
+  "INTEREST_INSIGHTS_ANALYSIS": {
+    "Data Analysis": 0.9,
+    "Analytics": 0.8,
+    "Business Intelligence": 0.7
+  },
+  "INTEREST_AUTOMATION": {
+    "Problem Solving": 0.8,
+    "Backend Development": 0.6,
+    "DevOps": 0.5
+  },
+  "INTEREST_RAPID_EXPERIMENTATION": {
+    "Problem Solving": 0.7,
+    "Frontend Development": 0.5,
+    "Prototyping": 0.8
+  },
+  "INTEREST_EXPLANATION_WRITING": {
+    "Technical Writing": 0.9,
+    "Communication": 0.8
+  },
+  "INTEREST_PRESENTING_INFORMATION": {
+    "Data Visualization": 0.8,
+    "UI/UX Design": 0.6,
+    "Communication": 0.7
+  },
+  "INTEREST_SCALABLE_DESIGN": {
+    "System Design": 0.9,
+    "Architecture": 0.8,
+    "Backend Development": 0.6
+  },
+  "TRAIT_CREATIVITY": {
+    "Problem Solving": 0.7,
+    "UI/UX Design": 0.6,
+    "Innovation": 0.8
+  },
+  "TRAIT_ANALYTICAL": {
+    "Problem Solving": 0.8,
+    "Data Analysis": 0.7,
+    "Critical Thinking": 0.8
+  },
+  "TRAIT_ATTENTION_TO_DETAIL": {
+    "Testing": 0.7,
+    "Quality Assurance": 0.8,
+    "Problem Solving": 0.6
+  },
+  "TRAIT_COLLABORATIVE": {
+    "Communication": 0.7,
+    "Teamwork": 0.8
+  },
+  "TRAIT_COMMUNICATION": {
+    "Communication": 0.9,
+    "Technical Writing": 0.7,
+    "Product Management": 0.6
+  },
+  "TRAIT_INDEPENDENCE": {
+    "Problem Solving": 0.6,
+    "Self-Direction": 0.7
+  },
+  "TRAIT_RESILIENCE": {
+    "Problem Solving": 0.5,
+    "Adaptability": 0.7
+  },
+  "TRAIT_EMPATHY": {
+    "User Research": 0.8,
+    "UI/UX Design": 0.6,
+    "Communication": 0.6
+  },
+  "TRAIT_DECISIVENESS": {
+    "Leadership": 0.8,
+    "Product Management": 0.7
+  },
+  "TRAIT_CURIOSITY": {
+    "Learning": 0.8,
+    "Problem Solving": 0.6
+  },
+  "TRAIT_ORGANIZATION": {
+    "Project Management": 0.7,
+    "System Design": 0.5
+  },
+  "TRAIT_FLEXIBILITY": {
+    "Adaptability": 0.8,
+    "Problem Solving": 0.6
+  },
+  "ORIENTATION_DATA_ORIENTED": {
+    "Data Analysis": 0.8,
+    "Statistics": 0.7,
+    "Data Science": 0.7
+  },
+  "ORIENTATION_SYSTEM_ORIENTED": {
+    "System Design": 0.9,
+    "Backend Development": 0.8,
+    "Infrastructure": 0.8
+  },
+  "ORIENTATION_PEOPLE_FOCUSED": {
+    "UI/UX Design": 0.8,
+    "User Research": 0.8,
+    "Product Management": 0.7
+  },
+  "ORIENTATION_BUSINESS_FOCUSED": {
+    "Product Management": 0.8,
+    "Business Intelligence": 0.7,
+    "Strategic Thinking": 0.8
+  },
+  "ORIENTATION_TECHNOLOGY_FOCUSED": {
+    "Backend Development": 0.7,
+    "Frontend Development": 0.7,
+    "Innovation": 0.8
+  },
+  "ORIENTATION_RESEARCH_FOCUSED": {
+    "Data Science": 0.8,
+    "Machine Learning": 0.7,
+    "Problem Solving": 0.7
+  },
+  "ORIENTATION_RESULTS_FOCUSED": {
+    "Project Management": 0.7,
+    "Execution": 0.8
+  },
+  "ORIENTATION_EXCELLENCE_FOCUSED": {
+    "Quality Assurance": 0.8,
+    "Testing": 0.7,
+    "Attention to Detail": 0.8
+  },
+  "ORIENTATION_SPEED_FOCUSED": {
+    "Prototyping": 0.7,
+    "Frontend Development": 0.6
+  },
+  "ORIENTATION_STABILITY_FOCUSED": {
+    "DevOps": 0.7,
+    "System Administration": 0.7,
+    "Reliability": 0.8
+  }
+}

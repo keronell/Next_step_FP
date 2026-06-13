@@ -60,6 +60,162 @@
   margin-top: 2rem;
 }
 
+.results-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.comparison-toggle {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  background: rgba(91, 35, 255, 0.1);
+  border: 2px solid rgba(91, 35, 255, 0.3);
+  border-radius: 12px;
+  color: #5B23FF;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.comparison-toggle:hover {
+  background: rgba(91, 35, 255, 0.2);
+  border-color: rgba(91, 35, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.comparison-toggle.active {
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  border-color: transparent;
+  color: #EEEEEE;
+}
+
+.comparison-view {
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: rgba(91, 35, 255, 0.05);
+  border-radius: 16px;
+  border: 2px solid rgba(91, 35, 255, 0.2);
+}
+
+.comparison-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #362F4F;
+  margin-bottom: 1.5rem;
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.comparison-card {
+  background: rgba(238, 238, 238, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(91, 35, 255, 0.2);
+}
+
+.comparison-card h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #362F4F;
+  margin-bottom: 0.5rem;
+}
+
+.comparison-score {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #5B23FF;
+  margin-bottom: 1rem;
+}
+
+.comparison-description {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  color: rgba(54, 47, 79, 0.8);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.comparison-reasons {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  color: rgba(54, 47, 79, 0.7);
+}
+
+.comparison-reasons strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #362F4F;
+}
+
+.comparison-reasons ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.comparison-reasons li {
+  padding: 0.25rem 0;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.comparison-reasons li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: #5B23FF;
+}
+
+.role-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.compare-button {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.625rem 1.25rem;
+  background: rgba(238, 238, 238, 0.5);
+  border: 2px solid rgba(91, 35, 255, 0.3);
+  border-radius: 8px;
+  color: #5B23FF;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  min-width: 120px;
+}
+
+.compare-button:hover {
+  background: rgba(91, 35, 255, 0.1);
+  border-color: rgba(91, 35, 255, 0.5);
+}
+
+.compare-button.selected {
+  background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%);
+  border-color: transparent;
+  color: #EEEEEE;
+}
+
+.select-role-button {
+  flex: 2;
+  min-width: 150px;
+}
+
 .results-container h1 {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 2.8rem;

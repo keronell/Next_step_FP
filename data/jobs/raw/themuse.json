@@ -1,0 +1,281 @@
+[
+  {
+    "id": "themuse_5526783",
+    "source": "themuse",
+    "field": "Data Science",
+    "title": "Data Science Lead",
+    "company": "Pilotly",
+    "description": "Pilotly is the first self-service insights platform for media content- we make complex research simple, fast and cost effective. Through our interactive video platform, we are able to collect detailed consumer feedback rapidly from specific target audiences, and then process the data using our A.I. algorithms to surface valuable insights to our clients. We’re in a unique position to completely change the consumer insights landscape affecting culture around the world, because, after all, the most influential communications leverage video. Help us become the platform of records for every organization, small to large, that needs to optimize the outcome of their video. Every day we’re collecting hundreds of thousands of data points from our research studies. Whether it’s a response to a question, a user interaction with our video experience or an implicit activity we derive insight from, there is always data being collected during a Pilotly experience. While we process this data to surface insights for clients, there is a bigger picture opportunity here. We can look at data across industries to surface market trends, identify new performance indicators that leverage our depth of respondent data and match our 1st party with 3rd party data to produce new valuable insights. Using your background in math, statistics and computer science, we’re excited for you to turn our millions of consumer data points into a playground of valuable information for our clients. Overall Expectation *As Pilotly continues to grow at an accelerating rate, we need someone who can fully digest the breadth of consumer data that we have and arrange it into a symphony of insights that can both improve our product and help customers. You’re to be the one who ensures that none of our data is dormant. * | A Good Baseline to Start from -Advanced degree in a quantitative discipline (applied mathematics, statistics, computer science, physics, or other related field) from an academic institution -Expert in Python and SQL, as well as experience with MongoDb -Excellent communication skills with demonstrated success presenting complex data and analysis in a clear and compelling manner that inspires action -Knowledge of advanced statistical techniques used in market research -Quick learner, with the ability to initiate and drive projects to completion with minimal guidance -Preferably experienced with dataset from TV data providers like Nielsen and Comscore | Your Daily Grind -Support research services with complex data analysis and validation of certain consumer insight assertions -Apply your expertise in quantitative analysis, data mining, and the presentation of data to see beyond the numbers and understand how users interact with our products -Keep research norms up to date, using this data to create new and better ways to quickly inform clients of their content’s overall performance -Mine Pilotly data to extract actionable insights that inform, influence, support, and help execute our product decisions and launches. While mining data you’ll be working to surface new key metrics that tie tightly to content performance, giving us new ways to provide value to our clients -Design and implement reporting and metrics that track and monitor the performance of our products, the quality of our data, and overall health of the business | Why Pilotly -We’re always building new media technology that keeps us ahead of the market -We are affecting culture, so we must be purveyors of culture, our team reflects that. We pride ourselves on keeping the Pilotly team diverse and versatile in thought -Every day is a different experience when you work with video, one day you’re talking with the creators of your favorite TV show and the next you’re meeting an influencer that a brand is creating content around -Stay creative, everyone on our team does. Work with people who don’t just geek on out on technology, we have lives outside of the 60 hour weeks -Health benefits available -Oh and unlimited paid time off",
+    "tags": [
+      "Data Science"
+    ],
+    "url": "https://www.themuse.com/jobs/pilotly/data-science-lead-6f5f7b",
+    "date": "2021-04-20T21:02:43Z",
+    "scraped_at": "2026-05-27T17:02:09.832511+00:00",
+    "skills": [
+      "AI",
+      "Analytics",
+      "BigData",
+      "Data Science",
+      "DataProcessing",
+      "MachineLearning",
+      "MongoDB",
+      "Python",
+      "R",
+      "SQL",
+      "Statistics",
+      "VideoAnalysis"
+    ]
+  },
+  {
+    "id": "themuse_5314423",
+    "source": "themuse",
+    "field": "Data Science",
+    "title": "Senior Mulesoft Architect",
+    "company": "b atomic",
+    "description": "We are looking for a Mulesoft Architect to build and scale the b atomic API development team. In this role you'll get ... Collaborate with enterprise architects and IT program managers inside b atomic, partners, and customers to create brand new, creative API infrastructures Assist in architecting technical solutions for enterprise systems using the MuleSoft product suite and adapt to a rapidly changing business environment Knowledge of SOA Design patterns for building middleware systems ground up using Message Routing, Content Enrichment, Message Filtering, Message Transformation, Guaranteed delivery, Message sequencing, Batch message processing, error handling and reconciliation mechanisms. Knowledge of Web Services Interoperability, WS-* standards and ability to suggest, criticize and formulate solutions in a multi-vendor and architecture committee meetings. Identify, analyze and design integration flows using Mule ESB Anypoint Studio and technically own and manage the process of ensuring on time and on budget build and integration of the various elements of the solution Good understanding of integration design patterns & best practices In depth experience using Agile, Scrum and iterative development practices Assist on technical POC's to prove out technology and ultimately leading into selection. On day one we'll expect you to have... Solution Architects assess a project’s technical feasibility, as well as implementation risks. They are responsible for designing and implementing a project’s technical architecture. They define the structure of a system, its interfaces, and the principles that guide its organization, software design and implementation. The scope of the Solution Architect’s role is bounded by the business issue at hand. A Solution Architect needs to have knowledge of all the different aspects of the technical solution as well as robust business knowledge. This includes the Software Architect. 3+ years of experience working as an Integration Solution Architect and 1+ with Mulesoft product Suite . 5+ years of software development experience. Experience with large Full Life Cycle (FLC) project implementations, with hands on delivery. Experience with all aspects of the system implementation process of system design, configuration, customization, integration, testing and support. Experience with design, development and deployment of SOA based architecture for a large organization leveraging multiple COTS Business applications is preferred Experience with Tomcat, XML, JMS, XSLT, WS-*, SOA/Integration, and API Management technologies and standards Experience with using a JAVA IDE (Eclipse, Intelli J, Netbeans) Designed and developed micro-service solutions, Service Oriented Architecture (SOA) concepts including REST-ful and SOAP-based services Designed and developed enterprise services using RAML and REST based APIs Experienced in both Agile and waterfall methodologies Have excellent interpersonal, verbal and written skills and the ability to interact with all level of stakeholders, support personnel, and clients Strong documentation, analytical and problem-solving skills Bachelor’s degree in Computer Science or any related field and a minimum of 5 years relevant experience providing IT enablement solutions Mule certification highly preferred Added bonuses you have... You are responsible for the end-to-end architecture of a solution, including its assembly and integration into the IT architecture principles defined with the client. You define the structure of the system, its interfaces, and the principles that guide its organization, software design and implementation. You are responsible for the management and mitigation of technical risks, ensuring that the solution services can be realistically delivered by the underlying technology components Certification: Technical certification e.g. Cisco, VMWare; or achieved professional certification TOGAF 9 level 1; or has / seeking IAF level 1. Should have experience in Functional Architecture Design and Architecture Knowledge, Negotiating, Financial Analysis and Continuous (Service) Improvement. Should be proficient in Business Knowledge, Software Engineering Leadership, Technical Solution Design and Change Management. Should have progressing knowledge in Business Analysis",
+    "tags": [
+      "Data Science",
+      "Software Engineer"
+    ],
+    "url": "https://www.themuse.com/jobs/batomic/senior-mulesoft-architect-e5aa96",
+    "date": "2021-02-25T17:17:45Z",
+    "scraped_at": "2026-05-27T17:02:09.832712+00:00",
+    "skills": [
+      "Agile",
+      "AnypointStudio",
+      "BatchProcessing",
+      "ContentEnrichment",
+      "Data Science",
+      "ErrorHandling",
+      "GuaranteedDelivery",
+      "Java",
+      "MessageFiltering",
+      "MessageRouting",
+      "MessageSequencing",
+      "MessageTransformation",
+      "MuleSoft",
+      "SOA",
+      "Scrum",
+      "Software Engineer",
+      "System Design",
+      "WS*"
+    ]
+  },
+  {
+    "id": "themuse_6152167",
+    "source": "themuse",
+    "field": "UI / UX Design",
+    "title": "Sr. Marketing Manager",
+    "company": "Black Girl Ventures Foundation",
+    "description": "BGV is an NGO, dedicated to providing Black/Brown woman-identifying founders with access to community, capital, and capacity building in order to meet business milestones that lead to economic advancement through entrepreneurship. For our Director of Marketing, we're looking for: Responsibilities: Directs and oversees BGV’s marketing communications function. Develops strategies related to the dissemination of information meant to drive profitability of BGV’s services. Manages the work of a team that drafts marketing communications, including promotional publications, presentations, advertisements, or brochures. Reviews and edits content to ensure that they are clear, thorough, on-brand, and seek to preserve BGv’s image. Defines target audiences and tailors content and delivery channels. Collects data on the performance of specific communications or campaigns and modifies strategies to improve performance. Involved from concepts and principles Contributes to strategic planning, direction, and goal setting for the Marketing department in collaboration with executive management. Establishes departmental policies, practices, and procedures that have a significant impact on the organization. Responsible for personnel actions including hiring, performance management, etc. Other duties as assigned. Qualifications: Ability to work independently and under pressure. An energetic, outgoing charismatic personality. Excellent interpersonal and communication skills. Attention to detail is vital. Flexible, reliable and trustworthy. Proficient computer skills are required. Strong agility to shift directions in a changing work environment. Good research and problem solving skills. Ability to work with a high functioning entrepreneurial thinker. Excellent written, analytical and verbal communication. Minimum 5 years relevant work experience. Preference for Bachelor’s degree in Journalism, Communications, Public Relations or Business Administration Preference for demonstrated interest in inclusive innovation or other diversity-related issues. Ability to show initiative and work well as part of a small team. Strong management skills. Ability to influence others. Black Girl Ventures Foundation is an Equal Opportunity Employer",
+    "tags": [
+      "Account Management/Customer Success",
+      "Design",
+      "Marketing",
+      "Project Management",
+      "UX",
+      "Videography",
+      "Writer"
+    ],
+    "url": "https://www.themuse.com/jobs/blackgirlventuresfoundation/sr-marketing-manager",
+    "date": "2021-07-08T02:05:36Z",
+    "scraped_at": "2026-05-27T17:02:12.181216+00:00",
+    "skills": [
+      "Account Management/Customer Success",
+      "Design",
+      "Marketing",
+      "Project Management",
+      "Videography",
+      "Writer"
+    ]
+  },
+  {
+    "id": "themuse_5768889",
+    "source": "themuse",
+    "field": "UI / UX Design",
+    "title": "Creative Director",
+    "company": "Black Girl Ventures Foundation",
+    "description": "BGV is an NGO, dedicated to providing Black/Brown woman-identifying founders with access to community, capital, and capacity building in order to meet business milestones that lead to economic advancement through entrepreneurship. For our Creative Director, we're looking for: Responsibilities: Providing strategy and direction for marketing campaigns, concepting and moodboarding. Planning organization advertisements, monitoring brand campaigns, revising presentations, and shaping brand standards. Work with the brand team to produce new ideas for company branding, promotional campaigns, and marketing communications. Evaluate trends, assess new data and keep up-to-date with the latest marketing techniques. Create and implement tailored marketing plans based on individual client requirements. Direct brainstorming meetings and creative sessions. Shape brand standards and create procedures to ensure all products are brand appropriate. Supervise the department's daily workflow, assign project workload, and monitor deadlines and budgets. Develop exceptional and well-crafted copy that meet clients’ requirements. Manage the creative process from concept to completion Translate marketing objectives into clear creative strategies Lead and direct the creative team in the production of all marketing collateral Ensure visual communication and brand standards are met Oversee client pitches and proposals Oversee profitability, deliverables, timelines and budgets Meet with clients or upper management to explain campaign strategies and solutions Review work, troubleshoot and provide feedback to creative teams Other duties as assigned. Qualifications: Have some creative or artistic background - creativity gives you internal permission to execute Bachelor’s degree in design, advertising, marketing, communications or related field A minimum of 5 years’ digital experience, particularly with, but not limited to web, social and emerging technologies. Leadership skills, with steadfast resolve and personal integrity Understanding of business planning Ability to look at bigger picture A solid grasp of design, copy and web practices. Be able to diagnose problems quickly and have foresight into potential issues Brilliant interpersonal and communication skills. Have an in-depth knowledge of brand development and multichannel marketing models. Black Girl Ventures Foundation is an Equal Opportunity Employer",
+    "tags": [
+      "Design",
+      "Editor",
+      "Project Management",
+      "UX",
+      "Writer"
+    ],
+    "url": "https://www.themuse.com/jobs/blackgirlventuresfoundation/creative-director-ddc281",
+    "date": "2021-05-05T21:34:13Z",
+    "scraped_at": "2026-05-27T17:02:12.181321+00:00",
+    "skills": [
+      "Design",
+      "Editor",
+      "Project Management",
+      "Writer"
+    ]
+  },
+  {
+    "id": "themuse_6964170",
+    "source": "themuse",
+    "field": "Product Management",
+    "title": "E*TRADE - Market Data Product Manager",
+    "company": "E*TRADE",
+    "description": "More than 30 years ago, E TRADE pioneered the online brokerage industry by executing the first-ever electronic individual investor trade. While the landscape of our industry has changed dramatically, our culture of innovation and drive to make online trading accessible to everyone continues to drive us forward. We believe in challenging the status quo, fostering an environment of curiosity and learning, and, above all, putting our custom e rs first. In 2020, ETRADE joined Morgan Stanley, signaling a major industry shift that brought Wall Street and Main Street together more than ever before. As ETRADE's parent company, Morgan Stanley plays an important role in expanding what we can offer to investors, though E TRADE still functions as an independent entity. RESPONSIBILITIES Seeking Market Data Professional who can immediately add value to our customers, product offering, and internal team. The Product Manager for Market Data will be responsible for managing and developing Market Data products & services as detailed under the responsibilities below. RESPONSBILITIES • Responsible for driving the full suite of reference and price data products and services, optimizing to an accurate and best-in-class market data plant. • Work with colleagues in product and IT to decide on product strategy, planning, definition, and delivery. • Work with a cross-functional group to manage to the optimal Market Data footprint and Total Cost of Ownership. • Prioritize, communicate, and execute product development, enhancement, and maintenance roadmaps. • Manage Market Data relationships and negotiate related agreements. • Manage, prioritize, and work with the Project/Development/QA teams on New Development and Production Support. • Define the standards and requirements for E*TRADE's external APIs • Help define API management, infrastructure, and deployment processes • Lead client API support and onboarding • Engage and align with internal and external stakeholders including technology, marketing, legal, partners, vendors, project management. • Educate end users and customer development staff in the functionality of products. • Manage and execute operational plans including directing resources (both internal and external), evaluating results, creating documentation of newly created processes, and managing overall engagement. • Responsible for the successful delivery of software development projects and accountable to others for maintaining relevant scope and meeting timelines. • Track and internally communicate industry trends and market intelligence. REQUIREMENTS • In-depth knowledge of Market Data products & services. • Have Analytical and Data Architecture background • Deep understanding of Price & Reference Data Feeds and Data Stores, including Options, Equities, Bonds, FX, and Futures. • Perspective and insight into retail online customer investing needs, as well as the Market Data & Tools that support those needs. • Interpersonal skills to elicit pertinent information from stakeholders at all levels. • Proven track-record managing multiple projects, with demonstrated ability to deliver exceptional results under tight timelines. • Demonstrates effective leadership and discipline within a dynamic work environment. • Ability to communicate business goals and functional requirements effectively to any audience within the enterprise. • Entrepreneurial, hands-on attitude. • Demonstrated ability to work autonomously and build strong relationships with internal clients and data providers - e.g., exchanges, vendors. • An energetic person with the ability to motivate and lead others. • Skilled at defining business and functional requirements for all sizes of software development projects. • Experience with and knowledge of all aspects of the software development life cycle. • Strong communication skills to clearly convey perspectives and analysis to stakeholders. REQUIREMENTS EDUCATION, CERTIFICATION, TRAINING • Bachelor's Degree is required. #etrade",
+    "tags": [
+      "Product"
+    ],
+    "url": "https://www.themuse.com/jobs/etrade/etrade-market-data-product-manager",
+    "date": "2021-10-12T11:34:07Z",
+    "scraped_at": "2026-05-27T17:02:14.561424+00:00",
+    "skills": [
+      "CrossFunctionalManagement",
+      "ITCollaboration",
+      "MarketData",
+      "Product",
+      "ProductDefinition",
+      "ProductStrategy",
+      "TCOOptimization"
+    ]
+  },
+  {
+    "id": "themuse_6600077",
+    "source": "themuse",
+    "field": "Product Management",
+    "title": "E*TRADE - AVP, Product Manager, Trading",
+    "company": "E*TRADE",
+    "description": "More than 30 years ago, E TRADE pioneered the online brokerage industry by executing the first-ever electronic individual investor trade. While the landscape of our industry has changed dramatically, our culture of innovation and drive to make online trading accessible to everyone continues to drive us forward. We believe in challenging the status quo, fostering an environment of curiosity and learning, and, above all, putting our custom e rs first. In 2020, ETRADE joined Morgan Stanley, signaling a major industry shift that brought Wall Street and Main Street together more than ever before. As ETRADE's parent company, Morgan Stanley plays an important role in expanding what we can offer to investors, though E TRADE still functions as an independent entity. RESPONSIBILITIES Overview More than 30 years ago, E TRADE pioneered the online brokerage industry by executing the first-ever electronic individual investor trade. While the landscape of our industry has changed dramatically, our culture of innovation and drive to make online trading accessible to everyone continues to drive us forward. We believe in challenging the status quo, fostering an environment of curiosity and learning, and, above all, putting our customers first. SUMMARY E TRADE Financial is looking for an experienced candidate with a solid background in Retail Trading platforms. Knowledge of retail brokerage operations and trading including equities, options, and futures trading is necessary. Additional knowledge around trading tools and features such as options chains, charts, buying power, and margin and risk vetting systems will be a valuable skill set. The primary responsibility of the position is to lead initiatives within the Trading Product team to implement new products or features that will enhance the client experience. The role requires the candidate to oversee the end-to-end product development lifecycle - including requirements gathering, development support, pre and post launch strategy - for a variety of products in the assigned portfolios. The desired candidate should be a self-starter, a problem solver and must be driven to solve complex business issues. RESPONSIBILITIES Lead new initiatives to introduce new functionality designed to enhance the trading experience Perform in depth analysis with key stakeholders to identify areas of revenue opportunities and put forward a plan to implement required changes Create an overall Product strategy to position the Product as a leader in functionality, experience and ability to drive value for the firm Assist and lead, where applicable, in developing and communicating strategy for individual products based upon understanding of market, competition, regulatory, and legislative trends Work with Risk and Service partners to identify system or experience gaps that need to be addressed. Provide Product Support: Research and resolve complex issues related to assigned products or core competency Track and oversee the implementation of the fixes related to the gaps found during the course of the analysis. Work with various stakeholders through the agile framework to fix existing issues and/or bring new initiatives to light. Work and build solid relationship with key stakeholders - including Operations, Customer Service, Marketing, Technology and Quality Assurance teams - to deliver simple, elegant and defect free products Champion new products throughout the organization Conduct and monitor the competitive landscape and propose actionable recommendations aligned with the company's roadmap REQUIREMENTS Qualifications Basic 2 to 5 years' experience in Product Management preferably in the Financial Services Industry OR extensive subject matter expertise in brokerage operations along with education in a relevant field Bachelor's degree - preferably in Finance, Economics, Marketing or quantitative field Preferred 3+ years of relevant work experience managing the end-to-end product life-cycle for digital products in the brokerage and/or Finance industry Excellent understanding of Equities/Options/Futures trading, and trading platforms. Ability and willingness to learn how to lead product development initiatives and write Business Requirement Documents, Functional Requirement Documents and user stories Ability to engage and find opportunities beyond individual responsibilities Excellent written and verbal communication skills Ability to clearly articulate complex ideas to a diverse audience Strong organizational skills to work on multiple projects simultaneously on time and within budget delivery Demonstrates effectiveness in a fast-paced, demanding, client-driven environment Strong understanding of the retail client and ability to view proposed solutions through the eyes of the client An energetic person with an entrepreneurial attitude Morgan Stanley is an equal opportunity employer committed to diversifying its workforce (M/F/Disability/Vet). #etrade",
+    "tags": [
+      "Product"
+    ],
+    "url": "https://www.themuse.com/jobs/etrade/etrade-avp-product-manager-trading",
+    "date": "2021-11-16T11:43:14Z",
+    "scraped_at": "2026-05-27T17:02:14.561552+00:00",
+    "skills": [
+      "Agile",
+      "Product"
+    ]
+  },
+  {
+    "id": "themuse_6600078",
+    "source": "themuse",
+    "field": "Product Management",
+    "title": "E*Trade - AVP, Mobile Product Manager",
+    "company": "E*TRADE",
+    "description": "More than 30 years ago, E TRADE pioneered the online brokerage industry by executing the first-ever electronic individual investor trade. While the landscape of our industry has changed dramatically, our culture of innovation and drive to make online trading accessible to everyone continues to drive us forward. We believe in challenging the status quo, fostering an environment of curiosity and learning, and, above all, putting our custom e rs first. In 2020, ETRADE joined Morgan Stanley, signaling a major industry shift that brought Wall Street and Main Street together more than ever before. As ETRADE's parent company, Morgan Stanley plays an important role in expanding what we can offer to investors, though E TRADE still functions as an independent entity. RESPONSIBILITIES Summary E TRADE Financial is looking for a Product Management professional with expertise in bringing superior mobile customer experiences to market. This professional will be responsible for creating-customer first mobile experiences, managing product roadmaps, and working cross-functionally to drive digital initiatives on E TRADE's mobile applications. Candidates must be highly motivated, detailed oriented, extremely well organized, and have excellent written/oral and leadership skills Responsibilities Deliver Results • Drive pace and quality of the product • Own the end-to-end execution plan for digital initiatives • Create project documents and requirements (presentations, user stories, migration plans, communication plans) • Keep the team on track Customer centric • Actively support and advocate a customer centric approach • Understand customer needs and translate it into a solution • Collect and apply qualitative feedback Analytical • Analyze data through the lens of the customer problem • Gather actionable insights and make decisions • Clearly define success criteria Strategic Problem solver • Support the broader strategic product vision • Leverage strong technical acumen to solve the customer problem • Identify and lead resolution of processes and problems in a timely fashion to negate or minimize business impact Facilitator • Work and collaborate closely with UX, design, development and QA teams to efficiently launch innovative features on-time • Push for a transparent team environment by listening and respecting each team member's POV • Serve as a team \"connector\" by facilitating collaboration REQUIREMENTS Requirements: BA/BS in business, marketing, engineering or related field 3-5 years minimum experience in either an Associate Product Manager or Business Analyst role Knowledge and passion for the mobile space Enthusiasm for investing and the financial markets Hands on software development experience and/or experience with software technologies Proven teamwork skills to help deliver on-time product and project results Hands-on/ team-player attitude toward tackling tactical as well as strategic work Excellent written and oral communication skills #etrade",
+    "tags": [
+      "Product"
+    ],
+    "url": "https://www.themuse.com/jobs/etrade/etrade-avp-mobile-product-manager",
+    "date": "2021-11-16T11:43:14Z",
+    "scraped_at": "2026-05-27T17:02:14.561643+00:00",
+    "skills": [
+      "Product",
+      "crossfunctionalinitiatives",
+      "digitalinitiatives",
+      "executionplan",
+      "mobileexperience",
+      "productroadmap",
+      "projectdocuments",
+      "requirements"
+    ]
+  },
+  {
+    "id": "themuse_7216314",
+    "source": "themuse",
+    "field": "Product Management",
+    "title": "E*TRADE - Associate, Product Manager Trading",
+    "company": "E*TRADE",
+    "description": "More than 30 years ago, E TRADE pioneered the online brokerage industry by executing the first-ever electronic individual investor trade. While the landscape of our industry has changed dramatically, our culture of innovation and drive to make online trading accessible to everyone continues to drive us forward. We believe in challenging the status quo, fostering an environment of curiosity and learning, and, above all, putting our custom e rs first. In 2020, ETRADE joined Morgan Stanley, signaling a major industry shift that brought Wall Street and Main Street together more than ever before. As ETRADE's parent company, Morgan Stanley plays an important role in expanding what we can offer to investors, though E TRADE still functions as an independent entity. RESPONSIBILITIES Overview: More than 30 years ago, E TRADE pioneered the online brokerage industry by executing the first-ever electronic individual investor trade. While the landscape of our industry has changed dramatically, our culture of innovation and drive to make online trading accessible to everyone continues to drive us forward. We believe in challenging the status quo, fostering an environment of curiosity and learning, and, above all, putting our customers first. Responsibilities: SUMMARY E TRADE Financial is looking for an experienced candidate with a solid background in Retail Trading platforms. Knowledge of retail brokerage operations and trading including equities, options, and futures trading is necessary. Additional knowledge around trading tools and features such as options chains, charts, buying power, and margin and risk vetting systems will be a valuable skill set. The primary responsibility of the position is to lead initiatives within the Trading Product team to implement new products or features that will enhance the client experience. The role requires the candidate to oversee the end-to-end product development lifecycle - including requirements gathering, development support, pre and post launch strategy - for a variety of products in the assigned portfolios. The desired candidate should be a self-starter, a problem solver and must be driven to solve complex business issues. RESPONSIBILITIES Lead new initiatives to introduce new functionality designed to enhance the trading experience Perform in depth analysis with key stakeholders to identify areas of revenue opportunities and put forward a plan to implement required changes Assist and lead, where applicable, in developing and communicating strategy for individual products based upon understanding of market, competition, regulatory, and legislative trends Work with Risk and Service partners to identify system or experience gaps that need to be addressed. Provide Product Support: Research and resolve complex issues related to assigned products or core competency Work with various stakeholders through the agile framework to fix existing issues and/or bring new initiatives to light. Work and build solid relationship with key stakeholders - including Operations, Customer Service, Marketing, Technology and Quality Assurance teams - to deliver simple, elegant and defect free products Champion new products throughout the organization Conduct and monitor the competitive landscape and propose actionable recommendations aligned with the company's roadmap REQUIREMENTS Qualifications: Basic 2 to 5 years of experience in Product Management preferably in the Financial Services Industry Bachelor's degree Preferred 2+ years of relevant work experience managing the end-to-end product life-cycle for digital products in the brokerage and/or Finance industry Excellent understanding of Equities/Options/Futures trading, and trading platforms Ability and willingness to learn how to lead product development initiatives through an agile framework using epics and user stories Ability to engage and find opportunities beyond individual responsibilities Excellent written and verbal communication skills Ability to clearly articulate complex ideas to a diverse audience Strong organizational skills to work on multiple projects simultaneously on time and within budget delivery Demonstrates effectiveness in a fast-paced, demanding, client-driven environment Strong understanding of the retail client and ability to view proposed solutions through the eyes of the client An energetic person with an entrepreneurial attitude We offer a competitive and comprehensive benefits package. Please visit https://www.etradecareers.com/why-work-at-etrade/employee-benefits/ to learn more about the opportunities. E TRADE Financial is an Equal Opportunity Employer who encourages diversity in the workplace. All qualified applicants will receive consideration for employment without regard to race, color, national origin, religion, sex, age, disability, citizenship, marital status, sexual orientation, gender identity, military or protected veteran status, or any other characteristic protected by applicable law. © E TRADE Financial Corporation; 11 Times Square; 32 Floor; New York, NY 10036-9992; USA #etrade",
+    "tags": [
+      "Product"
+    ],
+    "url": "https://www.themuse.com/jobs/etrade/etrade-associate-product-manager-trading",
+    "date": "2021-11-16T11:43:14Z",
+    "scraped_at": "2026-05-27T17:02:14.561763+00:00",
+    "skills": [
+      "Agile",
+      "Product"
+    ]
+  },
+  {
+    "id": "themuse_5526782",
+    "source": "themuse",
+    "field": "Product Management",
+    "title": "Senior Video Chat Platform Engineer",
+    "company": "Pilotly",
+    "description": "Like most people, you’ve likely been on Zoom or Google Meets every day for the past year and have found it to be a subpar replacement for real life conversation. Interested in building the future of virtual interaction? Join the Pilotly team, the first market research platform built for creative content. By allowing viewers to give feedback in real-time on unreleased content, we help the largest content creators around the world make better decisions through data. Our latest product offering is the most advanced virtual focus group platform available, and we want to expand our team with great web developers who have experience in video chat. There are many nuances of human interaction that have yet to be considered when it comes to virtual conversation, and we’re exploring every detail of the space with the intent of reducing user fatigue while creating a more natural conversation experience. Furthermore, we are going beyond what is possible in person, diving deep into the data generated by group conversation, analyzing vocal tone, physical cues, sentiment, and much more. In the same way we provide deep insights into how viewers feel about creative content, we’ll provide amazing insights into user interactions during conversation. When you join Pilotly, you'll work with a team of highly talented engineers and product visionaries who push powerful features / services every week in a rapid paced development environment. What is Pilotly special ? https://www.youtube.com/watch?v=zrQzpyLek-4 Let’s build game changing technology that will play a role in the future of human interaction and content consumption. //// Requirements //// +Strong track record building scalable web applications that have design parity with provided graphics and user flow +Experience working on an agile development team and using all the tools needed to deploy into dev, staging and production environments (GIT, AWS, etc) +Extensive experience with ReactJS and similar virtual dom coding languages +Experience with client side video and audio using Web RTC. Ideally you have experience not just using the api's but developing video and audio processing pipelines +The ability to research and solve problems, develop quick prototypes, communicate across the organization, and drive action with data Comfortable with start-up style work environment: versatile, detail oriented, collaborative, can-do attitude with strong commitment Prior experience in performance/memory is a plus Bonus points if you’re a real audiophile or videophile //// Some Things You’ll Be Doing //// In sum, you’ll be a part of the team that changes how conversation happens virtually You will have the opportunity to go to the depths of open source technologies such as Electron, Chromium, GraphQL, and React; and participate in the open source community Working extensively with audio / video within html5 and server side Integrating 3rd party partner technology to expand feature set for conference product Working on features as a team, from inception to launch, in the entire platform code base from the backend to the desktop and web UI’s in technologies ranging from Node to React / Javascript Creating and contributing in a highly collaborative and diverse environment Improving and refining internal systems, processes, and practices to increase organizational performance and enable the team to deliver more delightful products to our customers more rapidly",
+    "tags": [
+      "Product",
+      "Software Engineer"
+    ],
+    "url": "https://www.themuse.com/jobs/pilotly/senior-video-chat-platform-engineer-a6610c",
+    "date": "2021-03-31T15:43:03Z",
+    "scraped_at": "2026-05-27T17:02:14.561932+00:00",
+    "skills": [
+      "AWS",
+      "Agile",
+      "DataAnalysis",
+      "Git",
+      "GraphQL",
+      "JavaScript",
+      "PhysicalCueAnalysis",
+      "Product",
+      "React",
+      "SentimentAnalysis",
+      "Software Engineer",
+      "VideoChatExperience",
+      "VocalToneAnalysis",
+      "WebDeveloper"
+    ]
+  },
+  {
+    "id": "themuse_6723012",
+    "source": "themuse",
+    "field": "Product Management",
+    "title": "E*TRADE - VP, Mobile Product Manager",
+    "company": "E*TRADE",
+    "description": "More than 30 years ago, E TRADE pioneered the online brokerage industry by executing the first-ever electronic individual investor trade. While the landscape of our industry has changed dramatically, our culture of innovation and drive to make online trading accessible to everyone continues to drive us forward. We believe in challenging the status quo, fostering an environment of curiosity and learning, and, above all, putting our custom e rs first. In 2020, ETRADE joined Morgan Stanley, signaling a major industry shift that brought Wall Street and Main Street together more than ever before. As ETRADE's parent company, Morgan Stanley plays an important role in expanding what we can offer to investors, though E TRADE still functions as an independent entity. RESPONSIBILITIES Summary The Morgan Stanley mobile team is looking for a Product Management professional with experience bringing exceptional mobile experiences to market. This role specifically supports the Morgan Stanley Wealth Management IOS and Android applications within Morgan Stanley Wealth Management's Digital Client Experience & Platforms department. You will be a vital part of a dynamic team responsible for modernizing and enhancing the Morgan Stanley Wealth Management application, with specific focus on polishing core experiences to drive engagement, expanding the mobile feature set to drive adoption and keeping up with firm architecture standards. The ideal candidate should have experience creating product roadmaps, defining clear product requirements, and leading cross-functional agile teams through the delivery process. Experience with the native mobile development, responsive web development, mobile analytics, client-centric design thinking, API architecture, and agile development methodology is strongly preferred. Successful candidates will also possess a strong working knowledge of the wealth management space; notably, competitor capabilities, industry trends, and customer needs. Key Responsibilities Execution Product owner for a full stack agile team responsible for definition and delivery of mobile application enhancements Drive the pace and quality of new features and capabilities Lead cross-functional native and responsive web delivery teams by producing detailed epics/stories, maintaining a prioritized product backlog, partnering with User Experience on design, gathering Legal/Compliance team feedback, signing off on delivered work, and ensuring smooth product launches Conduct hands-on functional testing and validation of business requirements in conjunction with Quality Assurance teams Lead native and responsive web requirement grooming/planning sessions to ensure that development schedules, design criteria, costs, and technical specifications meet the defined business need Work closely with other Morgan Stanley Product, Marketing, and Client Services teams to coordinate new feature launches and rollouts Monitor qualitative and quantitative feedback channels following releases to identify and triage potential issues Create project documentation (presentations, migration plans, communication plans) to share formal updates with business and technology leaders Customer and Market Analysis Keep in tune with wealth management industry competitor activity and trends related to mobile Work with research and analytics teams to develop key performance metrics, measure the impact of enhancements, and ensure decisions are rooted in data Improve the accuracy and coverage of Adobe Analytics tracking Analyze user data and feedback to measure the effectiveness/competitiveness of our mobile offering as well as influence the roadmap Roadmap & Strategy Contribute to the Morgan Stanley mobile roadmap, drawing input from industry/competitive analysis, data insights, user feedback analysis, general client understanding, and firm-wide goals/initiatives Gather, organize, and assimilate internal and external feedback to identify and prioritize product gaps, enhancements, and new features Own backlog development and delivery, collaborating with partners in other Business Units, Marketing, User Experience, Client Services, Technology, and Quality Assurance teams to bring solutions to life Contribute to business justification for key new features and funding requests, factoring in customer needs, quantitative business case projections, and the competitive landscape Track and communicate progress on core mobile KPIs REQUIREMENTS Requirements 3-6 years of experience in digital product management, with strong knowledge of client-facing mobile, web, and API-based digital experiences Knowledge of financial products is required Superior analytical, interpersonal, communication (written, verbal, and technical), presentation, negotiation, and problem-solving skills Experience managing the definition and execution of projects (conceptualization, requirements, design, development, testing, and implementation) Ability to work with cross-functional teams to effectively manage business objectives Experience with Agile development methodologies preferred Self-motivated, detailed-oriented, team player, and organized Efficient at managing multiple projects and initiatives concurrently under deadline constraints BA/BS in business, marketing, computer science, or related field Morgan Stanley is an equal opportunity employer committed to diversifying its workforce (M/F/Disability/Vet). #etrade #etrade",
+    "tags": [
+      "Product"
+    ],
+    "url": "https://www.themuse.com/jobs/etrade/etrade-vp-mobile-product-manager",
+    "date": "2021-11-16T11:43:14Z",
+    "scraped_at": "2026-05-27T17:02:14.562072+00:00",
+    "skills": [
+      "Adoption",
+      "Agile",
+      "Android",
+      "Engagement",
+      "MobileExperience",
+      "Product",
+      "ProductManagement",
+      "iOS"
+    ]
+  },
+  {
+    "id": "themuse_5526781",
+    "source": "themuse",
+    "field": "Product Management",
+    "title": "Product Engineer II",
+    "company": "Pilotly",
+    "description": "Pilotly is the first market research platform built for creative content. By allowing viewers to give feedback in real-time on unreleased content, we help Hollywood make better decisions through data. Collecting millions of data points is a great start to understanding viewer response but creating actionable insights is the goal. For this we have a Studio Insights Dashboard, that allows professional video creators to visualize they data they collect when screening content. There are also opportunities to work on our viewer portal as well, where people watch exclusive media content and give their feedback. When you join us, you'll work with a team of highly talented team of engineers and product visionaries, that work together to create new powerful features / services every week. Learn more about us : https://youtu.be/9nqbU2VJjY0 ===Requirements=== +Strong experience and accomplishments building scalable web applications that have design parity with provided graphics and user flow. +Experience on a development team and the tools they use to deploy into dev, staging and production environments (GIT, AWS, etc) +Extensive experience with React Native as well as React JS +Ability to create back-end routines to provide the front-end properly organize data for display +An affinity for television, film or music doesn't hurt either ===Some Things You’ll Be Doing=== • Leading development on our native app and mobile efforts, while also participating in the growth of our client insights dashboard to gain knowledge of the entire product stack • Working on features as a team, from inception to launch, in the entire platform code base from the backend to the desktop and web UI’s in technologies ranging from Node to React and Javascript • Refactoring and improving legacy code and code quality, supporting new development, and maintaining and improving quality while adding functionality • Participate in online learning to continuously advance your coding skill set with respect to CSS, React and other emerging coding syntax • Creating and contributing in a highly collaborative and diverse environment",
+    "tags": [
+      "Product",
+      "Software Engineer"
+    ],
+    "url": "https://www.themuse.com/jobs/pilotly/product-engineer-ii-8b1aeb",
+    "date": "2021-03-31T15:38:22Z",
+    "scraped_at": "2026-05-27T17:02:14.562257+00:00",
+    "skills": [
+      "AWS",
+      "GIT",
+      "Git",
+      "JavaScript",
+      "Product",
+      "React",
+      "React Native",
+      "ReactNative",
+      "Software Engineer"
+    ]
+  }
+]

@@ -289,3 +289,55 @@
   color: #362F4F;
 }
 
+/* Adaptive Quiz Specific Styles */
+.question-header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.adaptive-stats {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.jobs-remaining {
+  background: rgba(91, 35, 255, 0.1);
+  color: #5B23FF;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.warmup-badge {
+  background: rgba(255, 193, 7, 0.2);
+  color: #FF9800;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.submitting-indicator {
+  margin-top: 1.5rem;
+  text-align: center;
+  color: #5B23FF;
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0.8;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+

@@ -1,0 +1,159 @@
+{
+  "schema_name": "adaptive_questionnaire_label_schema",
+  "schema_version": "v1.0.0",
+  "taxonomy_version": "v1",
+  "task_type": "multi_label_ranking",
+  "description": "ML-ready label schema for recommending top 3-5 study fields from questionnaire responses.",
+  "canonical_fields": [
+    "Frontend Development",
+    "Backend Development",
+    "Full Stack Development",
+    "Mobile Development",
+    "Data Analysis",
+    "Data Science",
+    "Machine Learning",
+    "AI Engineering",
+    "Cyber Security",
+    "DevOps",
+    "QA / Software Testing",
+    "Game Development",
+    "UI / UX Design",
+    "Product Management",
+    "Technical Writing",
+    "Software Architecture"
+  ],
+  "required_keys": [
+    "sample_id",
+    "questionnaire_version",
+    "responses",
+    "true_fields",
+    "primary_field",
+    "field_scores",
+    "top_k_fields",
+    "k",
+    "label_source",
+    "label_quality",
+    "is_synthetic",
+    "taxonomy_version",
+    "created_at_utc"
+  ],
+  "field_definitions": {
+    "sample_id": {
+      "type": "string",
+      "description": "Unique identifier for one training example (typically one completed questionnaire session).",
+      "rules": [
+        "Must be unique within a dataset split."
+      ]
+    },
+    "questionnaire_version": {
+      "type": "string",
+      "description": "Version of questionnaire that produced the responses."
+    },
+    "responses": {
+      "type": "object",
+      "description": "Map of question_id to normalized answer payload.",
+      "example_shape": {
+        "5": {
+          "answer_type": "Likert5",
+          "value": 4
+        },
+        "120": {
+          "answer_type": "OpenText",
+          "value": "I enjoy analyzing data patterns."
+        }
+      },
+      "rules": [
+        "Question IDs must match source question bank IDs.",
+        "For Likert5, value must be integer in [1,5]."
+      ]
+    },
+    "true_fields": {
+      "type": "array[string]",
+      "description": "Ground-truth relevant fields for this sample.",
+      "rules": [
+        "Length must be >= 1.",
+        "All values must be in canonical_fields.",
+        "No duplicates."
+      ]
+    },
+    "primary_field": {
+      "type": "string",
+      "description": "Single strongest field label for compatibility with single-label analyses.",
+      "rules": [
+        "Must be one of true_fields."
+      ]
+    },
+    "field_scores": {
+      "type": "object<string, number>",
+      "description": "Score/probability for each canonical field.",
+      "rules": [
+        "Must contain all canonical fields as keys.",
+        "All values must be in [0.0, 1.0].",
+        "Values should sum to 1.0 (+/- 1e-6)."
+      ]
+    },
+    "top_k_fields": {
+      "type": "array[string]",
+      "description": "Fields sorted by descending score used as recommendation output.",
+      "rules": [
+        "Length must equal k.",
+        "k must be between 3 and 5 inclusive.",
+        "Values must be unique and from canonical_fields.",
+        "Order must match descending field_scores."
+      ]
+    },
+    "k": {
+      "type": "integer",
+      "description": "Number of returned recommendations.",
+      "rules": [
+        "k in [3,5]."
+      ]
+    },
+    "label_source": {
+      "type": "string",
+      "description": "Origin of labels.",
+      "allowed_values": [
+        "human_outcome",
+        "expert_review",
+        "hybrid_reviewed",
+        "synthetic_augmented"
+      ]
+    },
+    "label_quality": {
+      "type": "string",
+      "description": "Trust level for this training row.",
+      "allowed_values": [
+        "gold",
+        "silver",
+        "bronze"
+      ]
+    },
+    "is_synthetic": {
+      "type": "integer",
+      "description": "1 if generated/augmented, else 0.",
+      "rules": [
+        "Allowed values: 0 or 1.",
+        "If label_source == synthetic_augmented, is_synthetic must be 1."
+      ]
+    },
+    "taxonomy_version": {
+      "type": "string",
+      "description": "Taxonomy version used to label this row.",
+      "rules": [
+        "Must match the canonical taxonomy release (currently v1)."
+      ]
+    },
+    "created_at_utc": {
+      "type": "string",
+      "description": "Creation timestamp in ISO-8601 UTC format.",
+      "example": "2026-05-05T12:00:00Z"
+    }
+  },
+  "global_rules": [
+    "Do not use non-canonical field names.",
+    "Do not mix multiple taxonomy versions in one training split without explicit migration.",
+    "Do not train only on synthetic data.",
+    "Preserve label_source and label_quality for every row.",
+    "Use deterministic preprocessing and fixed random seeds for reproducibility."
+  ]
+}

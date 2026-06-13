@@ -43,7 +43,9 @@ def create_schema(conn):
             id TEXT PRIMARY KEY,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             completed_at DATETIME,
-            skill_vector TEXT
+            skill_vector TEXT,
+            adaptive_mode INTEGER DEFAULT 0,
+            remaining_jobs TEXT
         )
     ''')
     
@@ -54,11 +56,18 @@ def create_schema(conn):
             session_id TEXT NOT NULL,
             question_id INTEGER NOT NULL,
             answer_value TEXT NOT NULL,
+            answer_type TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (session_id) REFERENCES sessions(id),
             FOREIGN KEY (question_id) REFERENCES questions(id)
         )
     ''')
+    
+    # Add answer_type column if it doesn't exist (for existing databases)
+    try:
+        cursor.execute('ALTER TABLE answers ADD COLUMN answer_type TEXT')
+    except:
+        pass  # Column already exists
     
     # Roadmaps table
     cursor.execute('''
