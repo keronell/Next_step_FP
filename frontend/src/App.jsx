@@ -7,10 +7,12 @@ import Assessment from './pages/Questionnaire'
 import Results from './pages/Results'
 import Roadmap from './pages/Roadmap'
 import { computeResults } from './data'
+import { submitQuestionnaire } from './api'
 
 function App() {
   const [phase, setPhase] = useState('idle')
   const [results, setResults] = useState(null)
+  const [notice, setNotice] = useState(null)
   const [selectedCareer, setSelectedCareer] = useState(null)
   const [activeTooltip, setActiveTooltip] = useState(null)
 
@@ -27,14 +29,22 @@ function App() {
     scrollTo(assessmentRef)
   }
 
-  const handleQuizComplete = (answers) => {
+  const handleQuizComplete = async (answers) => {
+    if (phase === 'loading') return // guard against duplicate submits
     setPhase('loading')
-    setTimeout(() => {
-      const top3 = computeResults(answers)
-      setResults(top3)
-      setPhase('results_ready')
-      scrollTo(resultsRef)
-    }, 2600)
+    setNotice(null)
+    try {
+      const recs = await submitQuestionnaire(answers)
+      setResults(recs)
+      setNotice(recs.length === 0 ? 'empty' : null)
+    } catch (err) {
+      // Backend unavailable / error → fall back to the offline estimate.
+      console.warn('Falling back to local results:', err)
+      setResults(computeResults(answers))
+      setNotice('offline')
+    }
+    setPhase('results_ready')
+    scrollTo(resultsRef)
   }
 
   const handleSelectCareer = (careerId) => {
@@ -46,6 +56,7 @@ function App() {
   const handleReset = () => {
     setPhase('idle')
     setResults(null)
+    setNotice(null)
     setSelectedCareer(null)
     setActiveTooltip(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -68,6 +79,8 @@ function App() {
           <Results
             phase={phase}
             results={results}
+            notice={notice}
+            onRetry={handleStart}
             onSelectCareer={handleSelectCareer}
             selectedCareer={selectedCareer}
           />
