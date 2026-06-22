@@ -496,15 +496,35 @@ function ScanGrid() {
 
 function LoadingScreen() {
   const [progress, setProgress] = useState(0)
+  const [reduceMotion, setReduceMotion] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setProgress(96), 50)
     return () => clearTimeout(t)
   }, [])
 
+  useEffect(() => {
+    setReduceMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  }, [])
+
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <ScanGrid />
+      {reduceMotion ? (
+        <ScanGrid />
+      ) : (
+        <div className="relative mb-8 w-[230px] h-[230px] rounded-2xl overflow-hidden border border-gold/25 shadow-sm">
+          <video
+            src="/video/loading.mp4"
+            poster="/video/loading-poster.png"
+            autoPlay
+            muted
+            loop
+            playsInline
+            aria-hidden="true"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
       <Eyebrow dot className="mb-4">Analyzing your responses</Eyebrow>
       <div className="flex font-display font-semibold text-h2 text-navy mb-2 tracking-tight" aria-label="Analyzing your profile">
         {'Analyzing your profile…'.split('').map((ch, i) => (

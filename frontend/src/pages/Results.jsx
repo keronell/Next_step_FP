@@ -1,14 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Monitor, Server, BarChart2, Layers, Compass, Pen, ChevronRight, Trophy, Medal, Award } from 'lucide-react'
+import { ChevronRight, Trophy, Medal, Award } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useReveal } from '../hooks/useReveal'
 import Badge from '../components/ui/Badge.jsx'
 import Button from '../components/ui/Button.jsx'
 import SectionHeading from '../components/ui/SectionHeading.jsx'
-
-const ICON_MAP = {
-  Monitor, Server, BarChart2, Layers, Compass, Pen,
-}
 
 const RANK_STYLES = [
   { icon: Trophy, label: 'Best Match', tone: 'gold' },
@@ -53,7 +49,6 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
   const [displayPercent, setDisplayPercent] = useState(0)
   const rankStyle = RANK_STYLES[rank]
   const RankIcon = rankStyle.icon
-  const CareerIcon = ICON_MAP[career.icon] || Monitor
 
   useEffect(() => {
     let raf
@@ -121,14 +116,8 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
           {rankStyle.label}
         </Badge>
 
-        {/* Career icon + Match % */}
-        <div className="flex items-center justify-between mb-2">
-          <div
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-transform duration-base group-hover:scale-110
-              ${isTop ? 'bg-gold/15 border border-gold/30' : 'bg-navy/[0.04] border border-navy/[0.08]'}`}
-          >
-            <CareerIcon size={18} className={isTop ? 'text-gold' : 'text-navy/70'} aria-hidden="true" />
-          </div>
+        {/* Match % */}
+        <div className="flex items-center justify-end mb-2">
           <div className="text-right">
             <span className="font-display font-bold text-h2 text-navy tabular">
               {displayPercent}
