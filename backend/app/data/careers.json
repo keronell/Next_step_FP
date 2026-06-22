@@ -1,0 +1,82 @@
+[
+  {
+    "id": "frontend",
+    "title": "Frontend Developer",
+    "description": "Craft interactive, accessible web interfaces that delight users. You live at the intersection of design and engineering.",
+    "keySkills": ["React", "CSS", "TypeScript", "Accessibility", "Performance"],
+    "icon": "Monitor",
+    "roadmapKey": "frontend",
+    "field": "Frontend Development",
+    "weights": {"q1": 2, "q2": 3, "q3": 0, "q4": 2, "q5": 2, "q6": 1, "q7": 3, "q8": 1, "q9": 2, "q10": 1},
+    "bonuses": [
+      {"qId": "q2", "answerValue": 0, "bonus": 1},
+      {"qId": "q9", "answerValue": 3, "bonus": 1}
+    ]
+  },
+  {
+    "id": "backend",
+    "title": "Backend Engineer",
+    "description": "Build the systems and APIs that power products at scale. You love elegant architecture and rock-solid reliability.",
+    "keySkills": ["Node.js", "Databases", "APIs", "System Design", "Security"],
+    "icon": "Server",
+    "roadmapKey": "backend",
+    "field": "Backend Development",
+    "weights": {"q1": 3, "q2": 2, "q3": 1, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 0, "q10": 2},
+    "bonuses": []
+  },
+  {
+    "id": "data-science",
+    "title": "Data Scientist",
+    "description": "Transform raw data into insights that steer strategy. You turn numbers into narratives decision-makers can act on.",
+    "keySkills": ["Python", "Statistics", "Machine Learning", "SQL", "Data Viz"],
+    "icon": "BarChart2",
+    "roadmapKey": "data-science",
+    "field": "Data Science",
+    "weights": {"q1": 1, "q2": 1, "q3": 3, "q4": 1, "q5": 1, "q6": 2, "q7": 3, "q8": 2, "q9": 0, "q10": 2},
+    "bonuses": []
+  },
+  {
+    "id": "devops",
+    "title": "DevOps Engineer",
+    "description": "Own the platform that every engineer depends on. You thrive on automation, reliability, and making deployment invisible.",
+    "keySkills": ["Kubernetes", "CI/CD", "Cloud", "Terraform", "Monitoring"],
+    "icon": "Layers",
+    "roadmapKey": "devops",
+    "field": "DevOps",
+    "weights": {"q1": 2, "q2": 1, "q3": 1, "q4": 2, "q5": 2, "q6": 3, "q7": 2, "q8": 2, "q9": 0, "q10": 3},
+    "bonuses": [
+      {"qId": "q2", "answerValue": 3, "bonus": 2},
+      {"qId": "q7", "answerValue": 3, "bonus": 3},
+      {"qId": "q4", "answerValue": 3, "bonus": 2}
+    ]
+  },
+  {
+    "id": "product-manager",
+    "title": "Product Manager",
+    "description": "Define what gets built and why. You bridge user needs, business goals, and technical reality into a coherent vision.",
+    "keySkills": ["Strategy", "User Research", "Roadmapping", "Metrics", "Storytelling"],
+    "icon": "Compass",
+    "roadmapKey": "product-manager",
+    "field": "Product Management",
+    "weights": {"q1": 0, "q2": 0, "q3": 2, "q4": 1, "q5": 3, "q6": 1, "q7": 0, "q8": 3, "q9": 1, "q10": 1},
+    "bonuses": [
+      {"qId": "q5", "answerValue": 0, "bonus": 3},
+      {"qId": "q8", "answerValue": 0, "bonus": 2}
+    ]
+  },
+  {
+    "id": "ux-designer",
+    "title": "UX Designer",
+    "description": "Champion the user at every step. You research, prototype, and validate experiences that feel intuitive and beautiful.",
+    "keySkills": ["Figma", "User Research", "Prototyping", "Design Systems", "Usability Testing"],
+    "icon": "Pen",
+    "roadmapKey": "ux-designer",
+    "field": "UI / UX Design",
+    "weights": {"q1": 1, "q2": 0, "q3": 0, "q4": 1, "q5": 1, "q6": 1, "q7": 0, "q8": 1, "q9": 3, "q10": 1},
+    "bonuses": [
+      {"qId": "q2", "answerValue": 0, "bonus": 3},
+      {"qId": "q7", "answerValue": 0, "bonus": 3},
+      {"qId": "q9", "answerValue": 3, "bonus": 2}
+    ]
+  }
+]

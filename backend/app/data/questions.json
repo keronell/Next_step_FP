@@ -1,0 +1,22 @@
+[
+  {"id": "q1", "category": "skills", "text": "How comfortable are you writing code from scratch?",
+   "options": ["Never tried coding", "A little coding — copy-paste territory", "comfortable writing code with guidance", "very comfortable writing code daily"]},
+  {"id": "q2", "category": "interests", "text": "What excites you more?",
+   "options": ["making things look beautiful and visual", "solving logical puzzles", "wrangling data to find patterns", "keeping complex systems running"]},
+  {"id": "q3", "category": "interests", "text": "When you encounter a dataset, you feel…",
+   "options": ["overwhelmed by numbers", "indifferent to data", "interested in data if it helps the project", "curious about the story hiding in the data"]},
+  {"id": "q4", "category": "workstyle", "text": "Your ideal work output is…",
+   "options": ["a polished product people love using", "elegant code that solves a real problem", "a report that changes a decision", "a system that never goes down"]},
+  {"id": "q5", "category": "workstyle", "text": "In a team, you naturally drift toward…",
+   "options": ["talking to users and shaping the vision", "writing the actual code", "analyzing results and reporting findings", "building the infrastructure everyone depends on"]},
+  {"id": "q6", "category": "personality", "text": "How do you prefer to work?",
+   "options": ["lots of collaboration and whiteboarding", "mostly heads-down deep focus", "a mix of analysis and discussion", "independently owning a system end-to-end"]},
+  {"id": "q7", "category": "interests", "text": "Which of these tools sounds most appealing?",
+   "options": ["Figma and design systems", "React, TypeScript and APIs", "Python, Jupyter and SQL", "Kubernetes, Terraform and CI pipelines"]},
+  {"id": "q8", "category": "personality", "text": "When a project goes sideways, you tend to…",
+   "options": ["rally the team and re-scope", "debug alone until it is fixed", "dig into the data to find the root cause", "trace the infrastructure logs"]},
+  {"id": "q9", "category": "skills", "text": "How drawn are you to visual design?",
+   "options": ["visual design is not my area", "functional is fine, polish is a bonus", "I appreciate visual design but do not lead it", "visual design is my happy place"]},
+  {"id": "q10", "category": "workstyle", "text": "Success to you means…",
+   "options": ["users loving the product I helped build", "shipping clean maintainable code", "insights that drive real business impact", "zero-downtime deploys"]}
+]

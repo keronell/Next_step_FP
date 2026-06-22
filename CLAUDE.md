@@ -4,18 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Most important thing to know
 
-**The live app is a standalone frontend SPA. It does not talk to the backend.**
+**The frontend SPA submits the questionnaire to a FastAPI backend (`backend/app/`), and falls back to a client-side matcher if that backend is down.**
 
-`README.md`, `SETUP.md`, and `start.js` describe an older architecture (Flask + SQLite + a react-router frontend hitting `/api`). That is stale. The current frontend (`frontend/src/App.jsx`) is a single-page app driven by a phase state machine, with all questions, career data, matching, and roadmaps living client-side in `frontend/src/data.js`. There are no API calls in the running app, no react-router, and `axios` is not even a dependency.
+`frontend/src/App.jsx::handleQuizComplete` POSTs answers via `frontend/src/api.js` to `POST /api/questionnaire/submit` (base URL from `VITE_API_BASE_URL`, default `http://localhost:8000`). The backend builds a natural-language profile, queries the existing ChromaDB `job_ads` store, and returns explainable RAG-blended recommendations. If the request fails, the SPA falls back to `computeResults` in `frontend/src/data.js` and shows an "offline estimate" notice — so it still works standalone with no backend.
+
+The recommendations response is shaped to match what `Results.jsx` already renders (`id, title, description, keySkills, icon, roadmapKey, matchPercent`) plus `score`, `score_breakdown`, `reasons`, `matched_skills`, `missing_skills`. The 6 careers and their roadmaps still live client-side in `data.js`; the backend mirrors the 6 careers + weights in `backend/app/data/careers.json`.
 
 Implications:
-- To change questions, careers, the matching logic, or roadmaps, edit `frontend/src/data.js` — **not** the backend.
-- The Vite proxy to `localhost:3001` (`frontend/vite.config.js`) and the Flask backend in `backend/` are vestigial for the live app. Don't wire new frontend features through them unless you're deliberately reviving the backend.
-- `frontend/src/pages/AdaptiveQuestionnaire.jsx` is orphaned (imports `axios`, calls `/api`, not imported by `App.jsx`). It would break the build if imported. Ignore it unless reviving the backend flow.
+- To change the careers/weights, update **both** `frontend/src/data.js` (the offline fallback) and `backend/app/data/careers.json` (the live matcher), or they drift.
+- To change matching signals/weights, edit `backend/app/services/matching_service.py` (weights live in `FORMULA_WEIGHTS`, asserted to sum to 1).
+- `README.md`, `SETUP.md`, and `start.js` still describe an **older, unused** architecture (Flask + SQLite + react-router hitting `/api` on `:3001`). That Flask app (`backend/app.py`) is vestigial — the live backend is the FastAPI app under `backend/app/`. The Vite proxy to `:3001` is also unused.
+- `frontend/src/pages/AdaptiveQuestionnaire.jsx` is orphaned (imports `axios`, calls the old `/api`, not imported by `App.jsx`). It would break the build if imported. Ignore it.
 
 ## Commands
 
-Everything runs from `frontend/`:
+Frontend (from `frontend/`):
 
 ```bash
 cd frontend
@@ -25,9 +28,18 @@ npm run build    # production build -> frontend/dist (use this to verify changes
 npm run preview  # serve the production build
 ```
 
-There is no lint or test setup in this repo (no eslint config, no test runner). Verify changes with `npm run build`.
+There is no lint or frontend test runner. Verify frontend changes with `npm run build`.
 
-Ignore the root `npm start` / `./start.sh` / `start.js` and the backend setup steps in `SETUP.md` unless you specifically need the (unused) Flask backend.
+FastAPI backend (live recommendation API):
+
+```bash
+backend/venv/bin/python -m pip install -r backend/requirements.txt
+backend/venv/bin/python data/scripts/build_rag.py            # one-time: builds data/jobs/chroma (~1575 job ads)
+cd backend && venv/bin/python -m uvicorn app.main:app --port 8000
+cd backend && venv/bin/python -m pytest app/tests -q          # 15 tests, mock the vector store (no ChromaDB needed)
+```
+
+Ignore the root `npm start` / `./start.sh` / `start.js`, the Flask `backend/app.py`, and `SETUP.md` unless reviving that older flow.
 
 ## Frontend architecture
 
@@ -38,7 +50,7 @@ idle → assessing → loading → results_ready
 ```
 
 - `handleStart` → `assessing` (scrolls to the Assessment section)
-- `handleQuizComplete(answers)` → `loading`, then after a ~2.6s timeout calls `computeResults(answers)` from `data.js`, stores top matches, → `results_ready`
+- `handleQuizComplete(answers)` → `loading`, then `await submitQuestionnaire(answers)` (`api.js`); on success stores the backend recommendations, on failure falls back to `computeResults(answers)` and sets `notice='offline'`, → `results_ready`. Guards against duplicate submits.
 - `handleSelectCareer` sets `selectedCareer` and scrolls to the Roadmap section
 - `handleReset` → back to `idle`
 
@@ -50,10 +62,12 @@ Sections (`frontend/src/pages/`): `Landing.jsx` (Hero), `HowItWorks.jsx`, `Quest
 
 Tailwind (`frontend/tailwind.config.js`) with a custom theme: `cream` / `navy` / `gold` color tokens (backed by CSS variables in `frontend/src/index.css`), plus custom `font-display` / `font-body`, radius (`rounded-card`), and duration (`duration-base` / `duration-fast`) tokens. Animations use `framer-motion`; icons come from `lucide-react`. Reuse these tokens rather than hardcoding values.
 
-## Backend and data pipeline (separate from the live app)
+## Backend
 
-- `backend/` — Flask + SQLite REST API (sessions, questions, matching, roadmaps). Documented in `README.md`. Not consumed by the current frontend.
-- `data/` (repo root) — a separate data-engineering pipeline (scripts, jobs, models, questions, reports, visualizations) with its own `README.md`. Not part of the running app.
+- `backend/app/` — **live** FastAPI recommendation API (the one the SPA calls). Structure: `main.py` (lifespan loads the embedding model + ChromaDB collection once, CORS, exception handlers), `api/routes/` (`health`, `questionnaire`), `models/` (Pydantic request/response), `services/` (`profile` → NL query, `rag_service` → ChromaDB wrapper, `matching_service` → explainable blend), `repositories/career_repository.py` (catalog + RAG → candidates; `FakeCareerRepository` for tests), `data/` (careers/questions JSON), `tests/`. Config via env in `core/config.py` (`backend/.env.example`). The matching formula and assumptions are documented at the top of `matching_service.py`.
+- `backend/app.py` — **old** Flask + SQLite REST API (sessions, roadmaps). Vestigial, not consumed by the frontend.
+- ChromaDB store lives at `data/jobs/chroma/` (gitignored), collection `job_ads`, cosine space, `all-MiniLM-L6-v2`, built by `data/scripts/build_rag.py`. The backend only reads it — do not re-ingest per request.
+- `data/` (repo root) — a separate data-engineering pipeline (scrapers, jobs, config, reports). The ingestion pipeline is considered complete; reuse `build_rag.py`, don't rebuild it.
 
 ## Branches
 

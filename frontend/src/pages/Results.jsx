@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Monitor, Server, BarChart2, Layers, Compass, Pen, ChevronRight, Trophy, Medal, Award } from 'lucide-react'
+import { Monitor, Server, BarChart2, Layers, Compass, Pen, ChevronRight, Trophy, Medal, Award, Check } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useReveal } from '../hooks/useReveal'
 import Badge from '../components/ui/Badge.jsx'
@@ -16,10 +16,12 @@ const RANK_STYLES = [
   { icon: Award,  label: 'Good Fit', tone: 'neutral' },
 ]
 
-function Results({ phase, results, onSelectCareer, selectedCareer }) {
+function Results({ phase, results, notice, onRetry, onSelectCareer, selectedCareer }) {
   const revealRef = useReveal(0.1)
 
   if (phase !== 'results_ready' || !results) return null
+
+  const isEmpty = results.length === 0
 
   return (
     <section id="results" className="py-24 px-6 bg-navy/[0.02]">
@@ -31,19 +33,36 @@ function Results({ phase, results, onSelectCareer, selectedCareer }) {
             lede="Based on your answers, here are the tech roles where you’re most likely to thrive."
             align="center"
           />
+          {notice === 'offline' && (
+            <p className="mt-4 text-center font-body text-small text-navy/55">
+              Showing an offline estimate — the recommendation service is currently unavailable.
+            </p>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {results.map((career, i) => (
-            <CareerCard
-              key={career.id}
-              career={career}
-              rank={i}
-              isSelected={selectedCareer === career.id}
-              onSelect={() => onSelectCareer(career.id)}
-            />
-          ))}
-        </div>
+        {isEmpty ? (
+          <div className="max-w-md mx-auto text-center">
+            <p className="font-body text-body text-navy/70 mb-6">
+              We couldn’t find strong matches for those answers. Try the assessment again.
+            </p>
+            <Button variant="primary" size="md" onClick={onRetry} className="!rounded-xl">
+              Retake the assessment
+              <ChevronRight size={14} aria-hidden="true" />
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {results.map((career, i) => (
+              <CareerCard
+                key={career.id}
+                career={career}
+                rank={i}
+                isSelected={selectedCareer === career.id}
+                onSelect={() => onSelectCareer(career.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )
@@ -166,6 +185,18 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
             </span>
           ))}
         </div>
+
+        {/* Why this match — present only when the backend supplies reasons */}
+        {career.reasons?.length > 0 && (
+          <ul className="mb-6 space-y-1.5">
+            {career.reasons.slice(0, 3).map((reason) => (
+              <li key={reason} className="flex items-start gap-2 font-body text-small text-navy/65">
+                <Check size={14} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
+                <span>{reason}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {/* CTA */}
         <Button
