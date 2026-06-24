@@ -95,6 +95,69 @@ def load_all_jobs(sources: list[str] | None) -> list[dict]:
     return jobs
 
 
+def _supabase_client():
+    """Build a Supabase client from env (loading backend/.env if present), or None
+    when credentials are unset — keeps the pipeline working without Supabase."""
+    import os
+
+    repo_root = Path(__file__).resolve().parents[2]
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(repo_root / "backend" / ".env")
+    except ImportError:
+        pass
+
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_KEY")
+    if not (url and key):
+        return None
+    from supabase import create_client
+    return create_client(url, key)
+
+
+def _to_row(job: dict) -> dict:
+    """Map a scraped job dict to a job_postings row (raw 'date' -> posted_date,
+    empty strings -> None so timestamptz parses)."""
+    return {
+        "id": job["id"],
+        "source": job.get("source"),
+        "field": job.get("field"),
+        "title": job.get("title"),
+        "company": job.get("company"),
+        "location": job.get("location"),  # not currently emitted by the scraper
+        "description": job.get("description"),
+        "tags": job.get("tags", []),
+        "skills": job.get("skills", []),
+        "url": job.get("url"),
+        "posted_date": job.get("date"),
+        "scraped_at": job.get("scraped_at") or None,
+    }
+
+
+def upsert_to_supabase(jobs: list[dict], batch_size: int = 500) -> int:
+    """Upsert jobs into the Supabase job_postings table (PK = id, so re-runs don't
+    duplicate). No-op when Supabase is unconfigured. Returns count upserted."""
+    client = _supabase_client()
+    if client is None:
+        print("  Supabase disabled (SUPABASE_URL/SUPABASE_SERVICE_KEY unset) — skipping Postgres upsert.")
+        return 0
+
+    rows = [_to_row(j) for j in jobs]
+    total = 0
+    for i in range(0, len(rows), batch_size):
+        batch = rows[i : i + batch_size]
+        try:
+            client.table("job_postings").upsert(batch).execute()
+        except Exception as e:  # don't let a Postgres hiccup abort the ChromaDB build
+            print(f"\n  Supabase upsert failed at batch starting {i}: {e}")
+            return total
+        total += len(batch)
+        print(f"  Upserted {total}/{len(rows)} into Supabase job_postings...", end="\r")
+
+    print()
+    return total
+
+
 def upsert_jobs(collection, model, jobs: list[dict]) -> int:
     """Embed and upsert jobs into ChromaDB in batches. Returns count upserted."""
     total = 0
@@ -215,6 +278,10 @@ def main():
     jobs_without_skills = [j for j in jobs if not j.get("skills")]
     if jobs_without_skills:
         print(f"  Note: {len(jobs_without_skills)} jobs have no skills list — embedding from title+field+description only.")
+
+    # Persist to Postgres before embedding (scrape -> raw JSON -> Supabase -> ChromaDB).
+    print(f"\nUpserting {len(jobs)} jobs into Supabase job_postings...")
+    upsert_to_supabase(jobs)
 
     model = load_embedding_model()
     print(f"\nUpserting {len(jobs)} jobs into ChromaDB...")

@@ -8,23 +8,13 @@ as the RAG-down fallback.
 # ponytail: one `submissions` table, answers + recommendations stored as JSONB.
 # Normalize into a per-career recommendations table only if analytics actually need it.
 """
-from functools import lru_cache
-
-from app.core.config import get_settings
 from app.core.logging import get_logger
 
+# Single shared Supabase client, kept under the name _client for backward-compatible
+# tests (they monkeypatch/clear persistence._client). One builder => one connection.
+from app.services.supabase_client import get_supabase_client as _client
+
 logger = get_logger(__name__)
-
-
-@lru_cache
-def _client():
-    """Lazily build the Supabase client once, or None if persistence is disabled."""
-    settings = get_settings()
-    if not settings.supabase_enabled:
-        return None
-    from supabase import create_client
-
-    return create_client(settings.supabase_url, settings.supabase_service_key)
 
 
 def save_submission(

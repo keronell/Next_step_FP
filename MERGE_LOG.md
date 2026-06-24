@@ -1,5 +1,11 @@
 # Merge Log
 
+> **Update (2026-06-24):** Some files recorded below were removed after these merges,
+> when the backend moved to the FastAPI RAG architecture: `backend/app.py`,
+> `backend/db/`, `backend/scripts/seed.py`, `frontend/src/pages/AdaptiveQuestionnaire.jsx`,
+> and the `start.js`/`start.sh`/`start.bat` launchers. The entries below are kept
+> verbatim as the historical record of what each merge contained at the time.
+
 ---
 
 ## Merge 2: Ronen → main

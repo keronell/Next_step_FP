@@ -1,5 +1,18 @@
 # NextStep — Workflow Redesign & Improvement Plan
 
+> **Status (2026-06-24):** Historical planning doc. The redesign was largely implemented,
+> but differently than proposed below:
+> - **Job ads scraper + ChromaDB RAG — built** (`data/scripts/scrape_job_ads.py`, `build_rag.py`).
+> - **Matching — built differently:** instead of a neural matcher, the live backend uses a
+>   deterministic, explainable blend (questionnaire fit + semantic similarity + skill overlap)
+>   in `backend/app/services/matching_service.py`. **The neural matcher was not built.**
+> - **Roadmaps — served by the FastAPI backend** with optional LLM generation
+>   (`backend/app/services/roadmap_service.py`); a Postgres `job_postings` table was added.
+> - **The old Flask + SQLite backend referenced below (`backend/app.py`, `backend/db/`) was
+>   removed** — line references such as `backend/app.py:183–224` no longer exist.
+>
+> Everything below is retained for historical context.
+
 ## Current Workflow (What Exists)
 
 ```

@@ -25,6 +25,14 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("Starting career-discovery-api")
+    if settings.supabase_enabled:
+        logger.info("Supabase enabled (persistence + job_postings reads active)")
+    else:
+        logger.warning(
+            "Supabase disabled: SUPABASE_URL/SUPABASE_SERVICE_KEY are unset — "
+            "submission persistence and job_postings reads are no-ops. "
+            "Set them in backend/.env to enable."
+        )
     try:
         rag = RagService.create(settings)
         app.state.repository = CareerRepository(rag, settings)

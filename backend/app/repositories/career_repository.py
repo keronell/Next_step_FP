@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from app.core.config import Settings
 from app.core.logging import get_logger
 from app.data import load_careers
+from app.services import job_postings_service
 from app.services.profile import build_profile
 from app.services.rag_service import RagService
 
@@ -41,6 +42,9 @@ class CareerRepository:
                 continue
             seen.add(career["id"])
             similarity, skills = self._rag.query_field(embedding, career["field"], k)
+            # Supplement ChromaDB's market skills with skills from Postgres job_postings.
+            # No-op (empty Counter) when Supabase is unconfigured -> ChromaDB-only path.
+            skills = skills + job_postings_service.skill_counts(career["field"], k)
             candidates.append(CareerCandidate(career, similarity, skills))
 
         retrieved = sum(1 for c in candidates if c.semantic_similarity is not None)

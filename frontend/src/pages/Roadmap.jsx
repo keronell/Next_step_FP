@@ -282,7 +282,7 @@ function Legend() {
   )
 }
 
-function Roadmap({ selectedCareer }) {
+function Roadmap({ selectedCareer, missingSkills = [] }) {
   const pathRefs = useRef({})
   const revealTimersRef = useRef([])
   const [drawerNode, setDrawerNode] = useState(null)
@@ -302,11 +302,11 @@ function Roadmap({ selectedCareer }) {
       return
     }
     let cancelled = false
-    fetchRoadmap(selectedCareer)
+    fetchRoadmap(selectedCareer, missingSkills)
       .then((data) => { if (!cancelled) setRoadmapData(data) })
       .catch(() => { if (!cancelled) setRoadmapData(ROADMAPS[selectedCareer] ?? null) })
     return () => { cancelled = true }
-  }, [selectedCareer])
+  }, [selectedCareer]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sections = roadmapData?.sections ?? []
 

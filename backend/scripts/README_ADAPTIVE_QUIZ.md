@@ -1,5 +1,15 @@
 # Adaptive Quiz System - Setup Guide
 
+> **Deprecated (2026-06-24):** The adaptive-quiz **runtime** documented here ran on the
+> old Flask backend (`backend/app.py`) and SQLite schema (`backend/db/`), which have been
+> **removed**. The current backend is the FastAPI RAG app under `backend/app/` and does
+> **not** include the adaptive quiz or the `/api/adaptive/*` endpoints. Sections below that
+> reference `app.py`, `db.schema`, the SQLite database, or those endpoints (Steps 4–5, "API
+> Endpoints", "How It Works") no longer apply. The offline expert-answer **generation
+> scripts** (Steps 1–3: `select_top_jobs.py`, `generate_expert_answers*.py`,
+> `create_expert_database.py`) still exist, but nothing in the current app consumes their
+> output. Kept for reference in case the feature is revived.
+
 This guide explains how to set up and use the adaptive quiz system that uses AI agents to generate expert answers and adaptively eliminates jobs as users answer questions.
 
 ## Prerequisites

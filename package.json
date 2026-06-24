@@ -4,7 +4,6 @@
   "type": "module",
   "description": "Career matching and roadmap generation prototype",
   "scripts": {
-    "start": "node start.js",
     "dev:frontend": "cd frontend && npm run dev"
   },
   "keywords": ["career", "matching", "roadmap"],

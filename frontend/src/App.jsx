@@ -89,6 +89,7 @@ function App() {
         <div ref={roadmapRef}>
           <Roadmap
             selectedCareer={selectedCareer}
+            missingSkills={results?.find((r) => r.id === selectedCareer)?.missing_skills ?? []}
             activeTooltip={activeTooltip}
             setActiveTooltip={setActiveTooltip}
           />

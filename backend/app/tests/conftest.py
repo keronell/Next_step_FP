@@ -10,6 +10,26 @@ from app.main import app
 from app.repositories.career_repository import CareerCandidate, FakeCareerRepository
 
 
+@pytest.fixture(autouse=True)
+def _supabase_disabled(monkeypatch):
+    """Force Supabase off for every test, regardless of a developer's local
+    backend/.env — persistence/reads must be no-ops in tests (see CLAUDE.md).
+    Empty env vars take precedence over the .env file in pydantic-settings."""
+    from app.core.config import get_settings
+    from app.services import persistence
+    from app.services.supabase_client import get_supabase_client
+
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "")
+    monkeypatch.setenv("OPENAI_API_KEY", "")  # never call OpenAI from tests
+    # Clear before each test so the forced-empty env is what gets read. (Teardown
+    # clearing is avoided: a test may monkeypatch _client to a plain function that
+    # has no cache_clear, and that patch is still in place during teardown.)
+    for cached in (get_settings, persistence._client, get_supabase_client):
+        cached.cache_clear()
+    yield
+
+
 def make_candidates() -> list[CareerCandidate]:
     """One candidate per real career with plausible RAG signals."""
     careers = load_careers()

@@ -43,10 +43,15 @@ export function selectCareer(careerId) {
   }).catch(() => {})
 }
 
-// Fetch a career's roadmap ({ sections: [...] }). Throws on failure so callers can
-// fall back to the bundled client-side ROADMAPS (offline-estimate spirit).
-export async function fetchRoadmap(careerId) {
-  const res = await fetch(`${BASE_URL}/api/roadmap/${careerId}`)
+// Fetch a career's roadmap ({ sections: [...] }). POSTs the user's missing skills so
+// the backend can personalize via LLM (falls back server-side to static if OpenAI is
+// off). Throws on failure so callers can fall back to the bundled client-side ROADMAPS.
+export async function fetchRoadmap(careerId, missingSkills = []) {
+  const res = await fetch(`${BASE_URL}/api/roadmap/${careerId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ missing_skills: missingSkills }),
+  })
   if (!res.ok) throw new Error(`Roadmap request failed (${res.status})`)
   return res.json()
 }
