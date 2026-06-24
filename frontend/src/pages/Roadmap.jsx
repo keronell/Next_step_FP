@@ -2,6 +2,7 @@ import { useRef, useLayoutEffect, useEffect, useState } from 'react'
 import { ExternalLink, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ROADMAPS, CAREERS } from '../data'
+import { fetchRoadmap } from '../api'
 import SectionHeading from '../components/ui/SectionHeading.jsx'
 
 const CANVAS_W = 1400
@@ -289,9 +290,24 @@ function Roadmap({ selectedCareer }) {
   const [hoveredSection, setHoveredSection] = useState(null)
   const [collapsed, setCollapsed] = useState({})
   const [revealedNodes, setRevealedNodes] = useState(new Set())
+  const [roadmapData, setRoadmapData] = useState(null)
 
   const career = CAREERS.find((c) => c.id === selectedCareer)
-  const roadmapData = selectedCareer ? ROADMAPS[selectedCareer] : null
+
+  // Fetch the roadmap from the backend; fall back to the bundled ROADMAPS if it's
+  // down (same offline-estimate spirit as the questionnaire results).
+  useEffect(() => {
+    if (!selectedCareer) {
+      setRoadmapData(null)
+      return
+    }
+    let cancelled = false
+    fetchRoadmap(selectedCareer)
+      .then((data) => { if (!cancelled) setRoadmapData(data) })
+      .catch(() => { if (!cancelled) setRoadmapData(ROADMAPS[selectedCareer] ?? null) })
+    return () => { cancelled = true }
+  }, [selectedCareer])
+
   const sections = roadmapData?.sections ?? []
 
   const { layoutSections, totalH } = computeLayout(sections, collapsed)

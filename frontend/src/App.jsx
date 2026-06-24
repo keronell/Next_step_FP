@@ -7,7 +7,7 @@ import Assessment from './pages/Questionnaire'
 import Results from './pages/Results'
 import Roadmap from './pages/Roadmap'
 import { computeResults } from './data'
-import { submitQuestionnaire } from './api'
+import { submitQuestionnaire, selectCareer } from './api'
 
 function App() {
   const [phase, setPhase] = useState('idle')
@@ -50,6 +50,7 @@ function App() {
   const handleSelectCareer = (careerId) => {
     setSelectedCareer(careerId)
     setActiveTooltip(null)
+    selectCareer(careerId) // best-effort tracking; never blocks navigation
     scrollTo(roadmapRef)
   }
 

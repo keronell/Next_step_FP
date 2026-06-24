@@ -6,7 +6,7 @@ so a malformed payload fails fast with HTTP 422.
 """
 from pydantic import BaseModel, Field, field_validator
 
-from app.data import question_ids
+from app.data import career_ids, question_ids
 
 
 class QuestionnaireSubmission(BaseModel):
@@ -14,6 +14,9 @@ class QuestionnaireSubmission(BaseModel):
         ...,
         description="Map of question id (q1..q10) to chosen option value 0-3, or null if skipped.",
     )
+    # Anonymous browser session id (localStorage UUID). Optional so older clients and
+    # tests still validate; used to link this submission to a later career selection.
+    session_id: str | None = None
 
     @field_validator("answers")
     @classmethod
@@ -35,3 +38,17 @@ class QuestionnaireSubmission(BaseModel):
             raise ValueError("at least one question must be answered")
 
         return answers
+
+
+class CareerSelection(BaseModel):
+    """The career a user clicked into, tied back to their session for tracking."""
+
+    session_id: str = Field(..., min_length=1)
+    career_id: str
+
+    @field_validator("career_id")
+    @classmethod
+    def validate_career_id(cls, career_id: str) -> str:
+        if career_id not in career_ids():
+            raise ValueError(f"unknown career id: {career_id!r}")
+        return career_id

@@ -28,7 +28,10 @@ def _client():
 
 
 def save_submission(
-    request_id: str, answers: dict, recommendations: list[dict]
+    request_id: str,
+    answers: dict,
+    recommendations: list[dict],
+    session_id: str | None = None,
 ) -> None:
     """Insert one submission row. Best-effort: swallows all errors after logging."""
     client = _client()
@@ -40,7 +43,26 @@ def save_submission(
                 "request_id": request_id,
                 "answers": answers,
                 "recommendations": recommendations,
+                "session_id": session_id,
             }
         ).execute()
     except Exception:  # noqa: BLE001 - persistence must never break the request
         logger.warning("Submission %s: failed to persist to Supabase", request_id, exc_info=True)
+
+
+def save_selection(session_id: str, career_id: str) -> None:
+    """Record the career a session picked. Best-effort: swallows all errors after logging.
+
+    # ponytail: last-write-wins update on every row for the session — a session
+    # normally has one submission; switch to a selections history table only if
+    # analytics need every click.
+    """
+    client = _client()
+    if client is None:
+        return
+    try:
+        client.table("submissions").update(
+            {"selected_career": career_id}
+        ).eq("session_id", session_id).execute()
+    except Exception:  # noqa: BLE001 - persistence must never break the request
+        logger.warning("Selection for session %s: failed to persist", session_id, exc_info=True)

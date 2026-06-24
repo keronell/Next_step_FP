@@ -4,10 +4,10 @@ from fastapi import APIRouter, BackgroundTasks, Request
 
 from app.api.deps import get_repository
 from app.core.logging import get_logger
-from app.models.questionnaire import QuestionnaireSubmission
+from app.models.questionnaire import CareerSelection, QuestionnaireSubmission
 from app.models.recommendation import RecommendationsResponse
 from app.services.matching_service import match
-from app.services.persistence import save_submission
+from app.services.persistence import save_selection, save_submission
 
 logger = get_logger(__name__)
 
@@ -37,6 +37,15 @@ def submit(
         request_id,
         submission.answers,
         recommendations,
+        submission.session_id,
     )
 
     return RecommendationsResponse(request_id=request_id, recommendations=recommendations)
+
+
+@router.post("/select")
+def select(selection: CareerSelection, background_tasks: BackgroundTasks) -> dict:
+    """Record which career the user opened. Best-effort, never blocks the UI."""
+    logger.info("Session %s selected career %s", selection.session_id, selection.career_id)
+    background_tasks.add_task(save_selection, selection.session_id, selection.career_id)
+    return {"ok": True}

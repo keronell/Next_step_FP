@@ -4,11 +4,23 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
+// Stable anonymous id per browser, so a submission and the career the user later
+// picks can be correlated server-side. crypto.randomUUID is available in all
+// browsers we target (and falls back to a timestamp id if somehow absent).
+export function getSessionId() {
+  let id = localStorage.getItem('nextstep_session_id')
+  if (!id) {
+    id = crypto.randomUUID?.() || `s-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    localStorage.setItem('nextstep_session_id', id)
+  }
+  return id
+}
+
 export async function submitQuestionnaire(answers) {
   const res = await fetch(`${BASE_URL}/api/questionnaire/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ answers }),
+    body: JSON.stringify({ answers, session_id: getSessionId() }),
   })
 
   if (!res.ok) {
@@ -19,4 +31,22 @@ export async function submitQuestionnaire(answers) {
 
   const data = await res.json()
   return data.recommendations || []
+}
+
+// Fire-and-forget: record which career the user opened. Never blocks the UI, so
+// failures (backend down) are swallowed — tracking is best-effort.
+export function selectCareer(careerId) {
+  fetch(`${BASE_URL}/api/questionnaire/select`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: getSessionId(), career_id: careerId }),
+  }).catch(() => {})
+}
+
+// Fetch a career's roadmap ({ sections: [...] }). Throws on failure so callers can
+// fall back to the bundled client-side ROADMAPS (offline-estimate spirit).
+export async function fetchRoadmap(careerId) {
+  const res = await fetch(`${BASE_URL}/api/roadmap/${careerId}`)
+  if (!res.ok) throw new Error(`Roadmap request failed (${res.status})`)
+  return res.json()
 }
