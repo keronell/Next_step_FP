@@ -22,9 +22,17 @@ class Settings(BaseSettings):
     api_port: int = 8000
     log_level: str = "INFO"
 
+    # Supabase persistence (server-only). Empty = disabled; submissions just aren't saved.
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def supabase_enabled(self) -> bool:
+        return bool(self.supabase_url and self.supabase_service_key)
 
 
 @lru_cache
