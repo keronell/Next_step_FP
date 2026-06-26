@@ -22,6 +22,7 @@ def save_submission(
     answers: dict,
     recommendations: list[dict],
     session_id: str | None = None,
+    user_id: str | None = None,
 ) -> None:
     """Insert one submission row. Best-effort: swallows all errors after logging."""
     client = _client()
@@ -34,6 +35,7 @@ def save_submission(
                 "answers": answers,
                 "recommendations": recommendations,
                 "session_id": session_id,
+                "user_id": user_id,
             }
         ).execute()
     except Exception:  # noqa: BLE001 - persistence must never break the request

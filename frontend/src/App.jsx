@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import Hero from './pages/Landing'
@@ -6,10 +6,14 @@ import HowItWorks from './pages/HowItWorks'
 import Assessment from './pages/Questionnaire'
 import Results from './pages/Results'
 import Roadmap from './pages/Roadmap'
+import History from './pages/History'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer } from './api'
+import { useAuth } from './contexts/AuthContext'
 
 function App() {
+  const { user } = useAuth()
+
   const [phase, setPhase] = useState('idle')
   const [results, setResults] = useState(null)
   const [notice, setNotice] = useState(null)
@@ -19,6 +23,7 @@ function App() {
   const assessmentRef = useRef(null)
   const resultsRef = useRef(null)
   const roadmapRef = useRef(null)
+  const historyRef = useRef(null)
 
   const scrollTo = (ref) => {
     setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
@@ -30,7 +35,7 @@ function App() {
   }
 
   const handleQuizComplete = async (answers) => {
-    if (phase === 'loading') return // guard against duplicate submits
+    if (phase === 'loading') return
     setPhase('loading')
     setNotice(null)
     try {
@@ -38,7 +43,6 @@ function App() {
       setResults(recs)
       setNotice(recs.length === 0 ? 'empty' : null)
     } catch (err) {
-      // Backend unavailable / error → fall back to the offline estimate.
       console.warn('Falling back to local results:', err)
       setResults(computeResults(answers))
       setNotice('offline')
@@ -50,8 +54,17 @@ function App() {
   const handleSelectCareer = (careerId) => {
     setSelectedCareer(careerId)
     setActiveTooltip(null)
-    selectCareer(careerId) // best-effort tracking; never blocks navigation
+    selectCareer(careerId)
     scrollTo(roadmapRef)
+  }
+
+  const handleLoadHistory = (recommendations) => {
+    setResults(recommendations)
+    setNotice(null)
+    setSelectedCareer(null)
+    setActiveTooltip(null)
+    setPhase('results_ready')
+    scrollTo(resultsRef)
   }
 
   const handleReset = () => {
@@ -93,6 +106,9 @@ function App() {
             activeTooltip={activeTooltip}
             setActiveTooltip={setActiveTooltip}
           />
+        </div>
+        <div ref={historyRef}>
+          <History user={user} onLoadResults={handleLoadHistory} />
         </div>
       </main>
       <Footer onReset={handleReset} />

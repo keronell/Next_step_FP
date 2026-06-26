@@ -42,7 +42,7 @@ def test_submit_schedules_persistence(client_with_repo, valid_answers, monkeypat
     calls = []
     monkeypatch.setattr(
         "app.api.routes.questionnaire.save_submission",
-        lambda request_id, answers, recs, session_id: calls.append(
+        lambda request_id, answers, recs, session_id, user_id=None: calls.append(
             (request_id, answers, recs, session_id)
         ),
     )

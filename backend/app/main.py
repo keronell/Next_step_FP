@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.deps import SAFE_UNAVAILABLE
-from app.api.routes import health, questionnaire, roadmap
+from app.api.routes import auth, health, questionnaire, roadmap
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.repositories.career_repository import CareerRepository
@@ -57,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(questionnaire.router, prefix="/api")
     app.include_router(roadmap.router, prefix="/api")
+    app.include_router(auth.router, prefix="/api")
 
     @app.exception_handler(RagUnavailableError)
     async def _rag_unavailable(request: Request, exc: RagUnavailableError):

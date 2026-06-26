@@ -1,9 +1,10 @@
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 
-from app.api.deps import get_repository
+from app.api.deps import get_current_user_optional, get_repository
 from app.core.logging import get_logger
+from app.models.auth import UserResponse
 from app.models.questionnaire import CareerSelection, QuestionnaireSubmission
 from app.models.recommendation import RecommendationsResponse
 from app.services.matching_service import match
@@ -19,6 +20,7 @@ def submit(
     submission: QuestionnaireSubmission,
     request: Request,
     background_tasks: BackgroundTasks,
+    current_user: UserResponse | None = Depends(get_current_user_optional),
 ) -> RecommendationsResponse:
     # Resolve the repo inside the handler (not as a dependency) so body validation
     # errors return 422 before the 503-when-unavailable check fires.
@@ -38,6 +40,7 @@ def submit(
         submission.answers,
         recommendations,
         submission.session_id,
+        current_user.user_id if current_user else None,
     )
 
     return RecommendationsResponse(request_id=request_id, recommendations=recommendations)
