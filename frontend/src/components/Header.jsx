@@ -113,9 +113,17 @@ function Header({ phase, onReset, onOpenAuth }) {
               {!authLoading && !user && (
                 <button
                   onClick={onOpenAuth}
+                  onMouseEnter={() => setHovered('__signin')}
                   className="focus-ring relative px-4 py-2 rounded-full font-body text-small text-navy/75 hover:text-navy transition-colors duration-fast"
                 >
-                  Sign In
+                  {hovered === '__signin' && (
+                    <motion.span
+                      layoutId="nav-pill"
+                      className="absolute inset-0 rounded-full bg-gold/12 ring-1 ring-inset ring-gold/25"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">Sign In</span>
                 </button>
               )}
 
@@ -123,10 +131,19 @@ function Header({ phase, onReset, onOpenAuth }) {
                 <div ref={accountRef} className="relative ml-1">
                   <button
                     onClick={() => setAccountOpen((v) => !v)}
-                    className="focus-ring flex items-center gap-1.5 px-4 py-2 rounded-full font-body text-small text-navy/75 hover:text-navy transition-colors duration-fast"
+                    onMouseEnter={() => setHovered('__account')}
+                    className="focus-ring relative flex items-center gap-1.5 px-4 py-2 rounded-full font-body text-small text-navy/75 hover:text-navy transition-colors duration-fast"
                   >
-                    <span className="max-w-[120px] truncate">{displayEmail}</span>
+                    {hovered === '__account' && (
+                      <motion.span
+                        layoutId="nav-pill"
+                        className="absolute inset-0 rounded-full bg-gold/12 ring-1 ring-inset ring-gold/25"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 max-w-[120px] truncate">{displayEmail}</span>
                     <motion.span
+                      className="relative z-10"
                       animate={{ rotate: accountOpen ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
                     >

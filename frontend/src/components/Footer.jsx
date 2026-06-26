@@ -122,9 +122,7 @@ function Footer({ onReset }) {
           <p className="font-body text-eyebrow uppercase tracking-wider text-cream/55">
             © 2026 The Next Step · Career Discovery Platform
           </p>
-          <p className="font-body text-eyebrow uppercase tracking-wider text-cream/55">
-            All data stays in your browser · No account required
-          </p>
+
         </div>
       </motion.div>
     </footer>
