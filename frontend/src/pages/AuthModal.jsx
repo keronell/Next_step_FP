@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AtSign, Eye, EyeOff, Lock, Mail, X } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, User, X } from 'lucide-react'
 import Button from '../components/ui/Button.jsx'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -192,7 +192,7 @@ export default function AuthModal({ open, onClose }) {
                       Username
                     </label>
                     <div className="relative">
-                      <AtSign
+                      <User
                         size={15}
                         aria-hidden="true"
                         className="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy/35 pointer-events-none"
@@ -208,7 +208,6 @@ export default function AuthModal({ open, onClose }) {
                         className="w-full pl-10 pr-4 py-3 rounded-xl border border-navy/[0.14] bg-cream/60 font-body text-body text-navy placeholder:text-navy/35 focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold/60 transition-all duration-base"
                       />
                     </div>
-                    <p className="font-body text-eyebrow text-navy/40">3–30 chars · letters, numbers, underscores</p>
                   </div>
                 )}
 

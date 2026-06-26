@@ -50,7 +50,7 @@ function Header({ phase, onReset, onOpenAuth }) {
     ...(phase === 'results_ready' ? [{ label: 'Results', id: 'results' }] : []),
   ]
 
-  const displayUsername = user?.username ?? ''
+  const displayUsername = user?.username || user?.email || ''
 
   return (
     <>
@@ -159,7 +159,7 @@ function Header({ phase, onReset, onOpenAuth }) {
                       >
                         <div className="px-4 py-2 border-b border-navy/[0.06]">
                           <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold">Signed in as</p>
-                          <p className="font-body text-small text-navy font-medium truncate mt-0.5">{user.username}</p>
+                          <p className="font-body text-small text-navy font-medium truncate mt-0.5">{user.username || user.email}</p>
                         </div>
                         <button
                           onClick={() => scrollToSection('history')}
@@ -247,7 +247,7 @@ function Header({ phase, onReset, onOpenAuth }) {
               {!authLoading && user && (
                 <div className="mt-2 pt-3 border-t border-navy/[0.06] flex flex-col gap-1">
                   <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold px-0.5 mb-1">
-                    {user.username}
+                    {user.username || user.email}
                   </p>
                   <button
                     onClick={() => scrollToSection('history')}

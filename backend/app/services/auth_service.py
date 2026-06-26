@@ -212,24 +212,24 @@ def _handle_auth_error(exc: Exception, context: str) -> None:
         from supabase_auth.errors import AuthApiError  # bundled with supabase-py as supabase-auth
 
         if isinstance(exc, AuthApiError):
-            msg = getattr(exc, "message", str(exc))
-            code = getattr(exc, "status", None)
-            if "already registered" in msg.lower():
+            msg = getattr(exc, "message", None) or str(exc)
+            # status may live on .status or .status_code depending on the version
+            code = getattr(exc, "status", None) or getattr(exc, "status_code", None)
+            if "already registered" in msg.lower() or "already exists" in msg.lower():
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="An account with this email already exists.",
-                )
-            if code == 400:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail=msg
                 )
             if code == 429:
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail="Too many requests — please wait before trying again.",
                 )
-    except ImportError:
-        pass
+            # Pass the actual Supabase message through for all other auth errors
+            http_code = code if (code and 400 <= code < 600) else status.HTTP_400_BAD_REQUEST
+            raise HTTPException(status_code=http_code, detail=msg)
+    except (ImportError, HTTPException):
+        raise
 
     logger.warning("Auth error during %s: %s", context, exc)
     raise HTTPException(
