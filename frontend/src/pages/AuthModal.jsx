@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Lock, Mail, X } from 'lucide-react'
+import { AtSign, Eye, EyeOff, Lock, Mail, X } from 'lucide-react'
 import Button from '../components/ui/Button.jsx'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -9,6 +9,7 @@ export default function AuthModal({ open, onClose }) {
 
   const [mode, setMode] = useState('signin')   // 'signin' | 'signup'
   const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -23,11 +24,12 @@ export default function AuthModal({ open, onClose }) {
     }
   }, [open])
 
-  // Clear error + password when switching modes
+  // Clear error + password + username when switching modes
   const switchMode = (next) => {
     setMode(next)
     setError(null)
     setPassword('')
+    setUsername('')
     setShowPassword(false)
   }
 
@@ -41,13 +43,25 @@ export default function AuthModal({ open, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
+
+    if (mode === 'signup') {
+      if (username.length < 3 || username.length > 30) {
+        setError('Username must be between 3 and 30 characters.')
+        return
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        setError('Username can only contain letters, numbers, and underscores.')
+        return
+      }
+    }
+
+    setLoading(true)
     try {
       if (mode === 'signin') {
         await signIn(email, password)
       } else {
-        await signUp(email, password)
+        await signUp(email, password, username)
       }
       onClose()
     } catch (err) {
@@ -170,6 +184,33 @@ export default function AuthModal({ open, onClose }) {
                     />
                   </div>
                 </div>
+
+                {/* Username field (signup only) */}
+                {mode === 'signup' && (
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="auth-username" className="font-body text-small font-medium text-navy/70">
+                      Username
+                    </label>
+                    <div className="relative">
+                      <AtSign
+                        size={15}
+                        aria-hidden="true"
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy/35 pointer-events-none"
+                      />
+                      <input
+                        id="auth-username"
+                        type="text"
+                        autoComplete="username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="your_username"
+                        required
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-navy/[0.14] bg-cream/60 font-body text-body text-navy placeholder:text-navy/35 focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold/60 transition-all duration-base"
+                      />
+                    </div>
+                    <p className="font-body text-eyebrow text-navy/40">3–30 chars · letters, numbers, underscores</p>
+                  </div>
+                )}
 
                 {/* Password field */}
                 <div className="flex flex-col gap-1.5">

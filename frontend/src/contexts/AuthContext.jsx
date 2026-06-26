@@ -4,7 +4,7 @@ import { claimSessions, getMe, signIn as apiSignIn, signOut as apiSignOut, signU
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)      // { user_id, email } or null
+  const [user, setUser] = useState(null)      // { user_id, email, username } or null
   const [authLoading, setAuthLoading] = useState(true)
 
   // Rehydrate session from localStorage on mount.
@@ -26,11 +26,11 @@ export function AuthProvider({ children }) {
   const _storeTokens = (data) => {
     localStorage.setItem('nextstep_access_token', data.access_token)
     localStorage.setItem('nextstep_refresh_token', data.refresh_token)
-    setUser({ user_id: data.user_id, email: data.email })
+    setUser({ user_id: data.user_id, email: data.email, username: data.username ?? '' })
   }
 
-  const signUp = async (email, password) => {
-    const data = await apiSignUp(email, password)
+  const signUp = async (email, password, username) => {
+    const data = await apiSignUp(email, password, username)
     _storeTokens(data)
     // Best-effort: link any prior anonymous submissions to the new account.
     claimSessions().catch(() => {})

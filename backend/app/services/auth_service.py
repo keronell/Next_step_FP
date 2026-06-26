@@ -25,15 +25,70 @@ def _get_auth_client():
     return client
 
 
-def register(email: str, password: str) -> AuthTokenResponse:
-    """Create a new user (auto-confirmed) then sign in to return tokens."""
-    client = _get_auth_client()
+def _fetch_username(client, user_id: str) -> str:
+    """Return the username for a user, or '' if no profile row exists yet."""
     try:
-        client.auth.admin.create_user(
+        result = (
+            client.table("user_profiles")
+            .select("username")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return result.data[0]["username"] if result.data else ""
+    except Exception as exc:
+        logger.warning("Failed to fetch username for %s: %s", user_id, exc)
+        return ""
+
+
+def register(email: str, password: str, username: str) -> AuthTokenResponse:
+    """Create a new user (auto-confirmed), store their username, then sign in."""
+    client = _get_auth_client()
+
+    # Check username uniqueness (case-insensitive)
+    try:
+        existing = (
+            client.table("user_profiles")
+            .select("user_id")
+            .ilike("username", username)
+            .execute()
+        )
+        if existing.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already taken.",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Username uniqueness check failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed. Please try again.",
+        )
+
+    # Create GoTrue user
+    try:
+        resp = client.auth.admin.create_user(
             {"email": email, "password": password, "email_confirm": True}
         )
+        user_id = str(resp.user.id)
     except Exception as exc:
         _handle_auth_error(exc, "register")
+        raise  # unreachable — _handle_auth_error always raises
+
+    # Store username
+    try:
+        client.table("user_profiles").insert(
+            {"user_id": user_id, "username": username}
+        ).execute()
+    except Exception as exc:
+        logger.error("Failed to insert user_profiles for %s: %s", user_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed. Please try again.",
+        )
+
+    # login() fetches the username we just inserted
     return login(email, password)
 
 
@@ -51,11 +106,13 @@ def login(email: str, password: str) -> AuthTokenResponse:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Sign-in succeeded but no session was returned.",
             )
+        user_id = str(user.id)
         return AuthTokenResponse(
             access_token=session.access_token,
             refresh_token=session.refresh_token,
-            user_id=str(user.id),
+            user_id=user_id,
             email=user.email,
+            username=_fetch_username(client, user_id),
         )
     except HTTPException:
         raise
@@ -88,7 +145,8 @@ def get_user_from_token(jwt: str) -> UserResponse:
                 detail="Invalid token.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        return UserResponse(user_id=str(user.id), email=user.email)
+        user_id = str(user.id)
+        return UserResponse(user_id=user_id, email=user.email, username=_fetch_username(client, user_id))
     except HTTPException:
         raise
     except Exception as exc:

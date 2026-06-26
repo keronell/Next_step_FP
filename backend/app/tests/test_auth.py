@@ -58,6 +58,8 @@ class _FakeTableBuilder:
         return self
     def eq(self, *a, **k):
         return self
+    def ilike(self, *a, **k):
+        return self
     def is_(self, *a, **k):
         return self
     def order(self, *a, **k):
@@ -93,7 +95,8 @@ def auth_client(monkeypatch):
 
 def test_register_when_disabled(client_with_repo):
     r = client_with_repo.post(
-        "/api/auth/register", json={"email": "a@b.com", "password": "password123"}
+        "/api/auth/register",
+        json={"email": "a@b.com", "password": "password123", "username": "testuser"},
     )
     assert r.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
@@ -157,7 +160,7 @@ def test_me_valid_token(client_with_repo, monkeypatch):
         auth_service,
         "get_user_from_token",
         lambda jwt: auth_service.UserResponse(
-            user_id="user-uuid-123", email="user@example.com"
+            user_id="user-uuid-123", email="user@example.com", username="testuser"
         ),
     )
     r = client_with_repo.get(
@@ -167,12 +170,13 @@ def test_me_valid_token(client_with_repo, monkeypatch):
     body = r.json()
     assert body["user_id"] == "user-uuid-123"
     assert body["email"] == "user@example.com"
+    assert body["username"] == "testuser"
 
 
 def test_register_success(client_with_repo, auth_client):
     r = client_with_repo.post(
         "/api/auth/register",
-        json={"email": "new@example.com", "password": "securepass"},
+        json={"email": "new@example.com", "password": "securepass", "username": "newuser"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -180,6 +184,7 @@ def test_register_success(client_with_repo, auth_client):
     assert body["refresh_token"] == "fake-refresh-token"
     assert body["user_id"] == "user-uuid-123"
     assert body["email"] == "user@example.com"
+    assert "username" in body
 
 
 def test_login_success(client_with_repo, auth_client):
@@ -197,7 +202,7 @@ def test_logout_success(client_with_repo, monkeypatch, auth_client):
         auth_service,
         "get_user_from_token",
         lambda jwt: auth_service.UserResponse(
-            user_id="user-uuid-123", email="user@example.com"
+            user_id="user-uuid-123", email="user@example.com", username="testuser"
         ),
     )
     r = client_with_repo.post(
@@ -212,7 +217,7 @@ def test_claim_sessions_success(client_with_repo, monkeypatch, auth_client):
         auth_service,
         "get_user_from_token",
         lambda jwt: auth_service.UserResponse(
-            user_id="user-uuid-123", email="user@example.com"
+            user_id="user-uuid-123", email="user@example.com", username="testuser"
         ),
     )
     r = client_with_repo.post(
@@ -229,7 +234,7 @@ def test_my_submissions_returns_list(client_with_repo, monkeypatch, auth_client)
         auth_service,
         "get_user_from_token",
         lambda jwt: auth_service.UserResponse(
-            user_id="user-uuid-123", email="user@example.com"
+            user_id="user-uuid-123", email="user@example.com", username="testuser"
         ),
     )
     r = client_with_repo.get(
@@ -250,7 +255,7 @@ def test_submit_with_auth_passes_user_id(client_with_repo, valid_answers, monkey
         auth_service,
         "get_user_from_token",
         lambda jwt: auth_service.UserResponse(
-            user_id="user-uuid-123", email="user@example.com"
+            user_id="user-uuid-123", email="user@example.com", username="testuser"
         ),
     )
     calls = []
@@ -294,13 +299,52 @@ def test_submit_without_auth_passes_null_user_id(
 
 def test_register_short_password_rejected(client_with_repo):
     r = client_with_repo.post(
-        "/api/auth/register", json={"email": "a@b.com", "password": "short"}
+        "/api/auth/register",
+        json={"email": "a@b.com", "password": "short", "username": "testuser"},
     )
     assert r.status_code == 422
 
 
 def test_register_invalid_email_rejected(client_with_repo):
     r = client_with_repo.post(
-        "/api/auth/register", json={"email": "notanemail", "password": "password123"}
+        "/api/auth/register",
+        json={"email": "notanemail", "password": "password123", "username": "testuser"},
     )
     assert r.status_code == 422
+
+
+def test_register_missing_username_rejected(client_with_repo):
+    r = client_with_repo.post(
+        "/api/auth/register", json={"email": "a@b.com", "password": "password123"}
+    )
+    assert r.status_code == 422
+
+
+def test_register_invalid_username_rejected(client_with_repo):
+    r = client_with_repo.post(
+        "/api/auth/register",
+        json={"email": "a@b.com", "password": "password123", "username": "bad user!"},
+    )
+    assert r.status_code == 422
+
+
+def test_register_duplicate_username_rejected(client_with_repo, monkeypatch):
+    """Username uniqueness check: 400 when a username is already taken."""
+    class _TakenTableResult:
+        data = [{"user_id": "existing-uuid"}]
+
+    class _TakenTableBuilder(_FakeTableBuilder):
+        def execute(self):
+            return _TakenTableResult()
+
+    class _TakenClient(_FakeClient):
+        def table(self, name):
+            return _TakenTableBuilder()
+
+    monkeypatch.setattr(auth_service, "_get_auth_client", lambda: _TakenClient())
+    r = client_with_repo.post(
+        "/api/auth/register",
+        json={"email": "new@example.com", "password": "securepass", "username": "takenuser"},
+    )
+    assert r.status_code == status.HTTP_400_BAD_REQUEST
+    assert r.json()["detail"] == "Username already taken."

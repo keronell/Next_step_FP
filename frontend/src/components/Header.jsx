@@ -50,10 +50,7 @@ function Header({ phase, onReset, onOpenAuth }) {
     ...(phase === 'results_ready' ? [{ label: 'Results', id: 'results' }] : []),
   ]
 
-  // Truncate email for display
-  const displayEmail = user?.email
-    ? user.email.length > 22 ? user.email.slice(0, 20) + '…' : user.email
-    : ''
+  const displayUsername = user?.username ?? ''
 
   return (
     <>
@@ -141,7 +138,7 @@ function Header({ phase, onReset, onOpenAuth }) {
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       />
                     )}
-                    <span className="relative z-10 max-w-[120px] truncate">{displayEmail}</span>
+                    <span className="relative z-10 max-w-[120px] truncate">{displayUsername}</span>
                     <motion.span
                       className="relative z-10"
                       animate={{ rotate: accountOpen ? 180 : 0 }}
@@ -162,7 +159,7 @@ function Header({ phase, onReset, onOpenAuth }) {
                       >
                         <div className="px-4 py-2 border-b border-navy/[0.06]">
                           <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold">Signed in as</p>
-                          <p className="font-body text-small text-navy font-medium truncate mt-0.5">{user.email}</p>
+                          <p className="font-body text-small text-navy font-medium truncate mt-0.5">{user.username}</p>
                         </div>
                         <button
                           onClick={() => scrollToSection('history')}
@@ -250,7 +247,7 @@ function Header({ phase, onReset, onOpenAuth }) {
               {!authLoading && user && (
                 <div className="mt-2 pt-3 border-t border-navy/[0.06] flex flex-col gap-1">
                   <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold px-0.5 mb-1">
-                    {user.email}
+                    {user.username}
                   </p>
                   <button
                     onClick={() => scrollToSection('history')}

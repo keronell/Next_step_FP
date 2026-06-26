@@ -10,6 +10,7 @@ from app.models.auth import (
     AuthCredentials,
     AuthTokenResponse,
     ClaimSessionsRequest,
+    RegisterRequest,
     SubmissionHistoryItem,
     UserResponse,
 )
@@ -19,8 +20,8 @@ router = APIRouter(prefix="/auth")
 
 
 @router.post("/register", response_model=AuthTokenResponse)
-def register(credentials: AuthCredentials) -> AuthTokenResponse:
-    return auth_service.register(credentials.email, credentials.password)
+def register(req: RegisterRequest) -> AuthTokenResponse:
+    return auth_service.register(req.email, req.password, req.username)
 
 
 @router.post("/login", response_model=AuthTokenResponse)

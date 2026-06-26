@@ -71,10 +71,10 @@ export async function fetchRoadmap(careerId, missingSkills = []) {
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
-export async function signUp(email, password) {
+export async function signUp(email, password, username) {
   return _request(`${BASE_URL}/api/auth/register`, {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, username }),
   })
 }
 
