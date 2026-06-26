@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, ChevronRight, ChevronLeft, SkipForward, Edit3, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Sparkles, ChevronRight, ChevronLeft, SkipForward, Edit3, AlertTriangle, CheckCircle2, Lock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QUESTIONS } from '../data'
 import { useReveal } from '../hooks/useReveal'
 import Button from '../components/ui/Button.jsx'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
+import { useAuth } from '../contexts/AuthContext'
 
 // answers[qId] = number (answered) | null (skipped) | undefined (not visited)
 const isAnswered = (val) => val !== null && val !== undefined
@@ -157,6 +158,9 @@ function Assessment({ phase, onStart, onComplete }) {
 // ─── Start card ────────────────────────────────────────────────────────────────
 
 function AssessmentStart({ onStart }) {
+  const { user, authLoading } = useAuth()
+  const isLocked = !authLoading && !user
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -171,7 +175,7 @@ function AssessmentStart({ onStart }) {
         <span className="italic text-gold">tech career</span>
       </h2>
       <p className="font-body text-navy/65 text-body max-w-[52ch] mx-auto leading-snug mb-10">
-        10 questions · 3–5 minutes · No signup required
+        10 questions · 3–5 minutes
       </p>
       <div className="flex flex-wrap justify-center gap-2 mb-10">
         {['Skills & interests', 'Work style', 'Personality fit', 'Personalized match'].map((tag) => (
@@ -181,9 +185,18 @@ function AssessmentStart({ onStart }) {
         ))}
       </div>
       <Button variant="primary" size="lg" onClick={onStart}>
-        <Sparkles size={16} aria-hidden="true" />
-        Begin Assessment
-        <ChevronRight size={16} aria-hidden="true" />
+        {isLocked ? (
+          <>
+            <Lock size={16} aria-hidden="true" />
+            Sign in to Begin
+          </>
+        ) : (
+          <>
+            <Sparkles size={16} aria-hidden="true" />
+            Begin Assessment
+            <ChevronRight size={16} aria-hidden="true" />
+          </>
+        )}
       </Button>
     </motion.div>
   )

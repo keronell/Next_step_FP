@@ -2,16 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Clock, LogOut, Menu, Sparkles, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from './ui/Button.jsx'
-import AuthModal from '../pages/AuthModal.jsx'
 import { useAuth } from '../contexts/AuthContext'
 
-function Header({ phase, onReset }) {
+function Header({ phase, onReset, onOpenAuth }) {
   const { user, authLoading, signOut } = useAuth()
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [hovered, setHovered] = useState(null)
-  const [authModalOpen, setAuthModalOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const accountRef = useRef(null)
 
@@ -114,7 +112,7 @@ function Header({ phase, onReset }) {
               {/* Auth controls */}
               {!authLoading && !user && (
                 <button
-                  onClick={() => setAuthModalOpen(true)}
+                  onClick={onOpenAuth}
                   className="focus-ring relative px-4 py-2 rounded-full font-body text-small text-navy/75 hover:text-navy transition-colors duration-fast"
                 >
                   Sign In
@@ -225,7 +223,7 @@ function Header({ phase, onReset }) {
               {/* Auth section in mobile menu */}
               {!authLoading && !user && (
                 <button
-                  onClick={() => { setMenuOpen(false); setAuthModalOpen(true) }}
+                  onClick={() => { setMenuOpen(false); onOpenAuth() }}
                   className="focus-ring mt-2 text-left font-body text-small text-navy/60 hover:text-gold transition-colors duration-fast py-2"
                 >
                   Sign In to save your results
@@ -258,8 +256,6 @@ function Header({ phase, onReset }) {
         </AnimatePresence>
       </header>
 
-      {/* Auth modal — rendered outside the header's stacking context via fixed positioning */}
-      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </>
   )
 }

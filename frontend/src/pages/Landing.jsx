@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, ArrowDown } from 'lucide-react'
+import { Sparkles, ArrowDown, Lock } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Button from '../components/ui/Button.jsx'
 import Badge from '../components/ui/Badge.jsx'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
+import { useAuth } from '../contexts/AuthContext'
 
 const container = {
   hidden: {},
@@ -25,6 +26,8 @@ const item = {
 function Hero({ onStart }) {
   const canvasRef = useRef(null)
   const [pulseOn, setPulseOn] = useState(true)
+  const { user, authLoading } = useAuth()
+  const isLocked = !authLoading && !user
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -159,10 +162,19 @@ function Hero({ onStart }) {
             variant="primary"
             size="lg"
             onClick={handleStart}
-            className={`${pulseOn ? 'btn-gold-pulse' : ''} min-w-[200px]`}
+            className={`${pulseOn && !isLocked ? 'btn-gold-pulse' : ''} min-w-[200px]`}
           >
-            <Sparkles size={16} aria-hidden="true" />
-            Start Assessment
+            {isLocked ? (
+              <>
+                <Lock size={16} aria-hidden="true" />
+                Sign in to Start
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} aria-hidden="true" />
+                Start Assessment
+              </>
+            )}
           </Button>
           <Button
             variant="ghost"

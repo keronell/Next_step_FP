@@ -7,18 +7,20 @@ import Assessment from './pages/Questionnaire'
 import Results from './pages/Results'
 import Roadmap from './pages/Roadmap'
 import History from './pages/History'
+import AuthModal from './pages/AuthModal'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer } from './api'
 import { useAuth } from './contexts/AuthContext'
 
 function App() {
-  const { user } = useAuth()
+  const { user, authLoading } = useAuth()
 
   const [phase, setPhase] = useState('idle')
   const [results, setResults] = useState(null)
   const [notice, setNotice] = useState(null)
   const [selectedCareer, setSelectedCareer] = useState(null)
   const [activeTooltip, setActiveTooltip] = useState(null)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
 
   const assessmentRef = useRef(null)
   const resultsRef = useRef(null)
@@ -30,6 +32,11 @@ function App() {
   }
 
   const handleStart = () => {
+    if (authLoading) return
+    if (!user) {
+      setAuthModalOpen(true)
+      return
+    }
     setPhase('assessing')
     scrollTo(assessmentRef)
   }
@@ -78,7 +85,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header phase={phase} onReset={handleReset} />
+      <Header phase={phase} onReset={handleReset} onOpenAuth={() => setAuthModalOpen(true)} />
+      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <main>
         <Hero onStart={handleStart} />
         <HowItWorks />
