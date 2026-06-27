@@ -69,6 +69,19 @@ export async function fetchRoadmap(careerId, missingSkills = []) {
   })
 }
 
+// Roadmap node completion — only for logged-in users (auth required by the API).
+// Anonymous users keep progress in localStorage instead (see Roadmap.jsx).
+export async function fetchRoadmapProgress(careerId) {
+  return _request(`${BASE_URL}/api/roadmap/${careerId}/progress`)
+}
+
+export async function saveRoadmapProgress(careerId, completedNodes) {
+  return _request(`${BASE_URL}/api/roadmap/${careerId}/progress`, {
+    method: 'POST',
+    body: JSON.stringify({ completed_nodes: completedNodes }),
+  })
+}
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function signUp(email, password, username) {

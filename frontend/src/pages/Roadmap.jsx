@@ -1,9 +1,12 @@
 import { useRef, useLayoutEffect, useEffect, useState } from 'react'
-import { ExternalLink, X } from 'lucide-react'
+import { ExternalLink, X, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ROADMAPS, CAREERS } from '../data'
-import { fetchRoadmap } from '../api'
+import { fetchRoadmap, fetchRoadmapProgress, saveRoadmapProgress } from '../api'
+import { useAuth } from '../contexts/AuthContext'
 import SectionHeading from '../components/ui/SectionHeading.jsx'
+
+const progressKey = (careerId) => `nextstep_roadmap_progress_${careerId}`
 
 const CANVAS_W = 1400
 const SPINE_X = 700
@@ -97,7 +100,7 @@ function ChevronSVG({ cx, cy, open, color = 'rgba(15,27,45,0.55)' }) {
   )
 }
 
-function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter, onMouseLeave }) {
+function NodeRect({ node, isHovered, isActive, isRevealed, isCompleted, onClick, onMouseEnter, onMouseLeave }) {
   const color = LEVEL_COLORS[node.level]
   const w = node.width
   const rx = node.x - w / 2
@@ -107,6 +110,19 @@ function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter
   const activeRing = isActive && (
     <rect x={rx - 3} y={ry - 3} width={w + 6} height={NODE_H + 6} rx={8}
           fill="none" stroke={color} strokeWidth={2} opacity={0.35} />
+  )
+
+  // Completed: gold ring around the node + a gold check badge at the top-right corner.
+  const completedDecor = isCompleted && (
+    <g pointerEvents="none">
+      <rect x={rx - 2} y={ry - 2} width={w + 4} height={NODE_H + 4} rx={8}
+            fill="none" stroke="var(--color-gold)" strokeWidth={2} />
+      <circle cx={rx + w} cy={ry} r={9} fill="var(--color-gold)"
+              stroke="var(--color-cream)" strokeWidth={1.5} />
+      <path d="M-3.5 0 L-1 2.5 L3.5 -2.5" transform={`translate(${rx + w} ${ry})`}
+            stroke="var(--color-cream)" strokeWidth={1.8} strokeLinecap="round"
+            strokeLinejoin="round" fill="none" />
+    </g>
   )
 
   const label = (
@@ -138,6 +154,7 @@ function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter
         {activeRing}
         <rect x={rx} y={ry} width={w} height={NODE_H} rx={6} fill={color} />
         {label}
+        {completedDecor}
       </g>
     )
   }
@@ -149,6 +166,7 @@ function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter
         <rect x={rx} y={ry} width={w} height={NODE_H} rx={6}
               fill="none" stroke={color} strokeWidth={1.5} />
         {label}
+        {completedDecor}
       </g>
     )
   }
@@ -159,11 +177,12 @@ function NodeRect({ node, isHovered, isActive, isRevealed, onClick, onMouseEnter
       <rect x={rx} y={ry} width={w} height={NODE_H} rx={6}
             fill="none" stroke={color} strokeWidth={1.5} strokeDasharray="6,3" />
       {label}
+      {completedDecor}
     </g>
   )
 }
 
-function NodeDrawer({ node, onClose }) {
+function NodeDrawer({ node, onClose, isCompleted, onToggleComplete }) {
   const color = node ? LEVEL_COLORS[node.level] : 'var(--color-gold)'
 
   return (
@@ -222,6 +241,18 @@ function NodeDrawer({ node, onClose }) {
             <p className="font-body text-small text-navy/65 leading-relaxed mb-6">
               {node.description}
             </p>
+
+            <button
+              onClick={onToggleComplete}
+              className={`focus-ring w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 mb-6 rounded-xl font-body text-small font-semibold transition-colors duration-fast border ${
+                isCompleted
+                  ? 'bg-gold text-cream border-gold hover:bg-gold/90'
+                  : 'bg-transparent text-gold border-gold/50 hover:bg-gold/[0.08]'
+              }`}
+            >
+              <Check size={15} aria-hidden="true" />
+              {isCompleted ? 'Completed' : 'Mark as complete'}
+            </button>
 
             {node.resources?.length > 0 && (
               <div>
@@ -285,14 +316,56 @@ function Legend() {
 function Roadmap({ selectedCareer, missingSkills = [] }) {
   const pathRefs = useRef({})
   const revealTimersRef = useRef([])
+  const saveSeqRef = useRef(0)  // monotonic id so only the latest save reconciliation wins
   const [drawerNode, setDrawerNode] = useState(null)
   const [hoveredNode, setHoveredNode] = useState(null)
   const [hoveredSection, setHoveredSection] = useState(null)
   const [collapsed, setCollapsed] = useState({})
   const [revealedNodes, setRevealedNodes] = useState(new Set())
   const [roadmapData, setRoadmapData] = useState(null)
+  const [completedNodes, setCompletedNodes] = useState(new Set())
 
+  const { user } = useAuth()
   const career = CAREERS.find((c) => c.id === selectedCareer)
+
+  // Load completed nodes for this career: from Supabase when logged in, else localStorage.
+  useEffect(() => {
+    if (!selectedCareer) { setCompletedNodes(new Set()); return }
+    let cancelled = false
+    if (user) {
+      fetchRoadmapProgress(selectedCareer)
+        .then((d) => { if (!cancelled) setCompletedNodes(new Set(d.completed_nodes || [])) })
+        .catch(() => { if (!cancelled) setCompletedNodes(new Set()) })
+    } else {
+      try {
+        const raw = localStorage.getItem(progressKey(selectedCareer))
+        setCompletedNodes(new Set(raw ? JSON.parse(raw) : []))
+      } catch { setCompletedNodes(new Set()) }
+    }
+    return () => { cancelled = true }
+  }, [selectedCareer, user])
+
+  // Toggle one node optimistically, then persist. For logged-in users a failed save
+  // reconciles from the server (the source of truth), so the badge never lies about
+  // what was stored. saveSeq guards against out-of-order results from rapid toggles:
+  // only the latest toggle's reconciliation is applied.
+  const toggleComplete = (nodeId) => {
+    setCompletedNodes((prev) => {
+      const next = new Set(prev)
+      next.has(nodeId) ? next.delete(nodeId) : next.add(nodeId)
+      if (user) {
+        const seq = ++saveSeqRef.current
+        saveRoadmapProgress(selectedCareer, [...next]).catch(() => {
+          fetchRoadmapProgress(selectedCareer)
+            .then((d) => { if (seq === saveSeqRef.current) setCompletedNodes(new Set(d.completed_nodes || [])) })
+            .catch(() => {})
+        })
+      } else {
+        try { localStorage.setItem(progressKey(selectedCareer), JSON.stringify([...next])) } catch { /* ignore */ }
+      }
+      return next
+    })
+  }
 
   // Fetch the roadmap from the backend; fall back to the bundled ROADMAPS if it's
   // down (same offline-estimate spirit as the questionnaire results).
@@ -309,6 +382,13 @@ function Roadmap({ selectedCareer, missingSkills = [] }) {
   }, [selectedCareer]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sections = roadmapData?.sections ?? []
+
+  // Progress = completed / total across all nodes (ignores collapse). Intersect with
+  // the loaded roadmap so stale ids from old data can't inflate the count.
+  const allNodeIds = sections.flatMap((s) => s.nodes.map((n) => n.id))
+  const totalNodes = allNodeIds.length
+  const completedCount = allNodeIds.filter((id) => completedNodes.has(id)).length
+  const progressPct = totalNodes ? Math.round((completedCount / totalNodes) * 100) : 0
 
   const { layoutSections, totalH } = computeLayout(sections, collapsed)
 
@@ -414,6 +494,26 @@ function Roadmap({ selectedCareer, missingSkills = [] }) {
             </button>
           </div>
 
+          {/* Progress bar */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-body text-eyebrow font-semibold uppercase text-navy/45">
+                Your Progress
+              </span>
+              <span className="font-body text-small font-semibold text-navy/70 tabular">
+                {completedCount} of {totalNodes} completed · <span className="text-gold">{progressPct}%</span>
+              </span>
+            </div>
+            <div className="h-2 bg-navy/[0.1] rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-gold to-gold-light rounded-full"
+                initial={false}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ type: 'spring', stiffness: 120, damping: 24 }}
+              />
+            </div>
+          </div>
+
           {/* SVG canvas + sticky legend wrapper */}
           <div className="relative">
             <div style={{ overflowX: 'auto' }}>
@@ -478,6 +578,7 @@ function Roadmap({ selectedCareer, missingSkills = [] }) {
                           key={node.id}
                           node={node}
                           isRevealed={revealedNodes.has(node.id)}
+                          isCompleted={completedNodes.has(node.id)}
                           isHovered={hoveredNode === node.id}
                           isActive={drawerNode?.id === node.id}
                           onClick={() => handleNodeClick(node)}
@@ -499,7 +600,12 @@ function Roadmap({ selectedCareer, missingSkills = [] }) {
         </div>
       </section>
 
-      <NodeDrawer node={drawerNode} onClose={() => setDrawerNode(null)} />
+      <NodeDrawer
+        node={drawerNode}
+        onClose={() => setDrawerNode(null)}
+        isCompleted={drawerNode ? completedNodes.has(drawerNode.id) : false}
+        onToggleComplete={() => drawerNode && toggleComplete(drawerNode.id)}
+      />
     </>
   )
 }
