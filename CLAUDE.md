@@ -31,12 +31,21 @@ There is no lint or frontend test runner. Verify frontend changes with `npm run 
 
 FastAPI backend (live recommendation API):
 
+There is **no committed `backend/venv`** — create one yourself (or use a system Python
+that has the deps). Commands below assume the venv's python is on `PATH`; the interpreter
+is `backend/venv/bin/python` on macOS/Linux and `backend/venv/Scripts/python` on Windows.
+
 ```bash
-backend/venv/bin/python -m pip install -r backend/requirements.txt
-backend/venv/bin/python data/scripts/build_rag.py            # one-time: builds data/jobs/chroma (~1575 job ads)
-cd backend && venv/bin/python -m uvicorn app.main:app --port 8000
-cd backend && venv/bin/python -m pytest app/tests -q          # 49 tests, mock the vector store + Supabase (no ChromaDB/DB needed)
+python -m venv backend/venv                                   # then activate it, or call its python directly
+python -m pip install -r backend/requirements.txt
+python data/scripts/build_rag.py                              # one-time: builds & POPULATES data/jobs/chroma (~1575 job ads). RUN FROM REPO ROOT.
+cd backend && python -m uvicorn app.main:app --port 8000 --proxy-headers
+cd backend && python -m pytest app/tests -q                  # 49 tests, mock the vector store + Supabase (no ChromaDB/DB needed)
 ```
+
+The ChromaDB store **is populated** (~1575 docs). If `build_rag.py` is interrupted you can
+get an empty store — re-run it (`--reset` for a clean rebuild) and confirm
+`RagService` loads a non-zero count before relying on the live RAG path.
 
 Ignore `README.md`, which still documents the old (now-removed) Flask + SQLite flow.
 
@@ -74,7 +83,7 @@ Tailwind (`frontend/tailwind.config.js`) with a custom theme: `cream` / `navy` /
 - **Auth:** Routes under `api/routes/auth.py` proxy Supabase GoTrue — `POST /api/auth/register` (admin create, auto-confirmed), `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/claim-sessions`, `GET /api/auth/my-submissions`. All auth routes require `supabase_enabled = True`; they return **503** otherwise (auth is **never** best-effort, unlike persistence). Token verification uses `supabase_client.auth.get_user(jwt)` — no JWT secret needed in config. Protected routes use `get_current_user` from `api/deps.py` (raises 401 on missing/invalid token); `/submit` uses `get_current_user_optional` (returns `None` for anonymous users so the questionnaire flow is never blocked). The `sessions_id` anonymous flow continues to work unchanged alongside auth — on login, the frontend calls `POST /api/auth/claim-sessions` to link prior anonymous submissions to the new `user_id`. No Supabase JS SDK or anon key is exposed to the browser; all auth calls go through the FastAPI backend. **Deferred:** token refresh, email verification gate, password reset, per-IP rate limiting on auth endpoints.
 - **Username system:** `POST /api/auth/register` accepts `RegisterRequest(email, password, username)` — a separate model from `AuthCredentials(email, password)` used for login. `username` is 3–30 chars, `^[a-zA-Z0-9_]+$`. `auth_service.register()` checks case-insensitive uniqueness via `ilike` on `public.user_profiles`, creates the GoTrue user, then inserts the profile row. `login()` and `get_user_from_token()` fetch the username from `user_profiles` via `_fetch_username()` (returns `""` if no row). `AuthTokenResponse` and `UserResponse` both include `username: str`. Schema: `public.user_profiles(user_id uuid PK FK auth.users, username text NOT NULL)` with a functional unique index on `lower(username)`; RLS enabled, no policies (service_role bypasses). Migration: `backend/migrations/003_user_profiles.sql`.
 - **Job postings (Postgres):** `data/scripts/build_rag.py` upserts the scraped ads into the Supabase `public.job_postings` table (flow: scrape → raw JSON → Postgres upsert → ChromaDB embed; PK `id`, so re-runs don't duplicate). `services/job_postings_service.py::skill_counts` reads skills per field, and `career_repository.py` merges them into ChromaDB's market-skills signal — a graceful no-op when Supabase is unset (ChromaDB-only path). Schema in the `create_job_postings` migration (`backend/migrations/001_job_postings.sql`).
-- ChromaDB store lives at `data/jobs/chroma/` (gitignored), collection `job_ads`, cosine space, `all-MiniLM-L6-v2`, built by `data/scripts/build_rag.py`. The backend only reads it — do not re-ingest per request.
+- ChromaDB store lives at `data/jobs/chroma/` (gitignored), collection `job_ads`, cosine space, `all-MiniLM-L6-v2`, built by `data/scripts/build_rag.py`. The backend only reads it — do not re-ingest per request. **The store is read-only at runtime** (only `build_rag.py` writes; `rag_service.py` only queries), which is why deploy bakes it into the Docker image rather than mounting a volume (see Deployment). Vector-DB decision: ChromaDB is the confirmed choice (managed alternatives + flat-numpy were evaluated and rejected for a read-only ~1575-doc store).
 - `data/` (repo root) — a separate data-engineering pipeline (scrapers, jobs, config, reports). The ingestion pipeline is considered complete; reuse `build_rag.py`, don't rebuild it.
 
 ## Deployment
@@ -92,6 +101,31 @@ Practical notes:
 - If the proxy sets `X-Forwarded-Proto`, run uvicorn with `--proxy-headers` so the app
   sees the original scheme.
 
+### Hugging Face Spaces (Docker) — the current target
+
+The backend deploys to a **Hugging Face Space (Docker SDK), free CPU Basic tier**. HF's
+proxy terminates TLS and forwards plain HTTP to the container, which fits the model above
+(uvicorn runs `--proxy-headers`, no TLS in the app). Files: `Dockerfile`, `.dockerignore`,
+and `DEPLOY_HF.md` (full runbook: Space front-matter, secrets/vars, push + data-refill, verify curls).
+
+Key decisions baked into the `Dockerfile`:
+- **Store is built in-image** from the committed raw JSON (`data/jobs/raw/*.json`) by running
+  `build_rag.py` at image-build time, then read-only at runtime. No persistent volume; the store
+  ships with the image and regenerates on every rebuild. A build-time gate **fails the build if the
+  collection is empty**, so the "empty store" failure can't reach production.
+- **`CHROMA_PATH` is set to an absolute path** (`ENV CHROMA_PATH=/app/data/jobs/chroma`) so the
+  store resolves regardless of CWD — do **not** rely on the CWD-relative value in `backend/.env`
+  (that one is correct only when launching uvicorn from `backend/`).
+- The embedding model is pre-downloaded and loaded **offline** (`HF_HUB_OFFLINE=1`) so cold starts
+  don't hit the HF Hub. CPU-only torch keeps the image to ~2.8 GB.
+- **Refreshing data = rebuild + redeploy** (push new raw JSON → HF rebuilds → `build_rag.py` re-runs).
+  There is no in-place store update; the container filesystem is ephemeral.
+
+Verified locally end-to-end (image build → container run → `GET /api/health` `rag_ready:true` →
+`POST /api/questionnaire/submit` `200` with ChromaDB-backed recommendations).
+
 ## Branches
 
 Active branches: `main`, `Ronen`, `vlad`. The current SPA frontend came from the `Ronen` redesign; `vlad` contributed the adaptive quiz and data pipeline. When merging frontend work, keep `main` and `Ronen` in sync.
+
+The deploy artifacts (`Dockerfile`, `.dockerignore`, `DEPLOY_HF.md`) currently live on the `deploy/hf-spaces` branch, pending merge to `main`.
