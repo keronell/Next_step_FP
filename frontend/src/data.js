@@ -24,6 +24,8 @@ export const QUESTIONS = [
   {
     id: 'q3',
     category: 'interests',
+    // Adaptive: only relevant to logic/data leaners (q2). showIf may reference earlier questions only.
+    showIf: (a) => a.q2 === 1 || a.q2 === 2,
     text: 'When you encounter a dataset, you feel…',
     options: [
       { label: 'Curious — what story is hiding here?', value: 3 },
@@ -90,6 +92,8 @@ export const QUESTIONS = [
   {
     id: 'q9',
     category: 'skills',
+    // Adaptive: only relevant to design/code leaners (q2). showIf may reference earlier questions only.
+    showIf: (a) => a.q2 === 0 || a.q2 === 1,
     text: 'How drawn are you to visual design?',
     options: [
       { label: 'It\'s my happy place', value: 3 },
@@ -110,6 +114,11 @@ export const QUESTIONS = [
     ],
   },
 ]
+
+// Adaptive path: the in-order subset of QUESTIONS to ask given answers so far.
+// A question's showIf must reference only earlier questions (see Questionnaire.jsx).
+export const visibleQuestions = (answers) =>
+  QUESTIONS.filter((q) => !q.showIf || q.showIf(answers))
 
 export const CAREERS = [
   {

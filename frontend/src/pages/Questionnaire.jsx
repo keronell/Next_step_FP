@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Sparkles, ChevronRight, ChevronLeft, SkipForward, Edit3, AlertTriangle, CheckCircle2, Lock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { QUESTIONS } from '../data'
+import { visibleQuestions } from '../data'
 import { useReveal } from '../hooks/useReveal'
 import Button from '../components/ui/Button.jsx'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
@@ -23,6 +23,17 @@ function Assessment({ phase, onStart, onComplete }) {
   const [skipWarning, setSkipWarning] = useState(false)
   const [pendingVal, setPendingVal] = useState(null)  // value just clicked (animation)
 
+  // Active question path, derived from answers. Conditional questions reference only
+  // earlier answers, so indices 0..currentQ stay stable when the path recomputes.
+  const path = useMemo(() => visibleQuestions(answers), [answers])
+
+  // Only visible questions' answers leave this component — no stale keys for questions
+  // hidden by a later edit. Shape stays { qId: number | null }.
+  const visibleAnswers = () =>
+    Object.fromEntries(
+      path.filter((q) => answers[q.id] !== undefined).map((q) => [q.id, answers[q.id]])
+    )
+
   // Reset all quiz state when the parent resets to idle
   useEffect(() => {
     if (phase === 'idle') {
@@ -34,9 +45,14 @@ function Assessment({ phase, onStart, onComplete }) {
 
   // Pre-fill pending display when navigating to an already-visited question
   useEffect(() => {
-    const existing = answers[QUESTIONS[currentQ]?.id]
+    const existing = answers[path[currentQ]?.id]
     setPendingVal(isAnswered(existing) ? existing : null)
   }, [currentQ]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If editing an earlier answer shrinks the path below currentQ, clamp into range.
+  useEffect(() => {
+    if (currentQ > path.length - 1) setCurrentQ(Math.max(0, path.length - 1))
+  }, [path.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const advanceOrReview = (newAnswers) => {
     if (fromReview) {
@@ -45,7 +61,7 @@ function Assessment({ phase, onStart, onComplete }) {
       setSkipWarning(false)
       return
     }
-    if (currentQ < QUESTIONS.length - 1) {
+    if (currentQ < path.length - 1) {
       const next = currentQ + 1
       setCurrentQ(next)
       setHighWater((hw) => Math.max(hw, next))
@@ -57,7 +73,7 @@ function Assessment({ phase, onStart, onComplete }) {
   const handleSelect = (value) => {
     if (pendingVal !== null && !fromReview) return // already selected, waiting to advance
     setPendingVal(value)
-    const newAnswers = { ...answers, [QUESTIONS[currentQ].id]: value }
+    const newAnswers = { ...answers, [path[currentQ].id]: value }
     setAnswers(newAnswers)
     setTimeout(() => advanceOrReview(newAnswers), 300)
   }
@@ -69,14 +85,14 @@ function Assessment({ phase, onStart, onComplete }) {
   }
 
   const handleSkip = () => {
-    const newAnswers = { ...answers, [QUESTIONS[currentQ].id]: null }
+    const newAnswers = { ...answers, [path[currentQ].id]: null }
     setAnswers(newAnswers)
     advanceOrReview(newAnswers)
   }
 
   const handleDotJump = (i) => {
     if (i === currentQ) return
-    if (i > highWater && answers[QUESTIONS[i].id] === undefined) return
+    if (i > highWater && answers[path[i].id] === undefined) return
     setCurrentQ(i)
   }
 
@@ -92,22 +108,22 @@ function Assessment({ phase, onStart, onComplete }) {
     setFromReview(false)
     setQuizPhase('answering')
     // jump back to last question
-    setCurrentQ(QUESTIONS.length - 1)
+    setCurrentQ(path.length - 1)
   }
 
   const handleSubmit = () => {
-    const skippedCount = QUESTIONS.filter((q) => !isAnswered(answers[q.id])).length
+    const skippedCount = path.filter((q) => !isAnswered(answers[q.id])).length
     if (skippedCount > 0) {
       setSkipWarning(true)
       return
     }
-    onComplete(answers)
+    onComplete(visibleAnswers())
   }
 
-  const handleSubmitAnyway = () => onComplete(answers)
+  const handleSubmitAnyway = () => onComplete(visibleAnswers())
 
   const handleReviewSkipped = () => {
-    const firstSkipped = QUESTIONS.findIndex((q) => !isAnswered(answers[q.id]))
+    const firstSkipped = path.findIndex((q) => !isAnswered(answers[q.id]))
     if (firstSkipped >= 0) {
       setCurrentQ(firstSkipped)
       setFromReview(true)
@@ -124,6 +140,7 @@ function Assessment({ phase, onStart, onComplete }) {
 
           {phase === 'assessing' && quizPhase === 'answering' && (
             <QuizCard
+              path={path}
               currentQ={currentQ}
               answers={answers}
               highWater={highWater}
@@ -138,6 +155,7 @@ function Assessment({ phase, onStart, onComplete }) {
 
           {phase === 'assessing' && quizPhase === 'review' && (
             <ReviewScreen
+              path={path}
               answers={answers}
               skipWarning={skipWarning}
               onEdit={handleEditQuestion}
@@ -175,7 +193,7 @@ function AssessmentStart({ onStart }) {
         <span className="italic text-gold">tech career</span>
       </h2>
       <p className="font-body text-navy/65 text-body max-w-[52ch] mx-auto leading-snug mb-10">
-        10 questions · 3–5 minutes
+        Up to 10 questions · 3–5 minutes
       </p>
       <div className="flex flex-wrap justify-center gap-2 mb-10">
         {['Skills & interests', 'Work style', 'Personality fit', 'Personalized match'].map((tag) => (
@@ -204,9 +222,9 @@ function AssessmentStart({ onStart }) {
 
 // ─── Quiz card ─────────────────────────────────────────────────────────────────
 
-function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSelect, onBack, onSkip, onDotJump }) {
-  const question = QUESTIONS[currentQ]
-  const progressPct = ((currentQ) / QUESTIONS.length) * 100
+function QuizCard({ path, currentQ, answers, highWater, pendingVal, fromReview, onSelect, onBack, onSkip, onDotJump }) {
+  const question = path[currentQ]
+  const progressPct = ((currentQ) / path.length) * 100
   const isWaiting = pendingVal !== null && !fromReview && isAnswered(pendingVal)
 
   return (
@@ -244,7 +262,7 @@ function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSele
           <span className="font-body text-small text-navy/55 tabular">
             <span className="font-semibold text-navy/80">{currentQ + 1}</span>
             <span className="mx-0.5">/</span>
-            {QUESTIONS.length}
+            {path.length}
           </span>
         </div>
 
@@ -289,7 +307,7 @@ function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSele
 
         {/* Clickable progress dots */}
         <div className="flex justify-center items-center gap-1.5 mb-6">
-          {QUESTIONS.map((q, i) => {
+          {path.map((q, i) => {
             const val = answers[q.id]
             const isCurrentDot = i === currentQ
             const isVisited = i <= highWater || val !== undefined
@@ -352,8 +370,8 @@ function QuizCard({ currentQ, answers, highWater, pendingVal, fromReview, onSele
 
 // ─── Review screen ─────────────────────────────────────────────────────────────
 
-function ReviewScreen({ answers, skipWarning, onEdit, onGoBack, onSubmit, onSubmitAnyway, onReviewSkipped }) {
-  const skippedCount = QUESTIONS.filter((q) => !isAnswered(answers[q.id])).length
+function ReviewScreen({ path, answers, skipWarning, onEdit, onGoBack, onSubmit, onSubmitAnyway, onReviewSkipped }) {
+  const skippedCount = path.filter((q) => !isAnswered(answers[q.id])).length
 
   return (
     <motion.div
@@ -373,15 +391,15 @@ function ReviewScreen({ answers, skipWarning, onEdit, onGoBack, onSubmit, onSubm
         </h2>
         <p className="font-body text-small text-navy/55 mt-2 tabular">
           {skippedCount > 0
-            ? `${QUESTIONS.length - skippedCount} answered · ${skippedCount} skipped`
-            : `All ${QUESTIONS.length} questions answered`
+            ? `${path.length - skippedCount} answered · ${skippedCount} skipped`
+            : `All ${path.length} questions answered`
           }
         </p>
       </div>
 
       {/* Scrollable question list */}
       <div className="overflow-y-auto max-h-[420px] divide-y divide-navy/[0.05]">
-        {QUESTIONS.map((q, i) => {
+        {path.map((q, i) => {
           const val = answers[q.id]
           const answered = isAnswered(val)
           const selectedOption = answered ? q.options.find((o) => o.value === val) : null
