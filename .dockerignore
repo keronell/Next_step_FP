@@ -1,0 +1,31 @@
+# Keep the build context (and image) lean and secret-free.
+
+# Secrets — never bake .env into the image (CHROMA_PATH etc. come from Space vars).
+**/.env
+**/.env.*
+!**/.env.example
+
+# Prebuilt vector store — rebuilt in-image from raw JSON, so don't copy the local one.
+data/jobs/chroma/
+
+# Frontend is deployed separately (Vercel/Netlify) — not part of this image.
+frontend/
+
+# Python / git / editor noise
+**/__pycache__/
+**/*.pyc
+**/venv/
+**/.venv/
+.git/
+.gitignore
+**/.pytest_cache/
+**/.mypy_cache/
+
+# Pipeline artifacts not needed at runtime or for build_rag (raw JSON IS needed).
+data/visualizations/
+data/docs/
+data/models/
+data/reports/
+presentation_charts/
+*.md
+!README.md
