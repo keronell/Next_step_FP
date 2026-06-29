@@ -88,6 +88,7 @@ def auth_client(monkeypatch):
     fake = _FakeClient()
     monkeypatch.setattr(auth_service, "_get_auth_client", lambda: fake)
     monkeypatch.setattr(auth_service, "_get_data_client", lambda: fake)
+    monkeypatch.setattr(auth_service, "_get_admin_client", lambda: fake)
     return fake
 
 

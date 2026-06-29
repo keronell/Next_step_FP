@@ -37,6 +37,18 @@ def _get_data_client():
     return _require(get_supabase_client())
 
 
+def _get_admin_client():
+    """Service-role client for GoTrue *admin* calls (create_user, sign_out).
+
+    Reuses the data client precisely because nothing ever signs a user into it,
+    so its Authorization header stays the service key. Doing admin calls on the
+    session client (_get_auth_client) would send whatever user JWT sign_in last
+    stored there — and once that session is logged out, the admin endpoint 403s
+    with "Session from session_id claim in JWT does not exist".
+    """
+    return _require(get_supabase_client())
+
+
 def _fetch_username(user_id: str) -> str:
     """Return the username for a user, or '' if no profile row exists yet."""
     try:
@@ -55,7 +67,6 @@ def _fetch_username(user_id: str) -> str:
 
 def register(email: str, password: str, username: str) -> AuthTokenResponse:
     """Create a new user (auto-confirmed), store their username, then sign in."""
-    auth = _get_auth_client()
     data = _get_data_client()
 
     # Check username uniqueness (case-insensitive)
@@ -80,9 +91,9 @@ def register(email: str, password: str, username: str) -> AuthTokenResponse:
             detail="Registration failed. Please try again.",
         )
 
-    # Create GoTrue user
+    # Create GoTrue user (admin client → always service-role, never a user session)
     try:
-        resp = auth.auth.admin.create_user(
+        resp = _get_admin_client().auth.admin.create_user(
             {"email": email, "password": password, "email_confirm": True}
         )
         user_id = str(resp.user.id)
@@ -140,9 +151,8 @@ def logout(jwt: str) -> None:
     Failure is logged but does not propagate — the frontend always discards
     the token regardless, so a failed server-side revocation is not fatal.
     """
-    client = _get_auth_client()
     try:
-        client.auth.admin.sign_out(jwt)
+        _get_admin_client().auth.admin.sign_out(jwt)
     except Exception as exc:
         logger.warning("Server-side sign_out failed: %s", exc)
 
