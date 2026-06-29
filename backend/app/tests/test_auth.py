@@ -83,9 +83,11 @@ class _FakeClient:
 
 @pytest.fixture
 def auth_client(monkeypatch):
-    """Replace _get_auth_client with one that returns FakeClient."""
+    """Point both the GoTrue and data accessors at one FakeClient (it serves
+    both .auth and .table), so auth + table ops resolve in tests."""
     fake = _FakeClient()
     monkeypatch.setattr(auth_service, "_get_auth_client", lambda: fake)
+    monkeypatch.setattr(auth_service, "_get_data_client", lambda: fake)
     return fake
 
 
@@ -341,7 +343,9 @@ def test_register_duplicate_username_rejected(client_with_repo, monkeypatch):
         def table(self, name):
             return _TakenTableBuilder()
 
+    # Uniqueness check is a table read → it runs on the data client.
     monkeypatch.setattr(auth_service, "_get_auth_client", lambda: _TakenClient())
+    monkeypatch.setattr(auth_service, "_get_data_client", lambda: _TakenClient())
     r = client_with_repo.post(
         "/api/auth/register",
         json={"email": "new@example.com", "password": "securepass", "username": "takenuser"},

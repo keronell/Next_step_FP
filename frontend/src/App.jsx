@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import Hero from './pages/Landing'
@@ -9,7 +9,7 @@ import Roadmap from './pages/Roadmap'
 import History from './pages/History'
 import AuthModal from './pages/AuthModal'
 import { computeResults } from './data'
-import { submitQuestionnaire, selectCareer } from './api'
+import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
 
 function App() {
@@ -30,6 +30,42 @@ function App() {
   const scrollTo = (ref) => {
     setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
   }
+
+  // Restore the last results view on refresh. Runs once auth resolves; only acts
+  // while idle so we never clobber an active flow. handleLoadHistory is omitted
+  // from the deps on purpose (it's a new fn each render).
+  useEffect(() => {
+    if (authLoading || phase !== 'idle') return
+    if (user) {
+      fetchMySubmissions()
+        .then((subs) => {
+          if (!subs?.length) return
+          const latest = [...subs].sort(
+            (a, b) => new Date(b.created_at) - new Date(a.created_at),
+          )[0]
+          handleLoadHistory(latest.recommendations, latest.selected_career ?? null)
+        })
+        .catch(() => {})
+    } else {
+      let recs = null
+      try { recs = JSON.parse(localStorage.getItem('nextstep_last_recommendations')) } catch {} // eslint-disable-line no-empty
+      if (recs?.length) handleLoadHistory(recs, localStorage.getItem('nextstep_last_career') || null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user])
+
+  // Mirror anonymous users' last results to localStorage so a refresh can restore
+  // them. Logged-in users use server history, so we never write their data here.
+  useEffect(() => {
+    if (user) return
+    if (phase === 'results_ready' && results) {
+      localStorage.setItem('nextstep_last_recommendations', JSON.stringify(results))
+      localStorage.setItem('nextstep_last_career', selectedCareer || '')
+    } else if (phase === 'idle') {
+      localStorage.removeItem('nextstep_last_recommendations')
+      localStorage.removeItem('nextstep_last_career')
+    }
+  }, [phase, results, selectedCareer, user])
 
   const handleStart = () => {
     if (authLoading) return
@@ -65,10 +101,10 @@ function App() {
     scrollTo(roadmapRef)
   }
 
-  const handleLoadHistory = (recommendations) => {
+  const handleLoadHistory = (recommendations, careerId = null) => {
     setResults(recommendations)
     setNotice(null)
-    setSelectedCareer(null)
+    setSelectedCareer(careerId)
     setActiveTooltip(null)
     setPhase('results_ready')
     scrollTo(resultsRef)

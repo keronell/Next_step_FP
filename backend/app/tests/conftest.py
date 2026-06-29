@@ -17,7 +17,7 @@ def _supabase_disabled(monkeypatch):
     Empty env vars take precedence over the .env file in pydantic-settings."""
     from app.core.config import get_settings
     from app.services import persistence
-    from app.services.supabase_client import get_supabase_client
+    from app.services.supabase_client import get_auth_client, get_supabase_client
 
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("SUPABASE_SERVICE_KEY", "")
@@ -25,7 +25,7 @@ def _supabase_disabled(monkeypatch):
     # Clear before each test so the forced-empty env is what gets read. (Teardown
     # clearing is avoided: a test may monkeypatch _client to a plain function that
     # has no cache_clear, and that patch is still in place during teardown.)
-    for cached in (get_settings, persistence._client, get_supabase_client):
+    for cached in (get_settings, persistence._client, get_supabase_client, get_auth_client):
         cached.cache_clear()
     yield
 

@@ -7,16 +7,14 @@ from fastapi import HTTPException, status
 
 from app.core.logging import get_logger
 from app.models.auth import AuthTokenResponse, SubmissionHistoryItem, UserResponse
-from app.services.supabase_client import get_supabase_client
+from app.services.supabase_client import get_auth_client, get_supabase_client
 
 logger = get_logger(__name__)
 
 _AUTH_UNAVAILABLE = "Authentication is unavailable — Supabase is not configured."
 
 
-def _get_auth_client():
-    """Return the Supabase client or raise 503 if Supabase is not configured."""
-    client = get_supabase_client()
+def _require(client):
     if client is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -25,11 +23,26 @@ def _get_auth_client():
     return client
 
 
-def _fetch_username(client, user_id: str) -> str:
+def _get_auth_client():
+    """GoTrue client for user-session calls (sign_in/get_user/admin). 503 if off.
+
+    Separate from the data client so signing a user in can't downgrade the
+    data client's PostgREST role and re-enable RLS — see supabase_client.py.
+    """
+    return _require(get_auth_client())
+
+
+def _get_data_client():
+    """Service-role client for .table() reads/writes (RLS bypassed). 503 if off."""
+    return _require(get_supabase_client())
+
+
+def _fetch_username(user_id: str) -> str:
     """Return the username for a user, or '' if no profile row exists yet."""
     try:
         result = (
-            client.table("user_profiles")
+            _get_data_client()
+            .table("user_profiles")
             .select("username")
             .eq("user_id", user_id)
             .execute()
@@ -42,12 +55,13 @@ def _fetch_username(client, user_id: str) -> str:
 
 def register(email: str, password: str, username: str) -> AuthTokenResponse:
     """Create a new user (auto-confirmed), store their username, then sign in."""
-    client = _get_auth_client()
+    auth = _get_auth_client()
+    data = _get_data_client()
 
     # Check username uniqueness (case-insensitive)
     try:
         existing = (
-            client.table("user_profiles")
+            data.table("user_profiles")
             .select("user_id")
             .ilike("username", username)
             .execute()
@@ -68,7 +82,7 @@ def register(email: str, password: str, username: str) -> AuthTokenResponse:
 
     # Create GoTrue user
     try:
-        resp = client.auth.admin.create_user(
+        resp = auth.auth.admin.create_user(
             {"email": email, "password": password, "email_confirm": True}
         )
         user_id = str(resp.user.id)
@@ -78,7 +92,7 @@ def register(email: str, password: str, username: str) -> AuthTokenResponse:
 
     # Store username
     try:
-        client.table("user_profiles").insert(
+        data.table("user_profiles").insert(
             {"user_id": user_id, "username": username}
         ).execute()
     except Exception as exc:
@@ -112,7 +126,7 @@ def login(email: str, password: str) -> AuthTokenResponse:
             refresh_token=session.refresh_token,
             user_id=user_id,
             email=user.email,
-            username=_fetch_username(client, user_id),
+            username=_fetch_username(user_id),
         )
     except HTTPException:
         raise
@@ -146,7 +160,7 @@ def get_user_from_token(jwt: str) -> UserResponse:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         user_id = str(user.id)
-        return UserResponse(user_id=user_id, email=user.email, username=_fetch_username(client, user_id))
+        return UserResponse(user_id=user_id, email=user.email, username=_fetch_username(user_id))
     except HTTPException:
         raise
     except Exception as exc:
@@ -163,7 +177,7 @@ def claim_sessions(user_id: str, session_id: str) -> None:
 
     Only updates rows where user_id IS NULL so a row can't be re-claimed.
     """
-    client = _get_auth_client()
+    client = _get_data_client()
     try:
         client.table("submissions").update({"user_id": user_id}).eq(
             "session_id", session_id
@@ -179,7 +193,7 @@ def claim_sessions(user_id: str, session_id: str) -> None:
 
 def get_user_submissions(user_id: str) -> list[SubmissionHistoryItem]:
     """Return the 20 most recent submissions for a user, newest first."""
-    client = _get_auth_client()
+    client = _get_data_client()
     try:
         result = (
             client.table("submissions")
