@@ -30,7 +30,8 @@ def submit(
     logger.info("Submission %s: %d answered questions", request_id, answered)
 
     candidates = repo.get_candidates(submission.answers)
-    recommendations = match(submission.answers, candidates)
+    model = getattr(request.app.state, "matcher_model", None)
+    recommendations = match(submission.answers, candidates, model=model)
     logger.info("Submission %s: returning %d recommendations", request_id, len(recommendations))
 
     # Best-effort persistence after the response is sent (never blocks the user).

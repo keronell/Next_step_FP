@@ -23,6 +23,9 @@ class Recommendation(BaseModel):
     reasons: list[str]
     matched_skills: list[str]
     missing_skills: list[str]
+    # Which scorer produced this rec: "formula-v1" or the loaded artifact's version.
+    # Persisted with the submission so silver-model output stays distinguishable.
+    model_version: str = "formula-v1"
 
 
 class RecommendationsResponse(BaseModel):

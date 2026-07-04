@@ -1,10 +1,18 @@
-"""Deterministic, explainable career matching. No ML model.
+"""Explainable career matching: learned model when available, formula fallback.
 
-Each career gets a final score in [0,1] blended from three signals:
+When a MatcherModel artifact is loaded (MATCHER_MODEL_PATH set + valid), scoring is
+its probability output over the 6 careers (trained on synthetic silver labels —
+see docs/matching-rework-plan.md), with attribution-driven reasons. On ANY model
+error — or when no model is configured (the default) — scoring falls back to the
+original deterministic blend below, same defensive posture as the ChromaDB/Supabase
+fallbacks:
 
     final = 0.40 * questionnaire_fit      # how the user's answers weight toward this career
           + 0.40 * semantic_similarity    # how close their profile is to real job ads (ChromaDB)
           + 0.20 * skill_overlap          # share of the career's key skills seen in market demand
+
+Either way the response dict shape is identical; `model_version` records which
+scorer produced it.
 
 Assumptions / notes:
 - `questionnaire_fit` reuses the frontend's WEIGHTS+BONUSES logic (ported from
@@ -19,7 +27,13 @@ Assumptions / notes:
 """
 from __future__ import annotations
 
+from app.core.logging import get_logger
+from app.data import load_questions
 from app.repositories.career_repository import CareerCandidate
+from app.services import feature_builder, reason_builder
+from app.services.matcher_model import MatcherModel
+
+logger = get_logger(__name__)
 
 # The one place the formula weights live. Must sum to 1.0.
 FORMULA_WEIGHTS = {
@@ -28,6 +42,8 @@ FORMULA_WEIGHTS = {
     "skill_overlap": 0.20,
 }
 assert abs(sum(FORMULA_WEIGHTS.values()) - 1.0) < 1e-9, "matching weights must sum to 1"
+
+FORMULA_VERSION = "formula-v1"
 
 TOP_N = 3
 MAX_MISSING_SKILLS = 5
@@ -84,11 +100,88 @@ def _reasons(fit: float, semantic: float, matched: list[str], field: str) -> lis
     return reasons[:4]
 
 
-def match(answers: dict[str, int | None], candidates: list[CareerCandidate]) -> list[dict]:
-    """Score candidates and return the top N as plain dicts (sorted, deduped)."""
+def match(
+    answers: dict[str, int | None],
+    candidates: list[CareerCandidate],
+    model: MatcherModel | None = None,
+) -> list[dict]:
+    """Score candidates and return the top N as plain dicts (sorted, deduped).
+
+    Uses the learned model when one is supplied, falling back to the formula on
+    any model failure; without a model this is exactly the original formula path.
+    """
     if not candidates:
         return []
+    if model is not None:
+        try:
+            return _match_model(answers, candidates, model)
+        except Exception:
+            logger.exception("Learned matcher failed; falling back to formula")
+    return _match_formula(answers, candidates)
 
+
+def _match_model(
+    answers: dict[str, int | None],
+    candidates: list[CareerCandidate],
+    model: MatcherModel,
+) -> list[dict]:
+    """Score with the learned artifact; response shape identical to the formula path."""
+    seen: set[str] = set()
+    unique = []
+    for cand in candidates:
+        if cand.career["id"] in seen:
+            continue
+        seen.add(cand.career["id"])
+        unique.append(cand)
+
+    careers = [c.career for c in unique]
+    names = feature_builder.feature_names(careers)
+    if names != model.feature_names:
+        raise ValueError("candidate careers do not match the model's feature layout")
+
+    semantic = {c.career["id"]: c.semantic_similarity for c in unique}
+    market = {c.career["id"]: c.market_skills for c in unique}
+    vector = feature_builder.build_feature_vector(answers, careers, semantic, market)
+    probs = model.predict_proba(vector)
+
+    fits = feature_builder.questionnaire_fits(careers, answers)
+    questions_by_id = {q["id"]: q for q in load_questions()}
+    by_id = {c.career["id"]: c for c in unique}
+
+    top = sorted(probs, key=lambda cid: (-probs[cid], cid))[:TOP_N]
+    results: list[dict] = []
+    for cid in top:
+        cand = by_id[cid]
+        career = cand.career
+        overlap, matched, missing = _skill_signals(career, cand)
+        contributions = model.contributions(vector, cid)
+        results.append(
+            {
+                "id": cid,
+                "title": career["title"],
+                "description": career["description"],
+                "keySkills": career["keySkills"],
+                "icon": career["icon"],
+                "roadmapKey": career["roadmapKey"],
+                "matchPercent": round(probs[cid] * 100),
+                "score": round(probs[cid], 3),
+                "score_breakdown": {
+                    "semantic_similarity": round(cand.semantic_similarity or 0.0, 3),
+                    "questionnaire_fit": round(fits[cid], 3),
+                    "skill_overlap": round(overlap, 3),
+                },
+                "reasons": reason_builder.build_reasons(
+                    career, answers, contributions, matched, questions_by_id
+                ),
+                "matched_skills": matched,
+                "missing_skills": missing,
+                "model_version": model.version,
+            }
+        )
+    return results
+
+
+def _match_formula(answers: dict[str, int | None], candidates: list[CareerCandidate]) -> list[dict]:
     raw_fits = {c.career["id"]: _raw_fit(c.career, answers) for c in candidates}
     max_fit = max(raw_fits.values()) or 1  # avoid divide-by-zero
 
@@ -129,6 +222,7 @@ def match(answers: dict[str, int | None], candidates: list[CareerCandidate]) -> 
                 "reasons": _reasons(fit, semantic, matched, career["field"]),
                 "matched_skills": matched,
                 "missing_skills": missing,
+                "model_version": FORMULA_VERSION,
             }
         )
 
