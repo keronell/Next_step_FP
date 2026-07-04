@@ -90,8 +90,10 @@ function NodeButton({ node, status, isCompleted, isActive, delay, onClick }) {
       whileHover={{ scale: 1.04 }}
       className="focus-ring relative rounded-md px-5 py-2.5 font-body text-[13px] font-medium text-center cursor-pointer"
       // Every card is solid-filled with its status color; node type (required /
-      // good-to-know / optional) shows only as badges in the drawer.
-      style={{ background: color, color: 'white', boxShadow: shadows.join(', ') || undefined }}
+      // good-to-know / optional) shows only as badges in the drawer. Labels are
+      // navy, not white: white fails WCAG 4.5:1 on all three status fills
+      // (2.3–3.8:1), navy passes on all (4.6–7.6:1).
+      style={{ background: color, color: 'var(--color-navy)', boxShadow: shadows.join(', ') || undefined }}
     >
       {node.label}
       {isCompleted && (
