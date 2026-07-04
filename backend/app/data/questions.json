@@ -3,7 +3,7 @@
    "options": ["Never tried coding", "A little coding — copy-paste territory", "comfortable writing code with guidance", "very comfortable writing code daily"]},
   {"id": "q2", "category": "interests", "text": "What excites you more?",
    "options": ["making things look beautiful and visual", "solving logical puzzles", "wrangling data to find patterns", "keeping complex systems running"]},
-  {"id": "q3", "category": "interests", "text": "When you encounter a dataset, you feel…",
+  {"id": "q3", "category": "interests", "show_if": {"q": "q2", "in": [1, 2]}, "text": "When you encounter a dataset, you feel…",
    "options": ["overwhelmed by numbers", "indifferent to data", "interested in data if it helps the project", "curious about the story hiding in the data"]},
   {"id": "q4", "category": "workstyle", "text": "Your ideal work output is…",
    "options": ["a polished product people love using", "elegant code that solves a real problem", "a report that changes a decision", "a system that never goes down"]},
@@ -15,8 +15,14 @@
    "options": ["Figma and design systems", "React, TypeScript and APIs", "Python, Jupyter and SQL", "Kubernetes, Terraform and CI pipelines"]},
   {"id": "q8", "category": "personality", "text": "When a project goes sideways, you tend to…",
    "options": ["rally the team and re-scope", "debug alone until it is fixed", "dig into the data to find the root cause", "trace the infrastructure logs"]},
-  {"id": "q9", "category": "skills", "text": "How drawn are you to visual design?",
+  {"id": "q9", "category": "skills", "show_if": {"q": "q2", "in": [0, 1]}, "text": "How drawn are you to visual design?",
    "options": ["visual design is not my area", "functional is fine, polish is a bonus", "I appreciate visual design but do not lead it", "visual design is my happy place"]},
   {"id": "q10", "category": "workstyle", "text": "Success to you means…",
-   "options": ["users loving the product I helped build", "shipping clean maintainable code", "insights that drive real business impact", "zero-downtime deploys"]}
+   "options": ["users loving the product I helped build", "shipping clean maintainable code", "insights that drive real business impact", "zero-downtime deploys"]},
+  {"id": "q11", "category": "interests", "text": "Imagine a busy online store during a big holiday sale. Which job would you enjoy most?",
+   "options": ["designing the pages shoppers see and click", "making checkout and payments work correctly behind the scenes", "studying what people bought to spot trends", "keeping the site fast and online while millions visit at once"]},
+  {"id": "q12", "category": "workstyle", "text": "A friend asks for help with their new app idea. What would you do first?",
+   "options": ["talk to the people who would use it and map out what to build", "sketch how the screens should look and feel", "start building a rough working version right away", "look for numbers that prove people actually want it"]},
+  {"id": "q13", "category": "personality", "text": "You just finished a project you are proud of. Which part do you show off?",
+   "options": ["how beautiful and smooth it looks", "the clever machinery nobody sees that makes it work", "a surprising discovery I found in the numbers", "that it ran for months without breaking once"]}
 ]
