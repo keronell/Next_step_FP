@@ -56,8 +56,30 @@ function App() {
 
   // Mirror anonymous users' last results to localStorage so a refresh can restore
   // them. Logged-in users use server history, so we never write their data here.
+  // Waits for authLoading like the restore effect above — otherwise the initial
+  // idle render clears the keys before the restore effect gets to read them.
+  const prevUserRef = useRef(user)
   useEffect(() => {
-    if (user) return
+    // On sign-out (truthy user -> null), clear the anonymous restore keys AND
+    // drop the signed-out user's results view. Skipping the write on just this
+    // render isn't enough: their results/phase linger in state, so a later
+    // dependency change (e.g. selecting a different roadmap) would re-run this
+    // effect with user === null and phase === 'results_ready' and mirror that
+    // prior user's data as anonymous. Resetting the view removes that path.
+    if (prevUserRef.current && !user) {
+      prevUserRef.current = user
+      localStorage.removeItem('nextstep_last_recommendations')
+      localStorage.removeItem('nextstep_last_career')
+      setPhase('idle')
+      setResults(null)
+      setNotice(null)
+      setSelectedCareer(null)
+      setActiveTooltip(null)
+      return
+    }
+    prevUserRef.current = user
+
+    if (user || authLoading) return
     if (phase === 'results_ready' && results) {
       localStorage.setItem('nextstep_last_recommendations', JSON.stringify(results))
       localStorage.setItem('nextstep_last_career', selectedCareer || '')
@@ -65,7 +87,7 @@ function App() {
       localStorage.removeItem('nextstep_last_recommendations')
       localStorage.removeItem('nextstep_last_career')
     }
-  }, [phase, results, selectedCareer, user])
+  }, [phase, results, selectedCareer, user, authLoading])
 
   const handleStart = () => {
     if (authLoading) return
@@ -147,6 +169,7 @@ function App() {
           <Roadmap
             selectedCareer={selectedCareer}
             missingSkills={results?.find((r) => r.id === selectedCareer)?.missing_skills ?? []}
+            matchedSkills={results?.find((r) => r.id === selectedCareer)?.matched_skills ?? []}
             activeTooltip={activeTooltip}
             setActiveTooltip={setActiveTooltip}
           />
