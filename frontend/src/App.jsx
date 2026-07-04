@@ -58,7 +58,20 @@ function App() {
   // them. Logged-in users use server history, so we never write their data here.
   // Waits for authLoading like the restore effect above — otherwise the initial
   // idle render clears the keys before the restore effect gets to read them.
+  const prevUserRef = useRef(user)
   useEffect(() => {
+    // A sign-out (truthy user -> null) must wipe these keys and skip the write
+    // below on this render — `results` is still the just-signed-out user's data,
+    // and writing it here would let the next anonymous load restore someone
+    // else's assessment.
+    if (prevUserRef.current && !user) {
+      prevUserRef.current = user
+      localStorage.removeItem('nextstep_last_recommendations')
+      localStorage.removeItem('nextstep_last_career')
+      return
+    }
+    prevUserRef.current = user
+
     if (user || authLoading) return
     if (phase === 'results_ready' && results) {
       localStorage.setItem('nextstep_last_recommendations', JSON.stringify(results))

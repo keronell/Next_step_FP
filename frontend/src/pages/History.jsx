@@ -132,7 +132,7 @@ function HistoryCard({ submission, index, onLoad }) {
       <Button
         variant="secondary"
         size="md"
-        onClick={() => onLoad(submission.recommendations)}
+        onClick={() => onLoad(submission.recommendations, submission.selected_career ?? null)}
         className="flex-shrink-0 !px-4 !py-2 !text-small opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-fast"
         aria-label={`Load ${top.title} results`}
       >
