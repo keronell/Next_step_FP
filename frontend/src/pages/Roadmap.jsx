@@ -73,13 +73,6 @@ function nodeStatus(node, completedNodes, matchedSkills, missingSkills) {
   return 'next'
 }
 
-// Type keeps its shape language (solid / outline / dashed); color now carries status.
-function nodeTypeStyle(type, color) {
-  if (type === 'required') return { background: color, color: 'white' }
-  if (type === 'good-to-know') return { border: `1.5px solid ${color}`, color }
-  return { border: `1.5px dashed ${color}`, color, opacity: 0.7 }
-}
-
 function NodeButton({ node, status, isCompleted, isActive, delay, onClick }) {
   const color = STATUS_COLORS[status]
   const shadows = []
@@ -96,7 +89,9 @@ function NodeButton({ node, status, isCompleted, isActive, delay, onClick }) {
       transition={{ duration: 0.4, delay }}
       whileHover={{ scale: 1.04 }}
       className="focus-ring relative rounded-md px-5 py-2.5 font-body text-[13px] font-medium text-center cursor-pointer"
-      style={{ ...nodeTypeStyle(node.type, color), boxShadow: shadows.join(', ') || undefined }}
+      // Every card is solid-filled with its status color; node type (required /
+      // good-to-know / optional) shows only as badges in the drawer.
+      style={{ background: color, color: 'white', boxShadow: shadows.join(', ') || undefined }}
     >
       {node.label}
       {isCompleted && (
@@ -398,9 +393,14 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
 
           {/* Pipeline canvas */}
           <div className="relative">
+            <p className="sm:hidden text-center font-body text-eyebrow font-semibold uppercase text-navy/45 mb-2">
+              Scroll to explore &rarr;
+            </p>
             <div className="overflow-x-auto pb-4 pt-4">
-              {/* DEV-47: sections as left-to-right pipeline stages with a tall
-                  vertical divider between each — scales to any section count. */}
+              {/* DEV-47/DEV-50: sections as left-to-right pipeline stages, roadmap.sh
+                  style — stage headers form the main track joined by gold spine
+                  arrows, and each column's nodes chain off their header via vertical
+                  connector stubs. Pure flex, scales to any section/node count. */}
               <div key={selectedCareer} className="flex items-stretch w-max mx-auto px-2">
                 {sections.map((section, si) => {
                   const isCollapsed = !!collapsed[section.id]
@@ -408,33 +408,40 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
                   return (
                     <Fragment key={section.id}>
                       {si > 0 && (
-                        <div className="w-[2px] self-stretch rounded-full bg-gold opacity-40 mx-6 shrink-0" aria-hidden="true" />
+                        // Spine connector: aligned to the vertical center of the
+                        // fixed-height (h-11 = 44px) header row.
+                        <div className="self-start mt-[14px] mx-1 flex items-center shrink-0" aria-hidden="true">
+                          <div className="w-10 h-[2px] rounded-full bg-gold" />
+                          <ChevronRight size={16} strokeWidth={2.5} className="text-gold -ml-1.5 shrink-0" />
+                        </div>
                       )}
-                      <div className="flex flex-col gap-3 min-w-[220px] shrink-0">
-                        {/* Section header — clickable to collapse */}
+                      <div className="flex flex-col min-w-[220px] shrink-0">
+                        {/* Section header — primary pipeline node, clickable to collapse */}
                         <button
                           onClick={() => toggleSection(section.id)}
-                          className="focus-ring flex items-center justify-between gap-2 px-4 py-3 mb-2 rounded-md bg-navy/[0.06] hover:bg-navy/[0.10] border border-navy/[0.12] hover:border-gold/45 transition-colors duration-fast"
+                          className="focus-ring flex items-center justify-between gap-2 h-11 px-4 rounded-md bg-navy text-cream hover:bg-navy-light border border-navy transition-colors duration-fast"
                         >
-                          <span className="font-body text-[13px] font-semibold text-navy">
+                          <span className="font-body text-[13px] font-semibold">
                             {section.label}
                           </span>
-                          <Chevron size={15} className="text-navy/55 shrink-0" aria-hidden="true" />
+                          <Chevron size={15} className="text-cream opacity-70 shrink-0" aria-hidden="true" />
                         </button>
 
-                        {/* Stage nodes */}
+                        {/* Stage nodes, chained to the header by connector stubs */}
                         {!isCollapsed && section.nodes.map((node, ni) => {
                           const status = nodeStatus(node, completedNodes, matchedSkills, missingSkills)
                           return (
-                            <NodeButton
-                              key={node.id}
-                              node={node}
-                              status={status}
-                              isCompleted={completedNodes.has(node.id)}
-                              isActive={drawerNode?.id === node.id}
-                              delay={(sectionOffsets[si] + ni) * 0.06}
-                              onClick={() => handleNodeClick(node)}
-                            />
+                            <Fragment key={node.id}>
+                              <div className="w-[2px] h-[14px] self-center bg-gold opacity-60 shrink-0" aria-hidden="true" />
+                              <NodeButton
+                                node={node}
+                                status={status}
+                                isCompleted={completedNodes.has(node.id)}
+                                isActive={drawerNode?.id === node.id}
+                                delay={(sectionOffsets[si] + ni) * 0.06}
+                                onClick={() => handleNodeClick(node)}
+                              />
+                            </Fragment>
                           )
                         })}
                       </div>
