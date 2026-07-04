@@ -20,6 +20,7 @@ Run from repo root: python data/scripts/evaluate_matchers.py
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,7 +41,9 @@ OUT_MD = TRAINING_DIR / "baseline_evaluation.md"
 
 SEED = 42
 N_FOLDS = 5
-QUESTION_IDS = [f"q{i}" for i in range(1, 11)]
+# Raw-answer feature columns (q1, q2, …) are derived from the data, never hardcoded,
+# so new questions in the bank flow through without a change here.
+_QID_RE = re.compile(r"q\d+$")
 
 # Same weights as backend/app/services/matching_service.FORMULA_WEIGHTS.
 FORMULA_WEIGHTS = {"fit": 0.40, "sem": 0.40, "skill": 0.20}
@@ -71,10 +74,11 @@ def archetype_scores(df: pd.DataFrame, careers: list[str]) -> np.ndarray:
     """Cosine similarity between the profile's answered ordinals and each career's
     mean panel archetype, computed only over answered questions."""
     arch = pd.read_parquet(ARCHETYPES_PARQUET)
-    arch_vecs = {cid: arch[arch.career_id == cid][QUESTION_IDS].mean().to_numpy() for cid in careers}
+    question_ids = [c for c in df.columns if _QID_RE.fullmatch(c)]
+    arch_vecs = {cid: arch[arch.career_id == cid][question_ids].mean().to_numpy() for cid in careers}
 
-    answers = df[QUESTION_IDS].to_numpy(dtype=float)
-    present = df[[f"{q}_present" for q in QUESTION_IDS]].to_numpy(dtype=bool)
+    answers = df[question_ids].to_numpy(dtype=float)
+    present = df[[f"{q}_present" for q in question_ids]].to_numpy(dtype=bool)
 
     scores = np.zeros((len(df), len(careers)))
     for i in range(len(df)):

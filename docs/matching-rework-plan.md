@@ -99,8 +99,10 @@ New script `data/scripts/build_training_set.py`, **consuming
   (`CareerRepository.get_candidates` logic, offline) to get
   **semantic_similarity ×6** and **skill_overlap ×6**; compute the current
   **questionnaire_fit ×6** as a prior feature.
-- Add **q1–q10 raw ordinals + 10 presence masks** (branched-away q3/q9 → mask=0).
-  Don't pre-collapse ordinals with the old weights. Total ≈ 38-dim structured vector.
+- Add **q1–qN raw ordinals + N presence masks** (branched-away q3/q9 → mask=0).
+  Don't pre-collapse ordinals with the old weights. (Originally 10 questions → 38-dim
+  vector; DEV-29 grew the bank to 13 → features-v2, 44-dim. The question count is
+  derived from `questions.json`, never hardcoded.)
 - Carry `label_source` and `prompt_version` through as dataset metadata columns, so
   silver- and future gold-labeled rows can be distinguished, weighted, or split at
   training time without rebuilding.
@@ -328,8 +330,9 @@ weights required in Phase 2/3).
 ### Phase 1 — COMPLETE (2026-07-04)
 
 - **Shared preprocessing module:** `backend/app/services/feature_builder.py`
-  (`FEATURE_VERSION = "features-v1"`, 38 dims: 10 ordinals + 10 presence masks +
-  6 fit + 6 semantic + 6 skill-overlap, career order = careers.json order). Unit
+  (`FEATURE_VERSION = "features-v2"` after DEV-29, 44 dims: 13 ordinals + 13 presence
+  masks + 6 fit + 6 semantic + 6 skill-overlap; `QUESTION_IDS` derives from
+  `questions.json`, career order = careers.json order). Unit
   tests in `backend/app/tests/test_feature_builder.py`, including a guard that
   `feature_builder.raw_fit` stays identical to `matching_service._raw_fit`.
   Backend suite: **61 passed** (55 existing + 6 new).
