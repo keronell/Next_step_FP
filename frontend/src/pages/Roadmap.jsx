@@ -1,4 +1,4 @@
-import { Fragment, useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { ExternalLink, X, Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ROADMAPS, CAREERS } from '../data'
@@ -88,12 +88,18 @@ function NodeButton({ node, status, isCompleted, isActive, delay, onClick }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
       whileHover={{ scale: 1.04 }}
-      className="focus-ring relative rounded-md px-5 py-2.5 font-body text-[13px] font-medium text-center cursor-pointer"
-      // Every card is solid-filled with its status color; node type (required /
-      // good-to-know / optional) shows only as badges in the drawer. Labels are
-      // navy, not white: white fails WCAG 4.5:1 on all three status fills
-      // (2.3–3.8:1), navy passes on all (4.6–7.6:1).
-      style={{ background: color, color: 'var(--color-navy)', boxShadow: shadows.join(', ') || undefined }}
+      className="focus-ring relative max-w-full rounded-md px-3 py-2 font-body text-[13px] font-medium text-center cursor-pointer"
+      // Every card gets the same treatment — an opaque soft tint of its status
+      // color (color-mix with cream, so the dotted trunk can't show through) with
+      // a stronger tint border; status is carried by hue, never fill-vs-outline.
+      // Navy labels keep WCAG AA contrast (>10:1 on these tints). Node type
+      // (required / good-to-know / optional) shows only as badges in the drawer.
+      style={{
+        background: `color-mix(in srgb, ${color} 18%, var(--color-cream))`,
+        border: `1px solid color-mix(in srgb, ${color} 55%, var(--color-cream))`,
+        color: 'var(--color-navy)',
+        boxShadow: shadows.join(', ') || undefined,
+      }}
     >
       {node.label}
       {isCompleted && (
@@ -225,7 +231,10 @@ function Legend() {
         <div key={status} className="flex items-center gap-2">
           <span
             className="w-[26px] h-[14px] rounded shrink-0"
-            style={{ background: STATUS_COLORS[status] }}
+            style={{
+              background: `color-mix(in srgb, ${STATUS_COLORS[status]} 18%, var(--color-cream))`,
+              border: `1px solid color-mix(in srgb, ${STATUS_COLORS[status]} 55%, var(--color-cream))`,
+            }}
           />
           <span className="font-body text-small text-navy/70 whitespace-nowrap">
             {STATUS_LABELS[status]}
@@ -399,55 +408,88 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
               Scroll to explore &rarr;
             </p>
             <div className="overflow-x-auto pb-4 pt-4">
-              {/* DEV-47/DEV-50: sections as left-to-right pipeline stages, roadmap.sh
-                  style — stage headers form the main track joined by gold spine
-                  arrows, and each column's nodes chain off their header via vertical
-                  connector stubs. Pure flex, scales to any section/node count. */}
-              <div key={selectedCareer} className="flex items-stretch w-max mx-auto px-2">
+              {/* DEV-47/DEV-50/DEV-57: roadmap.sh-style pipeline — one continuous
+                  gold spine runs behind the solid-navy stage headers (they mask it),
+                  and each stage's cards fan out left/right of a dotted center trunk
+                  in pair rows. Pure flex, no SVG, scales to any section/node count. */}
+              <div key={selectedCareer} className="relative flex items-stretch gap-x-10 w-max mx-auto pl-4 pr-12">
+                {/* Spine + arrowhead, aligned to the h-11 (44px) header row center. */}
+                <div className="absolute left-0 right-0 top-[21px] h-[2px] bg-gold" aria-hidden="true" />
+                <ChevronRight
+                  size={18}
+                  strokeWidth={2.5}
+                  className="absolute right-0 top-[22px] -translate-y-1/2 text-gold"
+                  aria-hidden="true"
+                />
+
                 {sections.map((section, si) => {
                   const isCollapsed = !!collapsed[section.id]
                   const Chevron = isCollapsed ? ChevronRight : ChevronDown
+                  // Pair rows: node 2i hangs left of the trunk, node 2i+1 right;
+                  // an odd leftover (or a 1-node section) sits centered on it.
+                  const rows = []
+                  for (let i = 0; i < section.nodes.length; i += 2) rows.push(section.nodes.slice(i, i + 2))
                   return (
-                    <Fragment key={section.id}>
-                      {si > 0 && (
-                        // Spine connector: aligned to the vertical center of the
-                        // fixed-height (h-11 = 44px) header row.
-                        <div className="self-start mt-[14px] mx-1 flex items-center shrink-0" aria-hidden="true">
-                          <div className="w-10 h-[2px] rounded-full bg-gold" />
-                          <ChevronRight size={16} strokeWidth={2.5} className="text-gold -ml-1.5 shrink-0" />
-                        </div>
-                      )}
-                      <div className="flex flex-col min-w-[220px] shrink-0">
-                        {/* Section header — primary pipeline node, clickable to collapse */}
-                        <button
-                          onClick={() => toggleSection(section.id)}
-                          className="focus-ring flex items-center justify-between gap-2 h-11 px-4 rounded-md bg-navy text-cream hover:bg-navy-light border border-navy transition-colors duration-fast"
-                        >
-                          <span className="font-body text-[13px] font-semibold">
-                            {section.label}
-                          </span>
-                          <Chevron size={15} className="text-cream opacity-70 shrink-0" aria-hidden="true" />
-                        </button>
+                    <div key={section.id} className="flex flex-col min-w-[320px] shrink-0">
+                      {/* Section header — primary node on the spine, clickable to collapse */}
+                      <button
+                        onClick={() => toggleSection(section.id)}
+                        className="focus-ring relative flex items-center justify-between gap-2 h-11 px-4 rounded-md bg-navy text-cream hover:bg-navy-light border border-navy transition-colors duration-fast"
+                      >
+                        <span className="font-body text-[13px] font-semibold">
+                          {section.label}
+                        </span>
+                        <Chevron size={15} className="text-cream opacity-70 shrink-0" aria-hidden="true" />
+                      </button>
 
-                        {/* Stage nodes, chained to the header by connector stubs */}
-                        {!isCollapsed && section.nodes.map((node, ni) => {
+                      {/* Pair rows. Each row draws its own trunk segment; the last
+                          row stops at its vertical center, so the dotted trunk
+                          terminates exactly at the final stub junction. Cards paint
+                          above the segments (NodeButton is position:relative). */}
+                      {!isCollapsed && rows.map((pair, ri) => {
+                        const isLastRow = ri === rows.length - 1
+                        const trunk = (
+                          <div
+                            className={`absolute left-1/2 -translate-x-1/2 top-0 ${isLastRow ? 'bottom-1/2' : 'bottom-0'} w-0 border-l-2 border-dotted border-gold opacity-60`}
+                            aria-hidden="true"
+                          />
+                        )
+                        const stub = (
+                          <div className="w-4 border-t-2 border-dotted border-gold opacity-60 shrink-0" aria-hidden="true" />
+                        )
+                        const renderNode = (node, ni) => {
                           const status = nodeStatus(node, completedNodes, matchedSkills, missingSkills)
                           return (
-                            <Fragment key={node.id}>
-                              <div className="w-[2px] h-[14px] self-center bg-gold opacity-60 shrink-0" aria-hidden="true" />
-                              <NodeButton
-                                node={node}
-                                status={status}
-                                isCompleted={completedNodes.has(node.id)}
-                                isActive={drawerNode?.id === node.id}
-                                delay={(sectionOffsets[si] + ni) * 0.06}
-                                onClick={() => handleNodeClick(node)}
-                              />
-                            </Fragment>
+                            <NodeButton
+                              node={node}
+                              status={status}
+                              isCompleted={completedNodes.has(node.id)}
+                              isActive={drawerNode?.id === node.id}
+                              delay={(sectionOffsets[si] + ri * 2 + ni) * 0.06}
+                              onClick={() => handleNodeClick(node)}
+                            />
                           )
-                        })}
-                      </div>
-                    </Fragment>
+                        }
+                        return pair.length === 2 ? (
+                          <div key={pair[0].id} className="relative flex items-center py-2">
+                            {trunk}
+                            <div className="flex-1 min-w-0 flex items-center justify-end">
+                              {renderNode(pair[0], 0)}
+                              {stub}
+                            </div>
+                            <div className="flex-1 min-w-0 flex items-center justify-start">
+                              {stub}
+                              {renderNode(pair[1], 1)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div key={pair[0].id} className="relative flex items-center justify-center py-2">
+                            {trunk}
+                            {renderNode(pair[0], 0)}
+                          </div>
+                        )
+                      })}
+                    </div>
                   )
                 })}
               </div>
