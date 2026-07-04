@@ -30,6 +30,12 @@ class CareerRepository:
         self._rag = rag
         self._settings = settings
 
+    @property
+    def rag_count(self) -> int:
+        """Number of job ads in the backing ChromaDB collection — surfaced by
+        /api/health so a deploy can confirm the store loaded vs the offline fallback."""
+        return self._rag.count
+
     def get_candidates(self, answers: dict[str, int | None]) -> list[CareerCandidate]:
         profile = build_profile(answers)
         embedding = self._rag.encode(profile)
@@ -57,6 +63,10 @@ class FakeCareerRepository:
 
     def __init__(self, candidates: list[CareerCandidate]):
         self._candidates = candidates
+
+    @property
+    def rag_count(self) -> int:
+        return len(self._candidates)
 
     def get_candidates(self, answers: dict[str, int | None]) -> list[CareerCandidate]:
         return self._candidates

@@ -34,13 +34,24 @@ async def lifespan(app: FastAPI):
             "submission persistence and job_postings reads are no-ops. "
             "Set them in backend/.env to enable."
         )
+    # Log the resolved store location up front so a path/CWD mismatch between the
+    # builder (data/scripts/build_rag.py) and this reader is obvious in the logs.
+    logger.info(
+        "RAG store: path=%s collection=%s", settings.chroma_path, settings.chroma_collection
+    )
     try:
         rag = RagService.create(settings)
         app.state.repository = CareerRepository(rag, settings)
-        logger.info("RAG repository ready")
+        logger.info("RAG repository ready (%d job ads)", rag.count)
     except RagUnavailableError as exc:
         app.state.repository = None
-        logger.warning("RAG store unavailable, /submit will return 503: %s", exc)
+        logger.error(
+            "RAG store unavailable at '%s' - /submit will return 503 and the frontend "
+            "falls back to its offline estimate. Build it from the repo root with "
+            "`python data/scripts/build_rag.py`. Cause: %s",
+            settings.chroma_path,
+            exc,
+        )
 
     app.state.matcher_model = None
     if settings.matcher_model_path:

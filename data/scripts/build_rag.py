@@ -12,30 +12,47 @@ Usage:
 
 import argparse
 import json
+import os
 from pathlib import Path
 
-CHROMA_DIR = Path("data/jobs/chroma")
+DEFAULT_CHROMA_DIR = Path("data/jobs/chroma")
 JOB_ADS_DIR = Path("data/jobs/raw")
-COLLECTION_NAME = "job_ads"
+DEFAULT_COLLECTION_NAME = "job_ads"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 BATCH_SIZE = 64  # jobs per ChromaDB upsert call
 
 
-def get_client(reset: bool = False):
+def resolve_store() -> tuple[Path, str]:
+    """Store dir + collection name, honoring the CHROMA_PATH / CHROMA_COLLECTION env
+    vars the FastAPI backend (app/core/config.py) and the deploy Dockerfile use — so the
+    builder always writes exactly where the backend reads, and the two can't drift.
+
+    Falls back to the repo-relative defaults, so a plain `python data/scripts/build_rag.py`
+    from the repo root is unchanged. We deliberately read only the *process* environment
+    and do NOT load backend/.env here: that file's CHROMA_PATH is relative to the backend/
+    CWD (`../data/jobs/chroma`), which would resolve to the wrong place from the repo root.
+    Point the builder somewhere non-default by exporting an absolute CHROMA_PATH (this is
+    what the Dockerfile does: CHROMA_PATH=/app/data/jobs/chroma)."""
+    path = Path(os.environ.get("CHROMA_PATH") or DEFAULT_CHROMA_DIR)
+    collection = os.environ.get("CHROMA_COLLECTION") or DEFAULT_COLLECTION_NAME
+    return path, collection
+
+
+def get_client(chroma_dir: Path, collection_name: str, reset: bool = False):
     import chromadb
 
-    CHROMA_DIR.mkdir(parents=True, exist_ok=True)
-    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+    chroma_dir.mkdir(parents=True, exist_ok=True)
+    client = chromadb.PersistentClient(path=str(chroma_dir))
 
     if reset:
         try:
-            client.delete_collection(COLLECTION_NAME)
-            print(f"  Deleted existing collection '{COLLECTION_NAME}'")
+            client.delete_collection(collection_name)
+            print(f"  Deleted existing collection '{collection_name}'")
         except Exception:
             pass
 
     collection = client.get_or_create_collection(
-        name=COLLECTION_NAME,
+        name=collection_name,
         metadata={"hnsw:space": "cosine"},
     )
     return client, collection
@@ -212,7 +229,7 @@ def query_collection(collection, model, query_text: str, field: str | None, n_re
 
 def print_stats(collection) -> None:
     count = collection.count()
-    print(f"\nCollection '{COLLECTION_NAME}': {count} documents in ChromaDB")
+    print(f"\nCollection '{collection.name}': {count} documents in ChromaDB")
 
     # Field distribution
     if count == 0:
@@ -261,7 +278,9 @@ def main():
     )
     args = parser.parse_args()
 
-    _, collection = get_client(reset=args.reset)
+    chroma_dir, collection_name = resolve_store()
+    print(f"Store: {chroma_dir.resolve()}  (collection '{collection_name}')")
+    _, collection = get_client(chroma_dir, collection_name, reset=args.reset)
 
     if args.stats_only:
         model = load_embedding_model()
@@ -297,7 +316,7 @@ def main():
         query_collection(collection, model, "React TypeScript frontend developer", "Frontend Development", n_results=3)
         query_collection(collection, model, "machine learning PyTorch NLP", "Machine Learning", n_results=3)
 
-    print(f"\nDone. {upserted} jobs indexed in {CHROMA_DIR}")
+    print(f"\nDone. {upserted} jobs indexed in {chroma_dir.resolve()}")
     print("The RAG store is ready for use by the backend roadmap generator.")
 
 
