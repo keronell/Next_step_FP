@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Sparkles, ChevronRight, ChevronLeft, SkipForward, Edit3, AlertTriangle, CheckCircle2, Lock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { visibleQuestions } from '../data'
+import { QUESTIONS, visibleQuestions } from '../data'
+import { fetchQuestions } from '../api'
 import { useReveal } from '../hooks/useReveal'
 import Button from '../components/ui/Button.jsx'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
@@ -23,9 +24,31 @@ function Assessment({ phase, onStart, onComplete }) {
   const [skipWarning, setSkipWarning] = useState(false)
   const [pendingVal, setPendingVal] = useState(null)  // value just clicked (animation)
 
+  // Question bank: backend copy is authoritative, bundled QUESTIONS is the offline
+  // fallback (same pattern as Roadmap.jsx → ROADMAPS). Server options are plain
+  // strings where index == answer value; new questions are only ever appended after
+  // existing ones, so a fetch resolving mid-quiz keeps indices 0..currentQ stable.
+  const [questions, setQuestions] = useState(QUESTIONS)
+  useEffect(() => {
+    let cancelled = false
+    fetchQuestions()
+      .then((data) => {
+        if (cancelled) return
+        setQuestions(data.map((q) => ({
+          id: q.id,
+          category: q.category,
+          text: q.text,
+          options: q.options.map((label, i) => ({ label, value: i })),
+          showIf: q.show_if,
+        })))
+      })
+      .catch(() => {}) // backend down — keep the bundled fallback
+    return () => { cancelled = true }
+  }, [])
+
   // Active question path, derived from answers. Conditional questions reference only
   // earlier answers, so indices 0..currentQ stay stable when the path recomputes.
-  const path = useMemo(() => visibleQuestions(answers), [answers])
+  const path = useMemo(() => visibleQuestions(answers, questions), [answers, questions])
 
   // Only visible questions' answers leave this component — no stale keys for questions
   // hidden by a later edit. Shape stays { qId: number | null }.
@@ -193,7 +216,7 @@ function AssessmentStart({ onStart }) {
         <span className="italic text-gold">tech career</span>
       </h2>
       <p className="font-body text-navy/65 text-body max-w-[52ch] mx-auto leading-snug mb-10">
-        Up to 10 questions · 3–5 minutes
+        Up to 13 questions · 3–5 minutes
       </p>
       <div className="flex flex-wrap justify-center gap-2 mb-10">
         {['Skills & interests', 'Work style', 'Personality fit', 'Personalized match'].map((tag) => (

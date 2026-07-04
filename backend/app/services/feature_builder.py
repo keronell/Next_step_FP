@@ -6,26 +6,31 @@ both import it, so train/serve feature drift is impossible by construction.
 
 Layout (FEATURE_NAMES gives the exact order):
 
-    q1..q10          raw ordinal answers 0-3 (0 when missing)          10 dims
-    q1_present..     1.0 if answered, 0.0 if skipped or branched away  10 dims
+    q1..qN           raw ordinal answers 0-3 (0 when missing)          N dims
+    q1_present..     1.0 if answered, 0.0 if skipped or branched away  N dims
     <career>_fit     questionnaire_fit per career, normalized to the
                      strongest-fitting career (mirrors matching_service) 6 dims
     <career>_sem     semantic similarity per career (ChromaDB, 0 when
                      the field returned no ads)                          6 dims
     <career>_skill   key-skill overlap per career against market skills  6 dims
-                                                                 total  38 dims
 
-Career order is the careers.json catalog order — stable because the catalog is
-versioned with the code. Bump FEATURE_VERSION on ANY change to this layout; a model
-artifact trained on one version must never be fed vectors from another.
+Question order is the questions.json bank order and career order is the
+careers.json catalog order — both stable because they are versioned with the code.
+Bump FEATURE_VERSION on ANY change to this layout; a model artifact trained on one
+version must never be fed vectors from another.
 """
 from __future__ import annotations
 
 from collections import Counter
 
-FEATURE_VERSION = "features-v1"
+from app.data import load_questions
 
-QUESTION_IDS = [f"q{i}" for i in range(1, 11)]
+# features-v2: question bank grew q11-q13 (DEV-29), so the q/​q_present blocks are
+# wider. The features-v1 artifact is refused on load; matching falls back to the
+# formula until a model is retrained (pipeline: docs/matching-rework-plan.md).
+FEATURE_VERSION = "features-v2"
+
+QUESTION_IDS = [q["id"] for q in load_questions()]
 
 
 def raw_fit(career: dict, answers: dict[str, int | None]) -> int:

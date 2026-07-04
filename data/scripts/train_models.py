@@ -19,6 +19,7 @@ Run from repo root: python data/scripts/train_models.py
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from itertools import product
 from pathlib import Path
@@ -40,8 +41,12 @@ OUT_WINNER = TRAINING_DIR / "gate2_winner.json"
 
 SEED = 42
 N_FOLDS = 5
-QUESTION_IDS = [f"q{i}" for i in range(1, 11)]
 TOP2_VOTE_WEIGHT = 0.4  # a persona's second choice counts this much of a first choice
+
+# Raw-answer feature names in feature_builder order (q1, q2, …). Derived from the
+# metadata's feature_names so the question set stays a single source of truth —
+# adding questions to the bank never needs a change here.
+_QID_RE = re.compile(r"q\d+$")
 
 GBT_GRID = list(product([200, 400], [0.03, 0.07], [7, 15], [3, 10]))
 LOGISTIC_C_GRID = [0.05, 0.25, 1.0, 4.0]
@@ -59,6 +64,7 @@ def load_data():
 
     feature_names = meta["feature_names"]
     careers = [n[: -len("_fit")] for n in feature_names if n.endswith("_fit")]
+    question_ids = [n for n in feature_names if _QID_RE.fullmatch(n)]
     label_to_idx = {c: i for i, c in enumerate(careers)}
 
     X = df[feature_names].to_numpy(dtype=np.float32)
@@ -75,7 +81,7 @@ def load_data():
     soft /= soft.sum(axis=1, keepdims=True)
 
     arch_mat = np.stack([
-        arch[arch.career_id == cid][QUESTION_IDS].mean().to_numpy(dtype=np.float32)
+        arch[arch.career_id == cid][question_ids].mean().to_numpy(dtype=np.float32)
         for cid in careers
     ])
     return df, X, y, soft, careers, arch_mat, meta

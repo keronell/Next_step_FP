@@ -25,13 +25,13 @@ export const QUESTIONS = [
     id: 'q3',
     category: 'interests',
     // Adaptive: only relevant to logic/data leaners (q2). showIf may reference earlier questions only.
-    showIf: (a) => a.q2 === 1 || a.q2 === 2,
+    showIf: { q: 'q2', in: [1, 2] },
     text: 'When you encounter a dataset, you feel…',
     options: [
-      { label: 'Curious — what story is hiding here?', value: 3 },
-      { label: 'Interested if it helps my project', value: 2 },
-      { label: 'Indifferent — just give me the answer', value: 1 },
       { label: 'Overwhelmed — numbers aren\'t my thing', value: 0 },
+      { label: 'Indifferent — just give me the answer', value: 1 },
+      { label: 'Interested if it helps my project', value: 2 },
+      { label: 'Curious — what story is hiding here?', value: 3 },
     ],
   },
   {
@@ -93,13 +93,13 @@ export const QUESTIONS = [
     id: 'q9',
     category: 'skills',
     // Adaptive: only relevant to design/code leaners (q2). showIf may reference earlier questions only.
-    showIf: (a) => a.q2 === 0 || a.q2 === 1,
+    showIf: { q: 'q2', in: [0, 1] },
     text: 'How drawn are you to visual design?',
     options: [
-      { label: 'It\'s my happy place', value: 3 },
-      { label: 'I appreciate it but don\'t lead it', value: 2 },
-      { label: 'Functional is fine — polish is bonus', value: 1 },
       { label: 'Not at all my area', value: 0 },
+      { label: 'Functional is fine — polish is bonus', value: 1 },
+      { label: 'I appreciate it but don\'t lead it', value: 2 },
+      { label: 'It\'s my happy place', value: 3 },
     ],
   },
   {
@@ -113,12 +113,47 @@ export const QUESTIONS = [
       { label: 'Zero-downtime deploys at 3 AM', value: 3 },
     ],
   },
+  {
+    id: 'q11',
+    category: 'interests',
+    text: 'Imagine a busy online store during a big holiday sale. Which job would you enjoy most?',
+    options: [
+      { label: 'Designing the pages shoppers see and click', value: 0 },
+      { label: 'Making checkout and payments work correctly behind the scenes', value: 1 },
+      { label: 'Studying what people bought to spot trends', value: 2 },
+      { label: 'Keeping the site fast and online while millions visit at once', value: 3 },
+    ],
+  },
+  {
+    id: 'q12',
+    category: 'workstyle',
+    text: 'A friend asks for help with their new app idea. What would you do first?',
+    options: [
+      { label: 'Talk to the people who would use it and map out what to build', value: 0 },
+      { label: 'Sketch how the screens should look and feel', value: 1 },
+      { label: 'Start building a rough working version right away', value: 2 },
+      { label: 'Look for numbers that prove people actually want it', value: 3 },
+    ],
+  },
+  {
+    id: 'q13',
+    category: 'personality',
+    text: 'You just finished a project you are proud of. Which part do you show off?',
+    options: [
+      { label: 'How beautiful and smooth it looks', value: 0 },
+      { label: 'The clever machinery nobody sees that makes it work', value: 1 },
+      { label: 'A surprising discovery I found in the numbers', value: 2 },
+      { label: 'That it ran for months without breaking once', value: 3 },
+    ],
+  },
 ]
 
-// Adaptive path: the in-order subset of QUESTIONS to ask given answers so far.
-// A question's showIf must reference only earlier questions (see Questionnaire.jsx).
-export const visibleQuestions = (answers) =>
-  QUESTIONS.filter((q) => !q.showIf || q.showIf(answers))
+// Adaptive path: the in-order subset of questions to ask given answers so far.
+// showIf is declarative ({ q, in }) so the backend can serve it as JSON; it must
+// reference only earlier questions (see Questionnaire.jsx). Defaults to the
+// bundled QUESTIONS; Questionnaire.jsx passes the backend-fetched set when present.
+export const visibleQuestions = (answers, questions = QUESTIONS) =>
+  questions.filter((q) => !q.showIf || q.showIf.in.includes(answers[q.showIf.q]))
 
 export const CAREERS = [
   {
@@ -175,12 +210,13 @@ export const CAREERS = [
 // Answer values are 0-3. This maps career × question → weight multiplier.
 // Score = sum of (answerValue × weight). Normalized to % of max possible.
 const WEIGHTS = {
-  frontend:          { q1: 2, q2: 3, q3: 0, q4: 2, q5: 2, q6: 1, q7: 3, q8: 1, q9: 2, q10: 1 },
-  backend:           { q1: 3, q2: 2, q3: 1, q4: 2, q5: 2, q6: 2, q7: 2, q8: 2, q9: 0, q10: 2 },
-  'data-science':    { q1: 1, q2: 1, q3: 3, q4: 1, q5: 1, q6: 2, q7: 3, q8: 2, q9: 0, q10: 2 },
-  devops:            { q1: 2, q2: 1, q3: 1, q4: 2, q5: 2, q6: 3, q7: 2, q8: 2, q9: 0, q10: 3 },
-  'product-manager': { q1: 0, q2: 0, q3: 2, q4: 1, q5: 3, q6: 1, q7: 0, q8: 3, q9: 1, q10: 1 },
-  'ux-designer':     { q1: 1, q2: 0, q3: 0, q4: 1, q5: 1, q6: 1, q7: 0, q8: 1, q9: 3, q10: 1 },
+  // q11-q13 are pure discriminators: zero weight everywhere, signal comes from BONUSES only.
+  frontend:          { q1: 2, q2: 3, q3: 0, q4: 2, q5: 2, q6: 1, q7: 3, q8: 1, q9: 2, q10: 1, q11: 0, q12: 0, q13: 0 },
+  backend:           { q1: 3, q2: 2, q3: 1, q4: 2, q5: 2, q6: 2, q7: 2, q8: 2, q9: 0, q10: 3, q11: 0, q12: 0, q13: 0 },
+  'data-science':    { q1: 1, q2: 1, q3: 3, q4: 1, q5: 1, q6: 2, q7: 3, q8: 2, q9: 0, q10: 2, q11: 0, q12: 0, q13: 0 },
+  devops:            { q1: 2, q2: 1, q3: 1, q4: 2, q5: 2, q6: 3, q7: 2, q8: 2, q9: 0, q10: 3, q11: 0, q12: 0, q13: 0 },
+  'product-manager': { q1: 0, q2: 0, q3: 2, q4: 1, q5: 3, q6: 1, q7: 0, q8: 3, q9: 1, q10: 1, q11: 0, q12: 0, q13: 0 },
+  'ux-designer':     { q1: 1, q2: 0, q3: 0, q4: 1, q5: 1, q6: 1, q7: 0, q8: 1, q9: 3, q10: 1, q11: 0, q12: 0, q13: 0 },
 }
 
 // Special bonus rules: certain answer values on certain questions bonus specific careers.
@@ -196,11 +232,30 @@ const BONUSES = [
   { qId: 'q2', answerValue: 3, careerId: 'devops', bonus: 2 },
   { qId: 'q7', answerValue: 3, careerId: 'devops', bonus: 3 },
   { qId: 'q4', answerValue: 3, careerId: 'devops', bonus: 2 },
+  { qId: 'q4', answerValue: 1, careerId: 'backend', bonus: 2 },
+  { qId: 'q8', answerValue: 1, careerId: 'backend', bonus: 1 },
+  { qId: 'q8', answerValue: 3, careerId: 'devops', bonus: 1 },
+  { qId: 'q10', answerValue: 1, careerId: 'backend', bonus: 2 },
+  { qId: 'q11', answerValue: 0, careerId: 'frontend', bonus: 2 },
+  { qId: 'q11', answerValue: 0, careerId: 'ux-designer', bonus: 1 },
+  { qId: 'q11', answerValue: 1, careerId: 'backend', bonus: 3 },
+  { qId: 'q11', answerValue: 2, careerId: 'data-science', bonus: 2 },
+  { qId: 'q11', answerValue: 3, careerId: 'devops', bonus: 3 },
+  { qId: 'q12', answerValue: 0, careerId: 'product-manager', bonus: 3 },
+  { qId: 'q12', answerValue: 1, careerId: 'ux-designer', bonus: 3 },
+  { qId: 'q12', answerValue: 2, careerId: 'frontend', bonus: 1 },
+  { qId: 'q12', answerValue: 2, careerId: 'backend', bonus: 1 },
+  { qId: 'q12', answerValue: 3, careerId: 'data-science', bonus: 2 },
+  { qId: 'q12', answerValue: 3, careerId: 'product-manager', bonus: 1 },
+  { qId: 'q13', answerValue: 0, careerId: 'frontend', bonus: 2 },
+  { qId: 'q13', answerValue: 0, careerId: 'ux-designer', bonus: 2 },
+  { qId: 'q13', answerValue: 1, careerId: 'backend', bonus: 3 },
+  { qId: 'q13', answerValue: 2, careerId: 'data-science', bonus: 2 },
+  { qId: 'q13', answerValue: 3, careerId: 'devops', bonus: 2 },
+  { qId: 'q13', answerValue: 3, careerId: 'backend', bonus: 1 },
 ]
 
 export function computeResults(answers) {
-  const maxPossibleBase = 3 * 3 * 10 // max answer (3) × max weight (3) × 10 questions
-
   const scored = CAREERS.map((career) => {
     const weights = WEIGHTS[career.id]
     let score = 0

@@ -6,13 +6,14 @@ from app.services import feature_builder as fb
 from app.services.matching_service import _raw_fit
 
 CAREERS = load_careers()
-ANSWERS = {f"q{i}": (i % 4) for i in range(1, 11)}
+ANSWERS = {qid: (i % 4) for i, qid in enumerate(fb.QUESTION_IDS, start=1)}
 
 
 def test_vector_matches_names_and_length():
     names = fb.feature_names(CAREERS)
     vec = fb.build_feature_vector(ANSWERS, CAREERS, {}, {})
-    assert len(vec) == len(names) == 38  # 10 + 10 + 6*3
+    n_q = len(fb.QUESTION_IDS)
+    assert len(vec) == len(names) == 2 * n_q + 3 * len(CAREERS)
 
 
 def test_missing_and_null_answers_masked():

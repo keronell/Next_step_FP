@@ -19,6 +19,4 @@ build/
 
 # ChromaDB generated vector store
 data/jobs/chroma/
-.playwright-mcp/page-2026-07-04T09-35-24-580Z.yml
-.playwright-mcp/page-2026-07-04T09-36-29-215Z.yml
-.playwright-mcp/page-2026-07-04T09-37-04-561Z.yml
+.playwright-mcp/

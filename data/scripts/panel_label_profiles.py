@@ -49,6 +49,11 @@ CONSENSUS_MIN_VOTES = 2  # of the 3 personas
 
 QUESTIONS_JSON = Path("backend/app/data/questions.json")
 CAREERS_JSON = Path("backend/app/data/careers.json")
+
+# Single source of truth for the question set — derived from the bank, never
+# hardcoded, so new questions (e.g. q11+) flow into synthetic profiles and
+# archetypes automatically. Mirrors feature_builder.QUESTION_IDS on the serving side.
+QUESTION_IDS = [q["id"] for q in json.loads(QUESTIONS_JSON.read_text(encoding="utf-8"))]
 TRAINING_DIR = Path("data/training")
 REAL_PROFILES_JSON = TRAINING_DIR / "real_profiles.json"
 VOTES_JSONL = TRAINING_DIR / "panel_votes.jsonl"
@@ -74,13 +79,16 @@ BRANCH_RULES = {
 
 # Hand-built seed answer vectors per career (option semantics, not weight argmax).
 # Branching is re-derived after perturbation, so q3/q9 here are only used when visible.
+# q11-q13 are the discriminator questions (bonus-only); seeding them with each
+# career's on-theme option keeps the strongest synthetic profiles from putting noise
+# on exactly the answers that separate the careers.
 CAREER_SEEDS = {
-    "frontend":        {"q1": 2, "q2": 0, "q3": 1, "q4": 0, "q5": 1, "q6": 0, "q7": 1, "q8": 1, "q9": 3, "q10": 0},
-    "backend":         {"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 1, "q10": 1},
-    "data-science":    {"q1": 2, "q2": 2, "q3": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 0, "q10": 2},
-    "devops":          {"q1": 2, "q2": 3, "q3": 2, "q4": 3, "q5": 3, "q6": 3, "q7": 3, "q8": 3, "q9": 0, "q10": 3},
-    "product-manager": {"q1": 0, "q2": 2, "q3": 2, "q4": 2, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 2, "q10": 0},
-    "ux-designer":     {"q1": 1, "q2": 0, "q3": 0, "q4": 0, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 3, "q10": 0},
+    "frontend":        {"q1": 2, "q2": 0, "q3": 1, "q4": 0, "q5": 1, "q6": 0, "q7": 1, "q8": 1, "q9": 3, "q10": 0, "q11": 0, "q12": 2, "q13": 0},
+    "backend":         {"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 2, "q13": 1},
+    "data-science":    {"q1": 2, "q2": 2, "q3": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 2, "q12": 3, "q13": 2},
+    "devops":          {"q1": 2, "q2": 3, "q3": 2, "q4": 3, "q5": 3, "q6": 3, "q7": 3, "q8": 3, "q9": 0, "q10": 3, "q11": 3, "q12": 2, "q13": 3},
+    "product-manager": {"q1": 0, "q2": 2, "q3": 2, "q4": 2, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 2, "q10": 0, "q11": 2, "q12": 0, "q13": 0},
+    "ux-designer":     {"q1": 1, "q2": 0, "q3": 0, "q4": 0, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 3, "q10": 0, "q11": 0, "q12": 1, "q13": 0},
 }
 
 
@@ -98,7 +106,7 @@ def load_catalog() -> tuple[list[dict], list[dict]]:
 def apply_branching(answers: dict) -> dict:
     """Keep only questions visible under the adaptive path (mirrors visibleQuestions)."""
     out = {}
-    for qid in [f"q{i}" for i in range(1, 11)]:
+    for qid in QUESTION_IDS:
         if qid not in answers:
             continue
         rule = BRANCH_RULES.get(qid)
@@ -114,7 +122,7 @@ def generate_synthetic_profiles(n: int, rng: random.Random) -> list[dict]:
 
     def perturb(seed_answers: dict, noise: float) -> dict:
         answers = {}
-        for qid in [f"q{i}" for i in range(1, 11)]:
+        for qid in QUESTION_IDS:
             val = seed_answers.get(qid, rng.randint(0, 3))
             if rng.random() < noise:
                 val = rng.randint(0, 3)
@@ -133,10 +141,10 @@ def generate_synthetic_profiles(n: int, rng: random.Random) -> list[dict]:
     for _ in range(n_mixed):
         a, b = rng.sample(career_ids, 2)
         blended = {qid: (CAREER_SEEDS[a] if rng.random() < 0.5 else CAREER_SEEDS[b]).get(qid)
-                   for qid in [f"q{i}" for i in range(1, 11)]}
+                   for qid in QUESTION_IDS}
         profiles.append(perturb(blended, noise=0.20))
     for _ in range(n_random):
-        answers = {qid: rng.randint(0, 3) for qid in [f"q{i}" for i in range(1, 11)]}
+        answers = {qid: rng.randint(0, 3) for qid in QUESTION_IDS}
         profiles.append(perturb(answers, noise=0.0))
 
     return [
@@ -212,6 +220,7 @@ def build_archetype_prompt(persona_desc: str, career: dict, questions: list[dict
     for q in questions:
         opts = " / ".join(f"{i}=\"{opt}\"" for i, opt in enumerate(q["options"]))
         q_lines.append(f"- {q['id']}: {q['text']}  Options: {opts}")
+    example = "{" + ", ".join(f'"{q["id"]}": 0' for q in questions) + "}"
     return f"""You are {persona_desc}.
 Answer this career-orientation questionnaire as the IDEAL candidate for the career
 "{career['title']}" ({career['id']}) would answer it. Pick the option index (0-3) that
@@ -221,7 +230,7 @@ Questions:
 {chr(10).join(q_lines)}
 
 Return STRICT JSON ONLY:
-{{"q1": 0, "q2": 0, "q3": 0, "q4": 0, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 0, "q10": 0}}
+{example}
 
 Every value must be an integer 0-3.
 """.strip()
@@ -401,7 +410,7 @@ def collect_archetypes(questions: list[dict], careers: list[dict]) -> None:
             try:
                 raw = call_ollama(prompt, persona_temp)
                 candidate = {}
-                for qid in [f"q{i}" for i in range(1, 11)]:
+                for qid in QUESTION_IDS:
                     val = int(raw[qid])
                     if not 0 <= val <= 3:
                         raise ValueError(f"{qid} out of range: {val}")
@@ -539,7 +548,7 @@ def aggregate(careers: list[dict]) -> None:
         {
             "career_id": a["career_id"],
             "persona_id": a["persona_id"],
-            **{qid: a["answers"][qid] for qid in [f"q{i}" for i in range(1, 11)]},
+            **{qid: a["answers"][qid] for qid in QUESTION_IDS},
             "model_name": a["model_name"],
             "prompt_version": a["prompt_version"],
             "temperature": a["temperature"],

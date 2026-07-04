@@ -12,7 +12,7 @@ from app.data import career_ids, question_ids
 class QuestionnaireSubmission(BaseModel):
     answers: dict[str, int | None] = Field(
         ...,
-        description="Map of question id (q1..q10) to chosen option value 0-3, or null if skipped.",
+        description="Map of question id (see GET /api/questions) to chosen option value 0-3, or null if skipped.",
     )
     # Anonymous browser session id (localStorage UUID). Optional so older clients and
     # tests still validate; used to link this submission to a later career selection.

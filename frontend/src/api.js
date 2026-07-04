@@ -44,6 +44,12 @@ async function _request(url, options = {}) {
 
 // ── Questionnaire ────────────────────────────────────────────────────────────
 
+// Question bank — the backend copy is authoritative; callers fall back to the
+// bundled QUESTIONS in data.js when this fails (see Questionnaire.jsx).
+export async function fetchQuestions() {
+  return _request(`${BASE_URL}/api/questions`)
+}
+
 export async function submitQuestionnaire(answers) {
   const data = await _request(`${BASE_URL}/api/questionnaire/submit`, {
     method: 'POST',

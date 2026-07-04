@@ -5,7 +5,7 @@ not expert ground truth) and replays every profile through the same pipeline the
 backend uses at serve time:
 
     answers -> build_profile() -> MiniLM embedding -> ChromaDB query per career
-            -> feature_builder.build_feature_vector()  (38 dims, shared with serving)
+            -> feature_builder.build_feature_vector()  (feature_builder layout, shared with serving)
 
 Outputs:
     data/training/train_features.parquet   one row per profile: features + labels + provenance
