@@ -16,6 +16,7 @@ from app.api.routes import auth, health, questionnaire, roadmap
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.repositories.career_repository import CareerRepository
+from app.services.matcher_model import MatcherModel, MatcherModelError
 from app.services.rag_service import RagService, RagUnavailableError
 
 logger = get_logger(__name__)
@@ -40,6 +41,20 @@ async def lifespan(app: FastAPI):
     except RagUnavailableError as exc:
         app.state.repository = None
         logger.warning("RAG store unavailable, /submit will return 503: %s", exc)
+
+    app.state.matcher_model = None
+    if settings.matcher_model_path:
+        try:
+            app.state.matcher_model = MatcherModel.load(settings.matcher_model_path)
+            logger.info(
+                "Learned matcher loaded: %s (label_source=%s)",
+                app.state.matcher_model.version,
+                app.state.matcher_model.label_source,
+            )
+        except MatcherModelError as exc:
+            logger.warning("Matcher model unavailable, using formula: %s", exc)
+    else:
+        logger.info("MATCHER_MODEL_PATH unset — matching uses the deterministic formula")
     yield
 
 

@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     embed_model: str = "all-MiniLM-L6-v2"
     rag_top_k: int = 8
 
+    # Learned matcher artifact (data/scripts/export_model.py). Empty = disabled;
+    # matching uses the deterministic formula (also the fallback on any model error).
+    matcher_model_path: str = ""
+
     # Comma-separated list of allowed frontend origins for CORS
     cors_origins: str = "http://localhost:3000"
     api_port: int = 8000

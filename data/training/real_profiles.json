@@ -1,0 +1,9 @@
+[
+  {"profile_id": "real_ec5529cc717d2c15396fc89b56c7d743", "profile_source": "real", "answers": {"q1": 1, "q2": 2, "q3": 3, "q4": 0, "q5": 1, "q6": 2, "q7": 3, "q8": 0, "q9": 1, "q10": 2}},
+  {"profile_id": "real_d2a560857702c4867889a6abd70bdbdf", "profile_source": "real", "answers": {"q1": 1, "q2": 2, "q3": 3, "q4": 0, "q5": 1, "q6": 2, "q7": 3, "q8": 0, "q9": 1, "q10": 2}},
+  {"profile_id": "real_395a512d11e57813e927da1088236c8a", "profile_source": "real", "answers": {"q1": 0, "q2": 1, "q3": 3, "q4": 0, "q5": 2, "q6": 1, "q7": 3, "q8": 1, "q9": 1, "q10": 1}},
+  {"profile_id": "real_f454c5346ebb77ba2095d65714324df1", "profile_source": "real", "answers": {"q1": 0, "q2": 3, "q4": 1, "q5": 2, "q6": 1, "q7": 3, "q8": 1, "q10": 3}},
+  {"profile_id": "real_310f8ff6c67e6a9c1a74a3aed7a0703c", "profile_source": "real", "answers": {"q1": 0, "q2": 3, "q4": null, "q5": 3, "q6": 1, "q7": 2, "q8": 1, "q10": 0}},
+  {"profile_id": "real_8352113953ca65fb4e669cb8163a1830", "profile_source": "real", "answers": {"q1": 0, "q2": 3, "q4": 1, "q5": 2, "q6": 0, "q7": null, "q8": null, "q10": null}},
+  {"profile_id": "real_05e0486f583fc7883ab40374651bfbfd", "profile_source": "real", "answers": {"q1": 3, "q2": 3, "q4": 1, "q5": 3, "q6": 1, "q7": 3, "q8": 1, "q10": 3}}
+]
