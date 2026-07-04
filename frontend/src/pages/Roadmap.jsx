@@ -1,5 +1,5 @@
-import { useRef, useLayoutEffect, useEffect, useState } from 'react'
-import { ExternalLink, X, Check } from 'lucide-react'
+import { Fragment, useRef, useEffect, useState } from 'react'
+import { ExternalLink, X, Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ROADMAPS, CAREERS } from '../data'
 import { fetchRoadmap, fetchRoadmapProgress, saveRoadmapProgress } from '../api'
@@ -8,25 +8,17 @@ import SectionHeading from '../components/ui/SectionHeading.jsx'
 
 const progressKey = (careerId) => `nextstep_roadmap_progress_${careerId}`
 
-const CANVAS_W = 1400
-const SPINE_X = 700
-const NODE_H = 40
-const NODE_MIN_W = 140
-const NODE_CHAR_W = 8
-const NODE_PAD_X = 24
-const SECTION_HEADER_H = 44
-const SECTION_HEADER_W = 240
-const TOP_PAD = 80
-const HEADER_TO_ROW_GAP = 60
-const ROW_TO_HEADER_GAP = 80
-const NODE_COL_GAP = 40
+// DEV-46: node color = the user's status on that skill, one meaning per color.
+const STATUS_COLORS = {
+  mastered: '#22C55E', // green  — mastered / completed skill
+  next:     '#F97316', // orange — in progress / recommended next
+  gap:      '#EF4444', // red    — not started / skill gap
+}
 
-const FONT = { node: 13, section: 13, legendLabel: 11, badge: 11 }
-
-const LEVEL_COLORS = {
-  beginner:     '#22C55E',
-  intermediate: '#EAB308',
-  advanced:     '#EF4444',
+const STATUS_LABELS = {
+  mastered: 'Mastered / completed',
+  next:     'Recommended next',
+  gap:      'Skill gap / not started',
 }
 
 const LEVEL_LABELS = {
@@ -41,149 +33,86 @@ const TYPE_LABELS = {
   'optional':     'Optional',
 }
 
-function calcNodeWidth(label) {
-  return Math.max(NODE_MIN_W, label.length * NODE_CHAR_W + NODE_PAD_X * 2)
+// Skill ↔ node-label matching: substring first, then canonical-token subset,
+// so "SQL" colors the "Databases" node and "Data Viz" hits "Data Visualization".
+// Aliases map synonym tokens to one canonical id (values are the singular form).
+const TOKEN_ALIASES = {
+  sql: 'database',
+  postgresql: 'database',
+  mysql: 'database',
+  mongodb: 'database',
+  js: 'javascript',
+  ts: 'typescript',
+  api: 'rest',
+  viz: 'visualization',
+  auth: 'security',
+  authentication: 'security',
+  user: 'ux',
 }
 
-function computeLayout(sections, collapsed) {
-  let currentY = TOP_PAD
-  const layoutSections = []
+const singular = (t) => (t.length > 3 && t.endsWith('s') && !t.endsWith('ss') ? t.slice(0, -1) : t)
+const canonToken = (t) => TOKEN_ALIASES[t] ?? TOKEN_ALIASES[singular(t)] ?? singular(t)
+const tokenize = (s) =>
+  new Set(s.toLowerCase().split(/[^a-z0-9+#]+/).filter(Boolean).map(canonToken))
+const isSubset = (a, b) => [...a].every((t) => b.has(t))
 
-  for (const section of sections) {
-    const sectionY = currentY
-    const childrenY = sectionY + SECTION_HEADER_H + HEADER_TO_ROW_GAP
-
-    const nodesWithWidths = section.nodes.map((n) => ({
-      ...n,
-      width: calcNodeWidth(n.label),
-    }))
-
-    const totalRowW =
-      nodesWithWidths.reduce((sum, n) => sum + n.width, 0) +
-      Math.max(0, nodesWithWidths.length - 1) * NODE_COL_GAP
-
-    let startX = SPINE_X - totalRowW / 2
-    const positionedNodes = nodesWithWidths.map((n) => {
-      const x = startX + n.width / 2
-      startX += n.width + NODE_COL_GAP
-      return { ...n, x, y: childrenY }
-    })
-
-    layoutSections.push({ ...section, y: sectionY, childrenY, nodes: positionedNodes })
-
-    currentY = collapsed[section.id]
-      ? sectionY + SECTION_HEADER_H + ROW_TO_HEADER_GAP
-      : childrenY + NODE_H / 2 + ROW_TO_HEADER_GAP
-  }
-
-  return { layoutSections, totalH: currentY + 40 }
+const skillHits = (skills, label) => {
+  const l = label.toLowerCase()
+  const lt = tokenize(label)
+  return skills.some((s) => {
+    const t = String(s).toLowerCase()
+    if (l.includes(t) || t.includes(l)) return true
+    const st = tokenize(t)
+    return st.size > 0 && (isSubset(st, lt) || isSubset(lt, st))
+  })
 }
 
-function elbowPath(fromX, fromY, toX, toY) {
-  const midY = fromY + (toY - fromY) / 2
-  return `M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`
+function nodeStatus(node, completedNodes, matchedSkills, missingSkills) {
+  if (completedNodes.has(node.id) || skillHits(matchedSkills, node.label)) return 'mastered'
+  if (skillHits(missingSkills, node.label)) return 'gap'
+  return 'next'
 }
 
-// Inline Lucide-style chevron paths (size 14, centered at 0,0)
-function ChevronSVG({ cx, cy, open, color = 'rgba(15,27,45,0.55)' }) {
-  // Lucide chevron-right path: M9 18l6-6-6-6 (in 24x24 viewport)
-  // Lucide chevron-down path:  M6 9l6 6 6-6
-  // We draw with stroke at scale 0.6 (~14px equivalent) around (cx, cy)
-  const s = 0.6
-  const tx = cx - 12 * s
-  const ty = cy - 12 * s
-  const d = open ? 'M6 9l6 6 6-6' : 'M9 18l6-6-6-6'
+// Type keeps its shape language (solid / outline / dashed); color now carries status.
+function nodeTypeStyle(type, color) {
+  if (type === 'required') return { background: color, color: 'white' }
+  if (type === 'good-to-know') return { border: `1.5px solid ${color}`, color }
+  return { border: `1.5px dashed ${color}`, color, opacity: 0.7 }
+}
+
+function NodeButton({ node, status, isCompleted, isActive, delay, onClick }) {
+  const color = STATUS_COLORS[status]
+  const shadows = []
+  // Completed decor (gold ring + check badge) stays a separate system from the
+  // status color: it marks "you ticked this off", not what the assessment says.
+  if (isCompleted) shadows.push('0 0 0 2px var(--color-cream), 0 0 0 4px var(--color-gold)')
+  if (isActive) shadows.push(`0 0 12px ${color}80`)
+
   return (
-    <g transform={`translate(${tx} ${ty}) scale(${s})`} pointerEvents="none">
-      <path d={d} stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </g>
-  )
-}
-
-function NodeRect({ node, isHovered, isActive, isRevealed, isCompleted, onClick, onMouseEnter, onMouseLeave }) {
-  const color = LEVEL_COLORS[node.level]
-  const w = node.width
-  const rx = node.x - w / 2
-  const ry = node.y - NODE_H / 2
-  const glow = `drop-shadow(0 0 7px ${color}90)`
-
-  const activeRing = isActive && (
-    <rect x={rx - 3} y={ry - 3} width={w + 6} height={NODE_H + 6} rx={8}
-          fill="none" stroke={color} strokeWidth={2} opacity={0.35} />
-  )
-
-  // Completed: gold ring around the node + a gold check badge at the top-right corner.
-  const completedDecor = isCompleted && (
-    <g pointerEvents="none">
-      <rect x={rx - 2} y={ry - 2} width={w + 4} height={NODE_H + 4} rx={8}
-            fill="none" stroke="var(--color-gold)" strokeWidth={2} />
-      <circle cx={rx + w} cy={ry} r={9} fill="var(--color-gold)"
-              stroke="var(--color-cream)" strokeWidth={1.5} />
-      <path d="M-3.5 0 L-1 2.5 L3.5 -2.5" transform={`translate(${rx + w} ${ry})`}
-            stroke="var(--color-cream)" strokeWidth={1.8} strokeLinecap="round"
-            strokeLinejoin="round" fill="none" />
-    </g>
-  )
-
-  const label = (
-    <text x={node.x} y={node.y} textAnchor="middle" dominantBaseline="middle"
-          fontSize={FONT.node} fontFamily="Inter, system-ui, sans-serif" fontWeight="500"
-          pointerEvents="none"
-          fill={node.type === 'required' ? 'white' : color}
-          fillOpacity={node.type === 'optional' ? 0.55 : 1}>
+    <motion.button
+      onClick={onClick}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
+      whileHover={{ scale: 1.04 }}
+      className="focus-ring relative rounded-md px-5 py-2.5 font-body text-[13px] font-medium text-center cursor-pointer"
+      style={{ ...nodeTypeStyle(node.type, color), boxShadow: shadows.join(', ') || undefined }}
+    >
       {node.label}
-    </text>
-  )
-
-  const revealStyle = {
-    opacity: isRevealed ? 1 : 0,
-    transform: isRevealed ? 'translateY(0px)' : 'translateY(8px)',
-    transition: 'opacity 0.5s var(--ease-standard), transform 0.5s var(--ease-standard)',
-  }
-
-  const sharedProps = {
-    onClick,
-    onMouseEnter,
-    onMouseLeave,
-    style: { cursor: 'pointer', filter: isHovered ? glow : 'none', ...revealStyle },
-  }
-
-  if (node.type === 'required') {
-    return (
-      <g {...sharedProps}>
-        {activeRing}
-        <rect x={rx} y={ry} width={w} height={NODE_H} rx={6} fill={color} />
-        {label}
-        {completedDecor}
-      </g>
-    )
-  }
-
-  if (node.type === 'good-to-know') {
-    return (
-      <g {...sharedProps}>
-        {activeRing}
-        <rect x={rx} y={ry} width={w} height={NODE_H} rx={6}
-              fill="none" stroke={color} strokeWidth={1.5} />
-        {label}
-        {completedDecor}
-      </g>
-    )
-  }
-
-  return (
-    <g {...sharedProps}>
-      {activeRing}
-      <rect x={rx} y={ry} width={w} height={NODE_H} rx={6}
-            fill="none" stroke={color} strokeWidth={1.5} strokeDasharray="6,3" />
-      {label}
-      {completedDecor}
-    </g>
+      {isCompleted && (
+        <span
+          aria-label="Marked complete"
+          className="absolute -top-2 -right-2 w-[18px] h-[18px] rounded-full bg-gold border border-cream flex items-center justify-center"
+        >
+          <Check size={11} strokeWidth={3} className="text-cream" aria-hidden="true" />
+        </span>
+      )}
+    </motion.button>
   )
 }
 
-function NodeDrawer({ node, onClose, isCompleted, onToggleComplete }) {
-  const color = node ? LEVEL_COLORS[node.level] : 'var(--color-gold)'
+function NodeDrawer({ node, status, onClose, isCompleted, onToggleComplete }) {
+  const color = node ? STATUS_COLORS[status] : 'var(--color-gold)'
 
   return (
     <AnimatePresence>
@@ -223,6 +152,12 @@ function NodeDrawer({ node, onClose, isCompleted, onToggleComplete }) {
               <span
                 className="inline-flex items-center px-2.5 py-0.5 rounded text-eyebrow font-semibold uppercase"
                 style={{ background: `${color}1F`, color, border: `1px solid ${color}40` }}
+              >
+                {STATUS_LABELS[status]}
+              </span>
+              <span
+                className="inline-flex items-center px-2.5 py-0.5 rounded text-eyebrow font-semibold uppercase"
+                style={{ background: `${color}14`, color, border: `1px solid ${color}25` }}
               >
                 {TYPE_LABELS[node.type]}
               </span>
@@ -285,43 +220,39 @@ function NodeDrawer({ node, onClose, isCompleted, onToggleComplete }) {
 
 function Legend() {
   return (
-    <div className="flex flex-col gap-2.5 p-3 rounded-lg bg-cream/95 backdrop-blur-sm border border-gold/25 shadow-sm">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 rounded-lg bg-cream/95 border border-gold/25 shadow-sm">
       <p className="font-body text-eyebrow font-semibold uppercase text-navy/45">
         Legend
       </p>
-      <div className="flex items-center gap-2">
-        <svg width={60} height={22} style={{ flexShrink: 0 }}>
-          <rect x={0} y={1} width={60} height={20} rx={4} fill="#22C55E" />
-        </svg>
-        <span className="font-body text-small text-navy/70 whitespace-nowrap">Required</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <svg width={60} height={22} style={{ flexShrink: 0 }}>
-          <rect x={0.75} y={1.75} width={58.5} height={18.5} rx={4}
-                fill="none" stroke="#EAB308" strokeWidth={1.5} />
-        </svg>
-        <span className="font-body text-small text-navy/70 whitespace-nowrap">Good to Know</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <svg width={60} height={22} style={{ flexShrink: 0 }}>
-          <rect x={0.75} y={1.75} width={58.5} height={18.5} rx={4}
-                fill="none" stroke="#EF4444" strokeWidth={1.5} strokeDasharray="6,3" />
-        </svg>
-        <span className="font-body text-small text-navy/70 whitespace-nowrap">Optional</span>
+      {Object.keys(STATUS_COLORS).map((status) => (
+        <div key={status} className="flex items-center gap-2">
+          <span
+            className="w-[26px] h-[14px] rounded shrink-0"
+            style={{ background: STATUS_COLORS[status] }}
+          />
+          <span className="font-body text-small text-navy/70 whitespace-nowrap">
+            {STATUS_LABELS[status]}
+          </span>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 pl-5 border-l border-navy/[0.08]">
+        <span className="relative w-[26px] h-[14px] rounded shrink-0 bg-navy/[0.08] shadow-[0_0_0_1.5px_var(--color-cream),0_0_0_3px_var(--color-gold)]">
+          <span className="absolute -top-1.5 -right-1.5 w-[12px] h-[12px] rounded-full bg-gold border border-cream flex items-center justify-center">
+            <Check size={8} strokeWidth={3.5} className="text-cream" aria-hidden="true" />
+          </span>
+        </span>
+        <span className="font-body text-small text-navy/70 whitespace-nowrap">
+          Marked complete by you
+        </span>
       </div>
     </div>
   )
 }
 
-function Roadmap({ selectedCareer, missingSkills = [] }) {
-  const pathRefs = useRef({})
-  const revealTimersRef = useRef([])
+function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
   const saveSeqRef = useRef(0)  // monotonic id so only the latest save reconciliation wins
   const [drawerNode, setDrawerNode] = useState(null)
-  const [hoveredNode, setHoveredNode] = useState(null)
-  const [hoveredSection, setHoveredSection] = useState(null)
   const [collapsed, setCollapsed] = useState({})
-  const [revealedNodes, setRevealedNodes] = useState(new Set())
   const [roadmapData, setRoadmapData] = useState(null)
   const [completedNodes, setCompletedNodes] = useState(new Set())
 
@@ -390,8 +321,6 @@ function Roadmap({ selectedCareer, missingSkills = [] }) {
   const completedCount = allNodeIds.filter((id) => completedNodes.has(id)).length
   const progressPct = totalNodes ? Math.round((completedCount / totalNodes) * 100) : 0
 
-  const { layoutSections, totalH } = computeLayout(sections, collapsed)
-
   const allCollapsed = sections.length > 0 && sections.every((s) => !!collapsed[s.id])
 
   const toggleAll = () => {
@@ -410,63 +339,10 @@ function Roadmap({ selectedCareer, missingSkills = [] }) {
     setDrawerNode((prev) => (prev?.id === node.id ? null : node))
   }
 
-  // Collect visible edge descriptors for animation
-  const allEdges = []
-  layoutSections.forEach((section) => {
-    if (!collapsed[section.id]) {
-      section.nodes.forEach((node) => {
-        allEdges.push({
-          id: `${section.id}--${node.id}`,
-          d: elbowPath(
-            SPINE_X, section.y + SECTION_HEADER_H,
-            node.x, node.y - NODE_H / 2,
-          ),
-        })
-      })
-    }
-  })
-
-  useEffect(() => {
-    setRevealedNodes(new Set())
-  }, [selectedCareer, collapsed])
-
-  useLayoutEffect(() => {
-    if (!roadmapData) return
-    const refs = pathRefs.current
-    Object.keys(refs).forEach((id) => {
-      const path = refs[id]
-      if (!path) return
-      const len = path.getTotalLength()
-      path.style.transition = 'none'
-      path.style.strokeDasharray = `${len}`
-      path.style.strokeDashoffset = `${len}`
-    })
-
-    revealTimersRef.current.forEach(clearTimeout)
-    revealTimersRef.current = []
-
-    const raf = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        Object.keys(refs).forEach((id, i) => {
-          const path = refs[id]
-          if (!path) return
-          path.style.transition = `stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1) ${i * 0.08}s`
-          path.style.strokeDashoffset = '0'
-
-          const nodeId = id.split('--')[1]
-          const t = setTimeout(() => {
-            setRevealedNodes(prev => new Set([...prev, nodeId]))
-          }, i * 80 + 1400)
-          revealTimersRef.current.push(t)
-        })
-      })
-    })
-
-    return () => {
-      cancelAnimationFrame(raf)
-      revealTimersRef.current.forEach(clearTimeout)
-    }
-  }, [selectedCareer, roadmapData, collapsed])
+  // Flat node offsets per section, so the reveal stagger runs left-to-right
+  // across the whole pipeline.
+  const sectionOffsets = []
+  sections.reduce((acc, s) => { sectionOffsets.push(acc); return acc + s.nodes.length }, 0)
 
   if (!selectedCareer) return null
 
@@ -514,87 +390,58 @@ function Roadmap({ selectedCareer, missingSkills = [] }) {
             </div>
           </div>
 
-          {/* SVG canvas + sticky legend wrapper */}
+          {/* Legend (DEV-46): what the three status colors mean, plus the
+              separate gold "marked complete" decoration. */}
+          <div className="flex justify-center mb-6">
+            <Legend />
+          </div>
+
+          {/* Pipeline canvas */}
           <div className="relative">
-            <div style={{ overflowX: 'auto' }}>
-              <svg
-                width={CANVAS_W}
-                height={totalH}
-                style={{ display: 'block', margin: '0 auto', minWidth: CANVAS_W }}
-              >
-                {/* Center spine */}
-                <line x1={SPINE_X} y1={0} x2={SPINE_X} y2={totalH}
-                      stroke="var(--color-gold)" strokeWidth={1} opacity={0.2} />
-
-                {/* Connector paths */}
-                {allEdges.map((edge) => (
-                  <path
-                    key={edge.id}
-                    ref={(el) => { pathRefs.current[edge.id] = el }}
-                    d={edge.d}
-                    stroke="var(--color-gold)" strokeWidth={2} fill="none" opacity={0.8}
-                  />
-                ))}
-
-                {/* Sections */}
-                {layoutSections.map((section) => {
+            <div className="overflow-x-auto pb-4 pt-4">
+              {/* DEV-47: sections as left-to-right pipeline stages with a tall
+                  vertical divider between each — scales to any section count. */}
+              <div key={selectedCareer} className="flex items-stretch w-max mx-auto px-2">
+                {sections.map((section, si) => {
                   const isCollapsed = !!collapsed[section.id]
-                  const isHovered = hoveredSection === section.id
+                  const Chevron = isCollapsed ? ChevronRight : ChevronDown
                   return (
-                    <g key={section.id}>
-                      {/* Section header — clickable to collapse */}
-                      <g
-                        onClick={() => toggleSection(section.id)}
-                        onMouseEnter={() => setHoveredSection(section.id)}
-                        onMouseLeave={() => setHoveredSection(null)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <rect
-                          x={SPINE_X - SECTION_HEADER_W / 2} y={section.y}
-                          width={SECTION_HEADER_W} height={SECTION_HEADER_H} rx={6}
-                          fill={isHovered ? 'rgba(15,27,45,0.10)' : 'rgba(15,27,45,0.06)'}
-                          stroke={isHovered ? 'rgba(201,168,76,0.45)' : 'rgba(15,27,45,0.12)'}
-                          strokeWidth={1}
-                          style={{ transition: 'fill var(--motion-fast), stroke var(--motion-fast)' }}
-                        />
-                        <text
-                          x={SPINE_X - 10} y={section.y + SECTION_HEADER_H / 2}
-                          textAnchor="middle" dominantBaseline="middle"
-                          fontSize={FONT.section} fontFamily="Inter, system-ui, sans-serif" fontWeight="600"
-                          fill="var(--color-navy)" pointerEvents="none"
+                    <Fragment key={section.id}>
+                      {si > 0 && (
+                        <div className="w-[2px] self-stretch rounded-full bg-gold opacity-40 mx-6 shrink-0" aria-hidden="true" />
+                      )}
+                      <div className="flex flex-col gap-3 min-w-[220px] shrink-0">
+                        {/* Section header — clickable to collapse */}
+                        <button
+                          onClick={() => toggleSection(section.id)}
+                          className="focus-ring flex items-center justify-between gap-2 px-4 py-3 mb-2 rounded-md bg-navy/[0.06] hover:bg-navy/[0.10] border border-navy/[0.12] hover:border-gold/45 transition-colors duration-fast"
                         >
-                          {section.label}
-                        </text>
-                        <ChevronSVG
-                          cx={SPINE_X + SECTION_HEADER_W / 2 - 18}
-                          cy={section.y + SECTION_HEADER_H / 2}
-                          open={!isCollapsed}
-                        />
-                      </g>
+                          <span className="font-body text-[13px] font-semibold text-navy">
+                            {section.label}
+                          </span>
+                          <Chevron size={15} className="text-navy/55 shrink-0" aria-hidden="true" />
+                        </button>
 
-                      {/* Child nodes */}
-                      {!isCollapsed && section.nodes.map((node) => (
-                        <NodeRect
-                          key={node.id}
-                          node={node}
-                          isRevealed={revealedNodes.has(node.id)}
-                          isCompleted={completedNodes.has(node.id)}
-                          isHovered={hoveredNode === node.id}
-                          isActive={drawerNode?.id === node.id}
-                          onClick={() => handleNodeClick(node)}
-                          onMouseEnter={() => setHoveredNode(node.id)}
-                          onMouseLeave={() => setHoveredNode(null)}
-                        />
-                      ))}
-                    </g>
+                        {/* Stage nodes */}
+                        {!isCollapsed && section.nodes.map((node, ni) => {
+                          const status = nodeStatus(node, completedNodes, matchedSkills, missingSkills)
+                          return (
+                            <NodeButton
+                              key={node.id}
+                              node={node}
+                              status={status}
+                              isCompleted={completedNodes.has(node.id)}
+                              isActive={drawerNode?.id === node.id}
+                              delay={(sectionOffsets[si] + ni) * 0.06}
+                              onClick={() => handleNodeClick(node)}
+                            />
+                          )
+                        })}
+                      </div>
+                    </Fragment>
                   )
                 })}
-              </svg>
-            </div>
-
-            {/* Sticky legend — top-right of the canvas wrapper, stays put during horizontal scroll */}
-            <div className="absolute top-2 right-2 pointer-events-auto z-10">
-              <Legend />
+              </div>
             </div>
           </div>
         </div>
@@ -602,6 +449,7 @@ function Roadmap({ selectedCareer, missingSkills = [] }) {
 
       <NodeDrawer
         node={drawerNode}
+        status={drawerNode ? nodeStatus(drawerNode, completedNodes, matchedSkills, missingSkills) : 'next'}
         onClose={() => setDrawerNode(null)}
         isCompleted={drawerNode ? completedNodes.has(drawerNode.id) : false}
         onToggleComplete={() => drawerNode && toggleComplete(drawerNode.id)}
