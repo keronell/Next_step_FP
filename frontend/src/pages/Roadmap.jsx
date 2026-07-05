@@ -8,17 +8,19 @@ import SectionHeading from '../components/ui/SectionHeading.jsx'
 
 const progressKey = (careerId) => `nextstep_roadmap_progress_${careerId}`
 
-// DEV-46: node color = the user's status on that skill, one meaning per color.
+// DEV-58: one status system, one meaning per color. Green comes ONLY from the
+// user ticking "Mark as complete" (so unchecking always reverts it); orange
+// marks assessment skill gaps worth focusing on; everything else is neutral.
 const STATUS_COLORS = {
-  mastered: '#22C55E', // green  — mastered / completed skill
-  next:     '#F97316', // orange — in progress / recommended next
-  gap:      '#EF4444', // red    — not started / skill gap
+  todo:  '#64748B', // slate  — not started
+  focus: '#F97316', // orange — skill gap flagged by your assessment
+  done:  '#22C55E', // green  — marked complete by you
 }
 
 const STATUS_LABELS = {
-  mastered: 'Mastered / completed',
-  next:     'Recommended next',
-  gap:      'Skill gap / not started',
+  todo:  'Not started',
+  focus: 'Skill gap — focus here',
+  done:  'Completed by you',
 }
 
 const LEVEL_LABELS = {
@@ -67,19 +69,18 @@ const skillHits = (skills, label) => {
   })
 }
 
-function nodeStatus(node, completedNodes, matchedSkills, missingSkills) {
-  if (completedNodes.has(node.id) || skillHits(matchedSkills, node.label)) return 'mastered'
-  if (skillHits(missingSkills, node.label)) return 'gap'
-  return 'next'
+// DEV-58: completion is the only way a node turns green, so unchecking always
+// reverts it. matched_skills no longer color the canvas (that made green
+// ambiguous); they surface as a hint in the node drawer instead.
+function nodeStatus(node, completedNodes, missingSkills) {
+  if (completedNodes.has(node.id)) return 'done'
+  if (skillHits(missingSkills, node.label)) return 'focus'
+  return 'todo'
 }
 
-function NodeButton({ node, status, isCompleted, isActive, delay, onClick }) {
+function NodeButton({ node, status, isActive, delay, onClick }) {
   const color = STATUS_COLORS[status]
-  const shadows = []
-  // Completed decor (gold ring + check badge) stays a separate system from the
-  // status color: it marks "you ticked this off", not what the assessment says.
-  if (isCompleted) shadows.push('0 0 0 2px var(--color-cream), 0 0 0 4px var(--color-gold)')
-  if (isActive) shadows.push(`0 0 12px ${color}80`)
+  const isCompleted = status === 'done'
 
   return (
     <motion.button
@@ -98,14 +99,15 @@ function NodeButton({ node, status, isCompleted, isActive, delay, onClick }) {
         background: `color-mix(in srgb, ${color} 18%, var(--color-cream))`,
         border: `1px solid color-mix(in srgb, ${color} 55%, var(--color-cream))`,
         color: 'var(--color-navy)',
-        boxShadow: shadows.join(', ') || undefined,
+        boxShadow: isActive ? `0 0 12px ${color}80` : undefined,
       }}
     >
       {node.label}
       {isCompleted && (
         <span
           aria-label="Marked complete"
-          className="absolute -top-2 -right-2 w-[18px] h-[18px] rounded-full bg-gold border border-cream flex items-center justify-center"
+          className="absolute -top-2 -right-2 w-[18px] h-[18px] rounded-full border border-cream flex items-center justify-center"
+          style={{ background: STATUS_COLORS.done }}
         >
           <Check size={11} strokeWidth={3} className="text-cream" aria-hidden="true" />
         </span>
@@ -114,7 +116,7 @@ function NodeButton({ node, status, isCompleted, isActive, delay, onClick }) {
   )
 }
 
-function NodeDrawer({ node, status, onClose, isCompleted, onToggleComplete }) {
+function NodeDrawer({ node, status, isMatchedSkill, onClose, isCompleted, onToggleComplete }) {
   const color = node ? STATUS_COLORS[status] : 'var(--color-gold)'
 
   return (
@@ -180,6 +182,21 @@ function NodeDrawer({ node, status, onClose, isCompleted, onToggleComplete }) {
               {node.description}
             </p>
 
+            {/* DEV-58: matched_skills no longer color the canvas green — the hint
+                that the assessment already saw this skill lives here instead. */}
+            {isMatchedSkill && !isCompleted && (
+              <p
+                className="font-body text-small text-navy/65 leading-relaxed mb-6 px-3 py-2 rounded-lg"
+                style={{
+                  background: 'color-mix(in srgb, var(--color-navy) 4%, var(--color-cream))',
+                  border: '1px solid color-mix(in srgb, var(--color-navy) 12%, var(--color-cream))',
+                }}
+              >
+                Your assessment suggests you already have this skill — mark it
+                complete if that sounds right.
+              </p>
+            )}
+
             <button
               onClick={onToggleComplete}
               className={`focus-ring w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 mb-6 rounded-xl font-body text-small font-semibold transition-colors duration-fast border ${
@@ -230,27 +247,26 @@ function Legend() {
       {Object.keys(STATUS_COLORS).map((status) => (
         <div key={status} className="flex items-center gap-2">
           <span
-            className="w-[26px] h-[14px] rounded shrink-0"
+            className="relative w-[26px] h-[14px] rounded shrink-0"
             style={{
               background: `color-mix(in srgb, ${STATUS_COLORS[status]} 18%, var(--color-cream))`,
               border: `1px solid color-mix(in srgb, ${STATUS_COLORS[status]} 55%, var(--color-cream))`,
             }}
-          />
+          >
+            {status === 'done' && (
+              <span
+                className="absolute -top-1.5 -right-1.5 w-[12px] h-[12px] rounded-full border border-cream flex items-center justify-center"
+                style={{ background: STATUS_COLORS.done }}
+              >
+                <Check size={8} strokeWidth={3.5} className="text-cream" aria-hidden="true" />
+              </span>
+            )}
+          </span>
           <span className="font-body text-small text-navy/70 whitespace-nowrap">
             {STATUS_LABELS[status]}
           </span>
         </div>
       ))}
-      <div className="flex items-center gap-2 pl-5 border-l border-navy/[0.08]">
-        <span className="relative w-[26px] h-[14px] rounded shrink-0 bg-navy/[0.08] shadow-[0_0_0_1.5px_var(--color-cream),0_0_0_3px_var(--color-gold)]">
-          <span className="absolute -top-1.5 -right-1.5 w-[12px] h-[12px] rounded-full bg-gold border border-cream flex items-center justify-center">
-            <Check size={8} strokeWidth={3.5} className="text-cream" aria-hidden="true" />
-          </span>
-        </span>
-        <span className="font-body text-small text-navy/70 whitespace-nowrap">
-          Marked complete by you
-        </span>
-      </div>
     </div>
   )
 }
@@ -386,7 +402,16 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
                 {completedCount} of {totalNodes} completed · <span className="text-gold">{progressPct}%</span>
               </span>
             </div>
-            <div className="h-2 bg-navy/[0.1] rounded-full overflow-hidden">
+            {/* DEV-58: the tokens don't support alpha modifiers (bg-navy/[0.1] is a
+                silent no-op), so the track gets an explicit tint + thin border —
+                otherwise its extent is invisible at low progress. */}
+            <div
+              className="h-2.5 rounded-full overflow-hidden"
+              style={{
+                background: 'color-mix(in srgb, var(--color-navy) 8%, var(--color-cream))',
+                border: '1px solid color-mix(in srgb, var(--color-navy) 30%, var(--color-cream))',
+              }}
+            >
               <motion.div
                 className="h-full bg-gradient-to-r from-gold to-gold-light rounded-full"
                 initial={false}
@@ -396,18 +421,20 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
             </div>
           </div>
 
-          {/* Legend (DEV-46): what the three status colors mean, plus the
-              separate gold "marked complete" decoration. */}
+          {/* Legend (DEV-58): the three node states — completion (green + check)
+              is the only user-driven one, so ticking/unticking always matches. */}
           <div className="flex justify-center mb-6">
             <Legend />
           </div>
 
           {/* Pipeline canvas */}
           <div className="relative">
-            <p className="sm:hidden text-center font-body text-eyebrow font-semibold uppercase text-navy/45 mb-2">
-              Scroll to explore &rarr;
+            {/* DEV-58: hint shows on all sizes (was mobile-only) — desktop users
+                also missed that the pipeline scrolls sideways. */}
+            <p className="text-center font-body text-eyebrow font-semibold uppercase text-navy/45 mb-2">
+              &larr; Scroll to explore &rarr;
             </p>
-            <div className="overflow-x-auto pb-4 pt-4">
+            <div className="roadmap-scroll overflow-x-auto pb-4 pt-4">
               {/* DEV-47/DEV-50/DEV-57: roadmap.sh-style pipeline — one continuous
                   gold spine runs behind the solid-navy stage headers (they mask it),
                   and each stage's cards fan out left/right of a dotted center trunk
@@ -458,12 +485,11 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
                           <div className="w-4 border-t-2 border-dotted border-gold opacity-60 shrink-0" aria-hidden="true" />
                         )
                         const renderNode = (node, ni) => {
-                          const status = nodeStatus(node, completedNodes, matchedSkills, missingSkills)
+                          const status = nodeStatus(node, completedNodes, missingSkills)
                           return (
                             <NodeButton
                               node={node}
                               status={status}
-                              isCompleted={completedNodes.has(node.id)}
                               isActive={drawerNode?.id === node.id}
                               delay={(sectionOffsets[si] + ri * 2 + ni) * 0.06}
                               onClick={() => handleNodeClick(node)}
@@ -500,7 +526,8 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
 
       <NodeDrawer
         node={drawerNode}
-        status={drawerNode ? nodeStatus(drawerNode, completedNodes, matchedSkills, missingSkills) : 'next'}
+        status={drawerNode ? nodeStatus(drawerNode, completedNodes, missingSkills) : 'todo'}
+        isMatchedSkill={drawerNode ? skillHits(matchedSkills, drawerNode.label) : false}
         onClose={() => setDrawerNode(null)}
         isCompleted={drawerNode ? completedNodes.has(drawerNode.id) : false}
         onToggleComplete={() => drawerNode && toggleComplete(drawerNode.id)}
