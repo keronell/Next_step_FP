@@ -9,10 +9,10 @@ Layout (FEATURE_NAMES gives the exact order):
     q1..qN           raw ordinal answers 0-3 (0 when missing)          N dims
     q1_present..     1.0 if answered, 0.0 if skipped or branched away  N dims
     <career>_fit     questionnaire_fit per career, normalized to the
-                     strongest-fitting career (mirrors matching_service) 6 dims
+                     strongest-fitting career (mirrors matching_service) 16 dims
     <career>_sem     semantic similarity per career (ChromaDB, 0 when
-                     the field returned no ads)                          6 dims
-    <career>_skill   key-skill overlap per career against market skills  6 dims
+                     the field returned no ads)                          16 dims
+    <career>_skill   key-skill overlap per career against market skills  16 dims
 
 Question order is the questions.json bank order and career order is the
 careers.json catalog order — both stable because they are versioned with the code.
@@ -25,10 +25,10 @@ from collections import Counter
 
 from app.data import load_questions
 
-# features-v2: question bank grew q11-q13 (DEV-29), so the q/​q_present blocks are
-# wider. The features-v1 artifact is refused on load; matching falls back to the
+# features-v3: career catalog grew 6 -> 16, so the per-career fit/sem/skill blocks
+# are wider. Older artifacts are refused on load; matching falls back to the
 # formula until a model is retrained (pipeline: docs/matching-rework-plan.md).
-FEATURE_VERSION = "features-v2"
+FEATURE_VERSION = "features-v3"
 
 QUESTION_IDS = [q["id"] for q in load_questions()]
 

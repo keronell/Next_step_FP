@@ -1,7 +1,7 @@
 """Explainable career matching: learned model when available, formula fallback.
 
 When a MatcherModel artifact is loaded (MATCHER_MODEL_PATH set + valid), scoring is
-its probability output over the 6 careers (trained on synthetic silver labels —
+its probability output over the catalog careers (trained on synthetic silver labels —
 see docs/matching-rework-plan.md), with attribution-driven reasons. On ANY model
 error — or when no model is configured (the default) — scoring falls back to the
 original deterministic blend below, same defensive posture as the ChromaDB/Supabase
