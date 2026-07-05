@@ -183,6 +183,31 @@ body::before {
 ::-webkit-scrollbar-thumb { background: var(--color-gold); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-gold-light); }
 
+/* Roadmap pipeline scroller (DEV-58): the global scrollbar's cream track is
+   invisible on the cream page, so users can't tell the canvas scrolls sideways.
+   Give this scroller a framed track (tint + thin border) with a gold thumb
+   moving inside it, so the scroll range and position are always visible. */
+.roadmap-scroll {
+  scrollbar-color: var(--color-gold)
+    color-mix(in srgb, var(--color-navy) 8%, var(--color-cream)); /* Firefox */
+}
+.roadmap-scroll::-webkit-scrollbar {
+  height: 12px;
+}
+.roadmap-scroll::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--color-navy) 8%, var(--color-cream));
+  border: 1px solid color-mix(in srgb, var(--color-navy) 30%, var(--color-cream));
+  border-radius: 9999px;
+}
+.roadmap-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-gold);
+  border: 2px solid color-mix(in srgb, var(--color-navy) 8%, var(--color-cream));
+  border-radius: 9999px;
+}
+.roadmap-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-light);
+}
+
 /* ── Style A: Particle Drift ─────────────────────────────────── */
 
 .gold-underline {
