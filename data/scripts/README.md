@@ -92,13 +92,15 @@ python data/scripts/verify_output.py
 ## Annotation
 
 ### `answer_questions_local.py`
-Generates synthetic persona answers for all questions using a local Ollama model. Each question is answered from the perspective of multiple expert personas to produce labeled training data.
+Generates synthetic persona answers for all questions using a local Ollama model. Each field is answered by `PERSONAS_PER_FIELD` (default 3) independent personas at distinct temperatures (`PERSONA_TEMPERATURES`) to avoid same-base-model clone effects, mirroring `panel_label_profiles.py`'s panel design. `target_field` is never forced into the model's `predicted_fields` — confirmation is measured honestly, not injected.
 
 ```bash
-python data/scripts/answer_questions_local.py
+python data/scripts/answer_questions_local.py                  # full run
+python data/scripts/answer_questions_local.py --limit 50       # smoke test
+python data/scripts/answer_questions_local.py --aggregate-only # recompute the agreement report only
 # Requires Ollama running at localhost:11434
 ```
-Output: `answers/question_bank_answered_local.csv`
+Output: `answers/question_bank_answered_local.csv`, `reports/question_bank_agreement_report.md`
 
 ### `pipeline.py`
 Orchestrates the full annotation pipeline end-to-end.

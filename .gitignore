@@ -20,3 +20,6 @@ build/
 # ChromaDB generated vector store
 data/jobs/chroma/
 .playwright-mcp/
+
+# Local scratch / PR-review temp (zips, extracted PRs, pytest temp dirs)
+.tmp/
