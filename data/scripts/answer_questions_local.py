@@ -456,6 +456,10 @@ def validate_and_shape(result: dict, fallback_expert: str, answer_type: str, tar
     # confirmation is what write_agreement_report() reports on.
     target_confirmed = target_field in cleaned_predicted
 
+    # Top-up to >=3 for downstream consumers that expect a non-trivial field list.
+    # Note: target_confirmed was intentionally captured ABOVE, before this fallback --
+    # so a target added here does NOT count as confirmation. Do not recompute it after
+    # this block or you reintroduce the always-confirmed bias this measure exists to avoid.
     if len(cleaned_predicted) < 3:
         top_fields = sorted(
             normalized_scores,
@@ -536,6 +540,33 @@ def append_output_row(record: dict) -> None:
             if write_header:
                 writer.writeheader()
             writer.writerow(record)
+
+
+def migrate_output_schema() -> None:
+    """Bring a pre-existing OUTPUT_CSV up to the current OUTPUT_FIELDNAMES layout.
+
+    append_output_row() writes headerless rows positionally in OUTPUT_FIELDNAMES
+    order. If the file on disk was produced by an older version of this script (a
+    different column order, or missing `temperature`/`target_confirmed`), appending
+    new rows would silently misalign them under the old header -- e.g. an `id` value
+    landing in the `expert_role` column -- corrupting both the data and the
+    name-keyed resume lookup. Rewrite the file with the new header first (pandas
+    reindex aligns by column name, adds new columns as empty, drops unknown ones) so
+    the append and the resume read agree on the schema.
+    """
+    if not OUTPUT_CSV.exists() or OUTPUT_CSV.stat().st_size == 0:
+        return
+    with OUTPUT_CSV.open("r", newline="", encoding="utf-8") as f:
+        existing_header = next(csv.reader(f), [])
+    if existing_header == OUTPUT_FIELDNAMES:
+        return
+    print(
+        f"Output schema changed; migrating {OUTPUT_CSV} to the current column layout "
+        "before appending (existing rows preserved)."
+    )
+    df = pd.read_csv(OUTPUT_CSV, on_bad_lines="skip")
+    df = df.reindex(columns=OUTPUT_FIELDNAMES)
+    df.to_csv(OUTPUT_CSV, index=False)
 
 
 def make_generation_key(target_field: str, persona_id: str, question_id, split_type: str) -> str:
@@ -856,6 +887,9 @@ def main() -> None:
         help="Skip generation; recompute the agreement report from the existing output CSV.",
     )
     args = parser.parse_args()
+
+    # Reconcile any older on-disk schema before we read it for resume or append to it.
+    migrate_output_schema()
 
     if args.aggregate_only:
         if not OUTPUT_CSV.exists():
