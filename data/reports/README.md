@@ -8,6 +8,8 @@ Quality audit outputs, trust-check results, and validation summaries. All files 
 |------|-------------|-------------|
 | `synthetic_output_validation_report.md` | `validate_synthetic_output.py` | Human-readable structural validation of `answers/question_bank_answered_local.csv` |
 | `synthetic_output_validation_report.json` | `validate_synthetic_output.py` | Machine-readable version of the same report |
+| `question_bank_agreement_report.md` | `answer_questions_local.py` | Per-field target-confirmation rate (coding-role bias check) + shared-subset Fleiss/Cohen kappa across a field's own personas. Scoped to current-`prompt_version` rows only — see `answers/README.md`. |
+| `nextstep-data-dashboard.html` | manual (published artifact) | Self-contained HTML dashboard of the answered-questions dataset (Likert discrimination, confirmation rates) and the job-ads corpus (per field, per source). Open in a browser; no server needed. |
 | `quick_trust_check_report.md` | `quick_trust_check_local.py` | Fast trust-check report on a small sample (schema, field consistency, Likert validity) |
 | `quick_trust_check_results.csv` | `quick_trust_check_local.py` | Per-row trust-check results for the sampled questions |
 | `step3_label_schema_report.md` | labeling pipeline | Summary of label schema coverage after Step 3 of labeling |

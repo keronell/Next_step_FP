@@ -1,0 +1,496 @@
+<style>
+  :root {
+    --paper:        #f2f1ec;
+    --card:         #fbfbf9;
+    --ink:          #12203a;
+    --ink-2:        #55606f;
+    --muted:        #8b8f98;
+    --hair:         #e4e3dc;
+    --hair-strong:  #d3d2c9;
+    --accent:       #a9781a;
+    --accent-soft:  rgba(169,120,26,0.12);
+    --bar:          #2a78d6;
+    --bar-track:    #e9e8e1;
+    --pos:          #2a78d6;
+    --neg:          #e34948;
+    --shadow:       0 1px 2px rgba(18,32,58,.05), 0 6px 18px rgba(18,32,58,.05);
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", "Consolas", "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:       #0e0f12;
+      --card:        #17181c;
+      --ink:         #f1f2ef;
+      --ink-2:       #b3b8c1;
+      --muted:       #868a93;
+      --hair:        #26272c;
+      --hair-strong: #34353b;
+      --accent:      #d8a840;
+      --accent-soft: rgba(216,168,64,0.15);
+      --bar:         #3987e5;
+      --bar-track:   #24252a;
+      --pos:         #3987e5;
+      --neg:         #e66767;
+      --shadow:      0 1px 2px rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --paper:#f2f1ec; --card:#fbfbf9; --ink:#12203a; --ink-2:#55606f; --muted:#8b8f98;
+    --hair:#e4e3dc; --hair-strong:#d3d2c9; --accent:#a9781a; --accent-soft:rgba(169,120,26,0.12);
+    --bar:#2a78d6; --bar-track:#e9e8e1; --pos:#2a78d6; --neg:#e34948;
+    --shadow:0 1px 2px rgba(18,32,58,.05), 0 6px 18px rgba(18,32,58,.05);
+  }
+  :root[data-theme="dark"] {
+    --paper:#0e0f12; --card:#17181c; --ink:#f1f2ef; --ink-2:#b3b8c1; --muted:#868a93;
+    --hair:#26272c; --hair-strong:#34353b; --accent:#d8a840; --accent-soft:rgba(216,168,64,0.15);
+    --bar:#3987e5; --bar-track:#24252a; --pos:#3987e5; --neg:#e66767;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  .wrap {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: clamp(20px, 4vw, 48px);
+    -webkit-font-smoothing: antialiased;
+  }
+  .inner { max-width: 1180px; margin: 0 auto; }
+
+  /* ---- header ---- */
+  .masthead {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 24px; flex-wrap: wrap;
+    padding-bottom: 22px; margin-bottom: 30px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); font-weight: 600;
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(27px, 4.2vw, 40px); line-height: 1.02; margin: 0;
+    font-weight: 800; letter-spacing: -.02em; text-wrap: balance; max-width: 20ch;
+  }
+  .sub { margin: 12px 0 0; color: var(--ink-2); font-size: 15px; max-width: 56ch; line-height: 1.5; }
+  .toggle {
+    font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+    background: var(--card); border: 1px solid var(--hair-strong); border-radius: 8px;
+    padding: 8px 12px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
+    white-space: nowrap;
+  }
+  .toggle:hover { border-color: var(--accent); color: var(--ink); }
+  .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---- kpi row ---- */
+  .kpis {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 40px;
+  }
+  .kpi {
+    background: var(--card); border: 1px solid var(--hair); border-radius: 12px;
+    padding: 16px 16px 15px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background: var(--accent); opacity:.85;
+  }
+  .kpi .num {
+    font-family: var(--mono); font-size: clamp(22px, 2.6vw, 29px); font-weight: 600;
+    letter-spacing: -.01em; color: var(--ink); line-height: 1;
+  }
+  .kpi .lab { font-size: 12.5px; color: var(--ink-2); margin-top: 7px; line-height: 1.3; }
+  .kpi .hint { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+
+  /* ---- section ---- */
+  section { margin-bottom: 44px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin: 0 0 18px; flex-wrap: wrap; }
+  .sec-head h2 { font-size: 19px; font-weight: 750; letter-spacing: -.01em; margin: 0; }
+  .sec-head .meta { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .sec-rule { height: 1px; background: var(--hair-strong); margin-bottom: 20px; }
+
+  .grid { display: grid; gap: 16px; }
+  .g-2 { grid-template-columns: repeat(2, 1fr); }
+  .span-2 { grid-column: 1 / -1; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--hair); border-radius: 14px;
+    padding: 18px 20px 20px; box-shadow: var(--shadow);
+  }
+  .card h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.005em; }
+  .card .desc { margin: 5px 0 16px; font-size: 12.5px; color: var(--ink-2); line-height: 1.45; max-width: 62ch; }
+
+  /* ---- horizontal bars ---- */
+  .hbars { display: flex; flex-direction: column; gap: 7px; }
+  .hrow { display: grid; grid-template-columns: 132px 1fr; align-items: center; gap: 12px; }
+  .hrow .name { font-size: 12px; color: var(--ink-2); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track { position: relative; height: 20px; background: var(--bar-track); border-radius: 5px; overflow: hidden; }
+  .fill {
+    position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; width: 0;
+    background: var(--bar); transition: width .8s cubic-bezier(.2,.7,.2,1);
+  }
+  .val {
+    position: absolute; top: 0; height: 20px; display: flex; align-items: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--ink);
+    padding: 0 6px; white-space: nowrap;
+  }
+  .refline { position: absolute; top: -4px; bottom: -4px; width: 0; border-left: 2px dashed var(--accent); z-index: 3; }
+  .reflabel {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+  }
+  .reflabel::before { content:""; width: 16px; border-top: 2px dashed var(--accent); }
+
+  /* ---- vertical grouped (likert) ---- */
+  .vchart { display: flex; align-items: flex-end; gap: 4%; padding: 22px 4px 0; }
+  .vgroup { flex: 1; display: flex; flex-direction: column; align-items: stretch; }
+  .vcols { height: 185px; display: flex; align-items: flex-end; justify-content: center; gap: 6px; width: 100%; }
+  .vcol { width: 34%; max-width: 34px; background: var(--bar); border-radius: 5px 5px 0 0; height: 0; transition: height .8s cubic-bezier(.2,.7,.2,1); position: relative; }
+  .vcol.pos { background: var(--pos); }
+  .vcol.neg { background: var(--neg); }
+  .vcol .cap { position: absolute; top: -17px; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 10px; color: var(--ink-2); white-space: nowrap; }
+  .vaxis { display: flex; gap: 4%; padding: 8px 4px 0; }
+  .vtick { flex: 1; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .vtick b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---- legend ---- */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; }
+  .lg { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-2); }
+  .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+
+  /* ---- single-likert overall ---- */
+  .likert-strip { display: flex; gap: 10px; align-items: flex-end; }
+  .ls { flex: 1; display: flex; flex-direction: column; }
+  .ls .n { font-family: var(--mono); font-size: 11px; color: var(--ink); font-weight: 600; text-align: center; height: 15px; }
+  .ls .plot { height: 140px; position: relative; margin-top: 4px; }
+  .ls .b { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: var(--bar); border-radius: 5px 5px 0 0; transition: height .8s cubic-bezier(.2,.7,.2,1); }
+  .ls .t { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center; margin-top: 7px; min-height: 30px; }
+  .ls .t b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---- answer-type mini ---- */
+  .atlist { display: flex; flex-direction: column; gap: 9px; }
+  .atrow { display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: 10px; }
+  .atrow .name { font-size: 12px; color: var(--ink-2); }
+  .atrow .track { height: 14px; }
+  .atrow .num { font-family: var(--mono); font-size: 11.5px; color: var(--ink); font-weight: 600; min-width: 78px; text-align: right; }
+
+  /* ---- tooltip ---- */
+  #tip {
+    position: fixed; z-index: 50; pointer-events: none; opacity: 0; transform: translateY(4px);
+    transition: opacity .12s ease; background: var(--ink); color: var(--card);
+    font-family: var(--mono); font-size: 11.5px; line-height: 1.5; padding: 7px 10px; border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.28); max-width: 260px;
+  }
+  #tip .tt { font-weight: 700; }
+  #tip .td { opacity: .85; }
+
+  footer {
+    margin-top: 8px; padding-top: 22px; border-top: 1px solid var(--hair-strong);
+    font-size: 12px; color: var(--ink-2); line-height: 1.6;
+  }
+  footer .cav { color: var(--muted); font-size: 11.5px; margin-top: 8px; }
+  footer code { font-family: var(--mono); font-size: 11px; background: var(--accent-soft); color: var(--accent); padding: 1px 5px; border-radius: 4px; }
+
+  @media (max-width: 720px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .g-2 { grid-template-columns: 1fr; }
+    .hrow { grid-template-columns: 108px 1fr; }
+    .hrow .name { font-size: 11px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fill, .vcol, .ls .b { transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="inner">
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">NextStep · Field-Prediction Data</p>
+        <h1>Dataset overview: synthetic answers &amp; the job‑market corpus</h1>
+        <p class="sub">Two datasets behind the career recommender — the LLM‑generated expert answers used as training signal, and the scraped job ads that anchor each of the 16 fields. Numbers are computed live from the source files.</p>
+      </div>
+      <button class="toggle" id="themeBtn" aria-label="Toggle color theme">◐ Theme</button>
+    </header>
+
+    <div class="kpis" id="kpis"></div>
+
+    <section>
+      <div class="sec-head">
+        <h2>Synthetic answer dataset</h2>
+        <span class="meta">question_bank_answered_local.csv · prompt v4.1.0</span>
+      </div>
+      <div class="sec-rule"></div>
+
+      <div class="grid">
+        <div class="card span-2">
+          <h3>Likert scores discriminate by field fit</h3>
+          <p class="desc">The core training signal: when a persona rates a question that <em>fits</em> its field, scores skew high; when the question is off‑theme, they skew low. Bars are share of ratings within each group (matched n=4,045 · mismatched n=2,523).</p>
+          <div class="vchart" id="likertGrouped"></div>
+          <div class="vaxis" id="likertGroupedAxis"></div>
+          <div class="legend">
+            <span class="lg"><span class="sw" style="background:var(--pos)"></span>Matched — question fits the persona's field</span>
+            <span class="lg"><span class="sw" style="background:var(--neg)"></span>Mismatched — off‑theme for the field</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Overall Likert distribution</h3>
+          <p class="desc">All 6,568 Likert ratings. The mass sits at 2–3, not piled on “4” — the discrimination fix in action.</p>
+          <div class="likert-strip" id="likertOverall"></div>
+        </div>
+
+        <div class="card">
+          <h3>Answer types in the bank</h3>
+          <p class="desc">8,640 rows span five answer formats; only Likert5 carries a 1–5 score.</p>
+          <div class="atlist" id="answerTypes"></div>
+        </div>
+
+        <div class="card span-2">
+          <h3>Target‑field confirmation rate</h3>
+          <p class="desc">Share of a field's rows where the model's own top predictions <em>included</em> that field — with no forcing. People/communication fields confirm highest; coding‑heavy fields lowest — the opposite of the old developer‑role bias. Dashed line marks the 55.7% overall mean.</p>
+          <div class="hbars" id="confirmChart"></div>
+          <span class="reflabel">overall mean · 55.7%</span>
+        </div>
+
+        <div class="card span-2">
+          <h3>Which fields the model predicts most</h3>
+          <p class="desc">How often each field appears in the top predictions across all 8,640 answers. The soft‑skill fields dominate because most personality questions read as communication/people/design signal.</p>
+          <div class="hbars" id="predChart"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>Job‑market corpus</h2>
+        <span class="meta">data/jobs/raw · 1,853 ads · 7 sources</span>
+      </div>
+      <div class="sec-rule"></div>
+
+      <div class="grid g-2">
+        <div class="card span-2">
+          <h3>Job ads per field</h3>
+          <p class="desc">Scraped, de‑duplicated postings scored into the 16 canonical fields — the market signal each career's RAG retrieval draws on.</p>
+          <div class="hbars" id="jobsField"></div>
+        </div>
+
+        <div class="card span-2">
+          <h3>Job ads per source</h3>
+          <p class="desc">Where the corpus comes from. JobSpy aggregates the bulk; the rest are individual job boards.</p>
+          <div class="hbars" id="jobsSource"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Computed from <code>question_bank_answered_local.csv</code> (8,640 rows, 0 errors) and <code>data/jobs/raw/*.json</code> (1,853 ads). Panel: qwen2.5:7b‑instruct, 3 personas at temperatures 0.2 / 0.6 / 0.9. Shared‑subset Fleiss κ = 0.465.
+      <div class="cav">These are <strong>silver labels</strong> — LLM‑generated, not human expert ground truth. Confirmation rates and agreement measure consistency between personas sharing one base model, not real‑world accuracy.</div>
+    </footer>
+  </div>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+  const CANON_SHORT = {
+    "Frontend Development":"Frontend","Backend Development":"Backend","Full Stack Development":"Full Stack",
+    "Mobile Development":"Mobile","Data Analysis":"Data Analysis","Data Science":"Data Science",
+    "Machine Learning":"Machine Learning","AI Engineering":"AI Engineering","Cyber Security":"Cyber Security",
+    "DevOps":"DevOps","QA / Software Testing":"QA / Testing","Game Development":"Game Dev",
+    "UI / UX Design":"UI / UX","Product Management":"Product Mgmt","Technical Writing":"Tech Writing",
+    "Software Architecture":"Architecture"
+  };
+  const D = {
+    jobs_total: 1853,
+    jobs_by_field: {"Frontend Development":68,"Backend Development":73,"Full Stack Development":127,"Mobile Development":65,"Data Analysis":125,"Data Science":106,"Machine Learning":73,"AI Engineering":130,"Cyber Security":134,"DevOps":155,"QA / Software Testing":61,"Game Development":20,"UI / UX Design":195,"Product Management":139,"Technical Writing":109,"Software Architecture":273},
+    jobs_by_source: {"jobspy":1277,"remoteok":185,"weworkremotely":182,"jobicy":126,"remotive":41,"arbeitnow":31,"themuse":11},
+    likert_counts: {"1":212,"2":1441,"3":2554,"4":1646,"5":715},
+    likert_matched: {"1":50,"2":560,"3":1469,"4":1339,"5":627},
+    likert_mismatched: {"1":162,"2":881,"3":1085,"4":307,"5":88},
+    confirm_by_field: {"Frontend Development":39.3,"Backend Development":47.0,"Full Stack Development":52.6,"Mobile Development":37.6,"Data Analysis":58.0,"Data Science":59.8,"Machine Learning":45.0,"AI Engineering":54.3,"Cyber Security":59.4,"DevOps":56.3,"QA / Software Testing":68.1,"Game Development":41.7,"UI / UX Design":66.3,"Product Management":77.8,"Technical Writing":80.2,"Software Architecture":48.3},
+    confirm_overall: 55.7,
+    pred_field_freq: {"Frontend Development":917,"Backend Development":1484,"Full Stack Development":793,"Mobile Development":234,"Data Analysis":1113,"Data Science":1652,"Machine Learning":1209,"AI Engineering":531,"Cyber Security":608,"DevOps":648,"QA / Software Testing":781,"Game Development":291,"UI / UX Design":3363,"Product Management":5732,"Technical Writing":5753,"Software Architecture":811},
+    answer_types: {"Likert5":7178,"SingleChoice":1260,"OpenText":81,"MultiChoice":77,"Numeric":44}
+  };
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const fmt = n => n.toLocaleString("en-US");
+
+  /* ---------- tooltip ---------- */
+  const tip = document.getElementById("tip");
+  function showTip(html, x, y) {
+    tip.innerHTML = html;
+    tip.style.opacity = "1";
+    const r = tip.getBoundingClientRect();
+    let left = x + 14, top = y + 14;
+    if (left + r.width > window.innerWidth - 8) left = x - r.width - 14;
+    if (top + r.height > window.innerHeight - 8) top = y - r.height - 14;
+    tip.style.left = left + "px"; tip.style.top = top + "px";
+  }
+  function hideTip() { tip.style.opacity = "0"; }
+  document.addEventListener("mousemove", e => {
+    const el = e.target.closest("[data-tip]");
+    if (el) showTip(el.getAttribute("data-tip"), e.clientX, e.clientY);
+    else hideTip();
+  });
+  document.addEventListener("mouseleave", hideTip);
+
+  /* ---------- KPI tiles ---------- */
+  const KPIS = [
+    { num: "8,640", lab: "Synthetic answers", hint: "prompt v4.1.0 · 0 errors" },
+    { num: "55.7%", lab: "Target‑field confirmation", hint: "honest, un‑forced" },
+    { num: "0.465", lab: "Shared‑subset Fleiss κ", hint: "3 personas agree, not clones" },
+    { num: "25%", lab: "Likert 1–2 (was ~0.3%)", hint: "discrimination restored" },
+    { num: "1,853", lab: "Job ads scraped", hint: "16 fields · de‑duplicated" },
+    { num: "7", lab: "Job‑board sources", hint: "jobspy + 6 boards" },
+    { num: "16", lab: "Canonical fields", hint: "each ≥ 20 ads · 540 rows" },
+    { num: "3", lab: "Expert personas", hint: "temps 0.2 / 0.6 / 0.9" }
+  ];
+  document.getElementById("kpis").innerHTML = KPIS.map(k =>
+    `<div class="kpi"><div class="num">${k.num}</div><div class="lab">${k.lab}</div><div class="hint">${k.hint}</div></div>`
+  ).join("");
+
+  /* ---------- horizontal bar chart ---------- */
+  function hbar(elId, entries, opt) {
+    opt = opt || {};
+    const el = document.getElementById(elId);
+    const max = opt.maxOverride != null ? opt.maxOverride : Math.max.apply(null, entries.map(e => e.value));
+    const unit = opt.unit || "";
+    el.innerHTML = entries.map(e => {
+      const pct = max ? (e.value / max) * 100 : 0;
+      const label = opt.short ? (CANON_SHORT[e.key] || e.key) : e.key;
+      const disp = opt.percent ? e.value.toFixed(1) + "%" : fmt(e.value);
+      const tipText = `<span class="tt">${e.key}</span><br><span class="td">${disp}${unit ? " " + unit : ""}</span>${e.extra ? "<br><span class='td'>" + e.extra + "</span>" : ""}`;
+      return `<div class="hrow">
+        <div class="name" title="${e.key}">${label}</div>
+        <div class="track" data-tip="${tipText.replace(/"/g,'&quot;')}">
+          <div class="fill" data-w="${pct}"></div>
+          <div class="val" style="left:${pct}%">${disp}</div>
+        </div>
+      </div>`;
+    }).join("");
+    if (opt.ref != null) {
+      el.querySelectorAll(".track").forEach(t => {
+        const refPct = (opt.ref / max) * 100;
+        const r = document.createElement("div");
+        r.className = "refline"; r.style.left = refPct + "%";
+        t.appendChild(r);
+      });
+    }
+    animateFills(el);
+    // keep value labels from overflowing the card: clamp left, flip inside when near end
+    el.querySelectorAll(".hrow").forEach(row => {
+      const fill = row.querySelector(".fill");
+      const val = row.querySelector(".val");
+      const w = parseFloat(fill.getAttribute("data-w"));
+      if (w > 78) { val.style.left = w + "%"; val.style.transform = "translateX(-100%)"; val.style.color = "#fff"; }
+    });
+  }
+
+  function animateFills(scope) {
+    const fills = scope.querySelectorAll(".fill");
+    if (reduceMotion) { fills.forEach(f => f.style.width = f.getAttribute("data-w") + "%"); return; }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fills.forEach(f => f.style.width = f.getAttribute("data-w") + "%");
+    }));
+  }
+
+  function sortDesc(obj) {
+    return Object.keys(obj).map(k => ({ key: k, value: obj[k] })).sort((a, b) => b.value - a.value);
+  }
+
+  /* ---------- grouped likert (matched vs mismatched, % within group) ---------- */
+  function groupedLikert() {
+    const chart = document.getElementById("likertGrouped");
+    const axis = document.getElementById("likertGroupedAxis");
+    const mT = Object.values(D.likert_matched).reduce((a, b) => a + b, 0);
+    const nT = Object.values(D.likert_mismatched).reduce((a, b) => a + b, 0);
+    const pctM = {}, pctN = {};
+    let peak = 0;
+    for (let s = 1; s <= 5; s++) {
+      pctM[s] = D.likert_matched[s] / mT * 100;
+      pctN[s] = D.likert_mismatched[s] / nT * 100;
+      peak = Math.max(peak, pctM[s], pctN[s]);
+    }
+    const labels = { 1: "strongly<br>disagree", 2: "disagree", 3: "neutral", 4: "agree", 5: "strongly<br>agree" };
+    let html = "", ax = "";
+    for (let s = 1; s <= 5; s++) {
+      const hM = pctM[s] / peak * 90, hN = pctN[s] / peak * 90;
+      const tipM = `<span class="tt">Matched · score ${s}</span><br><span class="td">${pctM[s].toFixed(1)}% · ${fmt(D.likert_matched[s])} ratings</span>`;
+      const tipN = `<span class="tt">Mismatched · score ${s}</span><br><span class="td">${pctN[s].toFixed(1)}% · ${fmt(D.likert_mismatched[s])} ratings</span>`;
+      html += `<div class="vgroup"><div class="vcols">
+        <div class="vcol pos" data-h="${hM}" data-tip="${tipM.replace(/"/g,'&quot;')}"><span class="cap">${pctM[s].toFixed(0)}%</span></div>
+        <div class="vcol neg" data-h="${hN}" data-tip="${tipN.replace(/"/g,'&quot;')}"><span class="cap">${pctN[s].toFixed(0)}%</span></div>
+      </div></div>`;
+      ax += `<div class="vtick"><b>${s}</b><br>${labels[s]}</div>`;
+    }
+    chart.innerHTML = html; axis.innerHTML = ax;
+    const cols = chart.querySelectorAll(".vcol");
+    if (reduceMotion) cols.forEach(c => c.style.height = c.getAttribute("data-h") + "%");
+    else requestAnimationFrame(() => requestAnimationFrame(() => cols.forEach(c => c.style.height = c.getAttribute("data-h") + "%")));
+  }
+
+  /* ---------- overall likert strip ---------- */
+  function likertOverall() {
+    const el = document.getElementById("likertOverall");
+    const vals = D.likert_counts;
+    const total = Object.values(vals).reduce((a, b) => a + b, 0);
+    const max = Math.max.apply(null, Object.values(vals));
+    const labels = { 1: "disagree", 2: "", 3: "neutral", 4: "", 5: "agree" };
+    el.innerHTML = [1,2,3,4,5].map(s => {
+      const h = vals[s] / max * 100;
+      const pct = (vals[s] / total * 100).toFixed(1);
+      const tipText = `<span class="tt">Score ${s}</span><br><span class="td">${fmt(vals[s])} · ${pct}%</span>`;
+      return `<div class="ls">
+        <div class="n">${pct}%</div>
+        <div class="plot"><div class="b" data-h="${h}" data-tip="${tipText.replace(/"/g,'&quot;')}"></div></div>
+        <div class="t"><b>${s}</b>${labels[s] ? "<br>" + labels[s] : ""}</div>
+      </div>`;
+    }).join("");
+    const bars = el.querySelectorAll(".b");
+    if (reduceMotion) bars.forEach(b => b.style.height = b.getAttribute("data-h") + "%");
+    else requestAnimationFrame(() => requestAnimationFrame(() => bars.forEach(b => b.style.height = b.getAttribute("data-h") + "%")));
+  }
+
+  /* ---------- answer types ---------- */
+  function answerTypes() {
+    const el = document.getElementById("answerTypes");
+    const entries = sortDesc(D.answer_types);
+    const total = entries.reduce((a, e) => a + e.value, 0);
+    const max = entries[0].value;
+    el.innerHTML = entries.map(e => {
+      const pct = e.value / max * 100;
+      const share = (e.value / total * 100).toFixed(1);
+      const tipText = `<span class="tt">${e.key}</span><br><span class="td">${fmt(e.value)} · ${share}%</span>`;
+      return `<div class="atrow">
+        <div class="name">${e.key}</div>
+        <div class="track" data-tip="${tipText.replace(/"/g,'&quot;')}"><div class="fill" data-w="${pct}"></div></div>
+        <div class="num">${fmt(e.value)}</div>
+      </div>`;
+    }).join("");
+    animateFills(el);
+  }
+
+  /* ---------- render all ---------- */
+  groupedLikert();
+  likertOverall();
+  answerTypes();
+  hbar("confirmChart", sortDesc(D.confirm_by_field), { short: true, percent: true, ref: D.confirm_overall, maxOverride: 100, unit: "confirmed" });
+  hbar("predChart", sortDesc(D.pred_field_freq), { short: true, unit: "appearances" });
+  hbar("jobsField", sortDesc(D.jobs_by_field), { short: true, unit: "ads" });
+  hbar("jobsSource", sortDesc(D.jobs_by_source), { unit: "ads" });
+
+  /* ---------- theme toggle ---------- */
+  const root = document.documentElement;
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    const cur = root.getAttribute("data-theme");
+    const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const now = cur ? cur : (sysDark ? "dark" : "light");
+    root.setAttribute("data-theme", now === "dark" ? "light" : "dark");
+  });
+})();
+</script>

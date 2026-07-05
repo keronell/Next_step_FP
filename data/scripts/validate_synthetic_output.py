@@ -142,7 +142,9 @@ def main() -> None:
             scoped["persona_name"].fillna("").astype(str).str.strip().replace("", pd.NA).dropna().nunique()
         )
         persona_diversity[field] = int(unique_personas)
-        expected_personas = 2 if len(scoped) >= 2 else 1
+        # answer_questions_local.py uses PERSONAS_PER_FIELD=3 as of prompt_version
+        # v4.0.0; rows from older runs may only have 2 and are still valid.
+        expected_personas = min(3, len(scoped)) if len(scoped) >= 2 else 1
         if unique_personas < expected_personas:
             fields_low_persona_diversity.append(field)
 

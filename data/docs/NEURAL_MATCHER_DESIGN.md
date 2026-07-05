@@ -58,7 +58,7 @@ Wire inference behind a flag; adaptive quiz uses **entropy / margin** from model
 
 ## 5. Risks and mitigations
 
-- **Synthetic bias:** Plan for future real user + self-reported field labels; keep `prompt_version` / `run_id` in training logs.
+- **Synthetic bias:** Plan for future real user + self-reported field labels; keep `prompt_version` / `run_id` in training logs. Confirmed in practice: pre-v4.0.0 generation forced `target_field` into every row's `predicted_fields`, and separately used one fixed temperature across personas — both hid the same coding-role-default bias that hit the career-matcher panel (`docs/matching-rework-plan.md` Phase 0, panel-v1.0.1). Fixed in `answer_questions_local.py` v4.0.0: per-persona temperatures, no forced injection, explicit equal-validity prompt instruction. See `data/reports/question_bank_agreement_report.md` for the honest confirmation-rate/kappa numbers going forward. The bulk of the existing 5,760-row dataset predates this fix and has not been regenerated.
 - **JSON / parse failures:** Block or down-weight bad expert rows; improve retry/parser in annotator (see adaptive instructions Step 4).
 - **Imbalanced job counts per field:** Inverse-frequency weights, targeted scrape (`pipeline.py --fields`), or defer job fusion until counts improve.
 
@@ -79,5 +79,6 @@ Wire inference behind a flag; adaptive quiz uses **entropy / margin** from model
 | Date | Change |
 |------|--------|
 | 2026-05-23 | Initial stub: sources, phases, open decisions, risks. |
+| 2026-07-04 | Reworked `answer_questions_local.py` expert-answer generation to match `panel_label_profiles.py`'s panel architecture: per-persona temperatures (was one fixed temperature), no forced `target_field` injection into `predicted_fields` (was always forced, making confirmation unmeasurable), explicit equal-validity anti-bias prompt instruction, `PERSONAS_PER_FIELD` raised 2→3, new `question_bank_agreement_report.md` (confirmation-rate bias check + shared-subset Fleiss/Cohen kappa), `--limit`/`--aggregate-only` CLI flags. |
 
 _Update this table whenever you change scope or architecture._
