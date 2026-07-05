@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Monitor, Server, BarChart2, Layers, Compass, Pen, ChevronRight, Trophy, Medal, Award, Check } from 'lucide-react'
+import { Monitor, Server, BarChart2, Layers, Compass, Pen, Code2, Smartphone, PieChart, Brain, Sparkles, ShieldCheck, Bug, Gamepad2, FileText, Network, ChevronRight, Trophy, Medal, Award, Check } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useReveal } from '../hooks/useReveal'
 import Badge from '../components/ui/Badge.jsx'
@@ -8,6 +8,7 @@ import SectionHeading from '../components/ui/SectionHeading.jsx'
 
 const ICON_MAP = {
   Monitor, Server, BarChart2, Layers, Compass, Pen,
+  Code2, Smartphone, PieChart, Brain, Sparkles, ShieldCheck, Bug, Gamepad2, FileText, Network,
 }
 
 const RANK_STYLES = [

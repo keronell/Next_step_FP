@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { BarChart2, ChevronRight, Clock, Compass, Layers, Monitor, Pen, Server } from 'lucide-react'
+import { BarChart2, ChevronRight, Clock, Compass, Layers, Monitor, Pen, Server, Code2, Smartphone, PieChart, Brain, Sparkles, ShieldCheck, Bug, Gamepad2, FileText, Network } from 'lucide-react'
 import { fetchMySubmissions } from '../api'
 import Button from '../components/ui/Button.jsx'
 import SectionHeading from '../components/ui/SectionHeading.jsx'
 
-const ICON_MAP = { Monitor, Server, BarChart2, Layers, Compass, Pen }
+const ICON_MAP = {
+  Monitor, Server, BarChart2, Layers, Compass, Pen,
+  Code2, Smartphone, PieChart, Brain, Sparkles, ShieldCheck, Bug, Gamepad2, FileText, Network,
+}
 
 function formatDate(iso) {
   if (!iso) return ''
