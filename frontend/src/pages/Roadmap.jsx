@@ -1,5 +1,5 @@
-import { Fragment, useRef, useEffect, useState } from 'react'
-import { ExternalLink, X, Check, ChevronDown, ChevronLeft, ChevronRight, Flame, Star } from 'lucide-react'
+import { useRef, useEffect, useState } from 'react'
+import { ExternalLink, X, Check, ChevronDown, ChevronRight, Flame, Star } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ROADMAPS, CAREERS } from '../data'
 import { fetchRoadmap, fetchRoadmapProgress, saveRoadmapProgress } from '../api'
@@ -8,18 +8,19 @@ import SectionHeading from '../components/ui/SectionHeading.jsx'
 
 const progressKey = (careerId) => `nextstep_roadmap_progress_${careerId}`
 
-// Node state = one of exactly three, all rendered as soft tints of the site palette
-// (color-mix with cream) so nothing clashes with the cream/navy/gold system.
+// DEV-58: one status system, one meaning per color. Green comes ONLY from the
+// user ticking "Mark as complete" (so unchecking always reverts it); orange
+// marks assessment skill gaps worth focusing on; everything else is neutral.
 const STATUS_COLORS = {
-  done:  '#22C55E', // green — completed by you
-  focus: '#C9A84C', // gold  — recommended next ("focus here")
-  todo:  '#64748B', // slate — not started
+  todo:  '#64748B', // slate  — not started
+  focus: '#F97316', // orange — skill gap flagged by your assessment
+  done:  '#22C55E', // green  — marked complete by you
 }
 
 const STATUS_LABELS = {
-  done:  'Completed by you',
-  focus: 'Recommended next',
   todo:  'Not started',
+  focus: 'Skill gap — focus here',
+  done:  'Completed by you',
 }
 
 const LEVEL_LABELS = {
@@ -86,10 +87,9 @@ const skillHits = (skills, label) => {
   })
 }
 
-// Exactly three states: completed (green) is the only user-driven one, so ticking a
-// node always flips it green and unticking reverts. Assessment skill gaps surface as
-// "focus" (gold); everything else is neutral "todo". matched_skills no longer color
-// the canvas (that made green ambiguous) — they show as a drawer hint instead.
+// DEV-58: completion is the only way a node turns green, so unchecking always
+// reverts it. matched_skills no longer color the canvas (that made green
+// ambiguous); they surface as a hint in the node drawer instead.
 function nodeStatus(node, completedNodes, missingSkills) {
   if (completedNodes.has(node.id)) return 'done'
   if (skillHits(missingSkills, node.label)) return 'focus'
@@ -108,9 +108,12 @@ function NodeButton({ node, status, isActive, delay, onClick }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
       whileHover={{ scale: 1.04 }}
-      className="focus-ring relative max-w-full rounded-md px-4 py-2 font-body text-[13px] font-medium text-center cursor-pointer"
-      // Soft opaque tint of the state color (color-mix with cream, so the dotted trunk
-      // can't show through) + a stronger tint border. Navy label keeps AA contrast.
+      className="focus-ring relative max-w-full rounded-md px-3 py-2 font-body text-[13px] font-medium text-center cursor-pointer"
+      // Every card gets the same treatment — an opaque soft tint of its status
+      // color (color-mix with cream, so the dotted trunk can't show through) with
+      // a stronger tint border; status is carried by hue, never fill-vs-outline.
+      // Navy labels keep WCAG AA contrast (>10:1 on these tints). Node type
+      // (required / good-to-know / optional) shows only as badges in the drawer.
       style={{
         background: `color-mix(in srgb, ${color} 18%, var(--color-cream))`,
         border: `1px solid color-mix(in srgb, ${color} 55%, var(--color-cream))`,
@@ -240,10 +243,18 @@ function NodeDrawer({ node, status, isMatchedSkill, onClose, isCompleted, onTogg
               {node.description}
             </p>
 
-            {isMatchedSkill && status !== 'done' && (
-              <p className="flex items-center gap-2 font-body text-small text-navy/70 mb-6 -mt-2">
-                <Check size={14} className="text-gold shrink-0" aria-hidden="true" />
-                Your answers suggest you already have this skill.
+            {/* DEV-58: matched_skills no longer color the canvas green — the hint
+                that the assessment already saw this skill lives here instead. */}
+            {isMatchedSkill && !isCompleted && (
+              <p
+                className="font-body text-small text-navy/65 leading-relaxed mb-6 px-3 py-2 rounded-lg"
+                style={{
+                  background: 'color-mix(in srgb, var(--color-navy) 4%, var(--color-cream))',
+                  border: '1px solid color-mix(in srgb, var(--color-navy) 12%, var(--color-cream))',
+                }}
+              >
+                Your assessment suggests you already have this skill — mark it
+                complete if that sounds right.
               </p>
             )}
 
@@ -288,12 +299,6 @@ function NodeDrawer({ node, status, isMatchedSkill, onClose, isCompleted, onTogg
   )
 }
 
-// Soft tint swatch matching a node card's fill for a given state color.
-const swatchStyle = (color) => ({
-  background: `color-mix(in srgb, ${color} 18%, var(--color-cream))`,
-  border: `1px solid color-mix(in srgb, ${color} 55%, var(--color-cream))`,
-})
-
 function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 rounded-lg bg-cream/95 border border-gold/25 shadow-sm">
@@ -302,7 +307,13 @@ function Legend() {
       </p>
       {Object.keys(STATUS_COLORS).map((status) => (
         <div key={status} className="flex items-center gap-2">
-          <span className="relative w-[26px] h-[14px] rounded shrink-0" style={swatchStyle(STATUS_COLORS[status])}>
+          <span
+            className="relative w-[26px] h-[14px] rounded shrink-0"
+            style={{
+              background: `color-mix(in srgb, ${STATUS_COLORS[status]} 18%, var(--color-cream))`,
+              border: `1px solid color-mix(in srgb, ${STATUS_COLORS[status]} 55%, var(--color-cream))`,
+            }}
+          >
             {status === 'done' && (
               <span
                 className="absolute -top-1.5 -right-1.5 w-[12px] h-[12px] rounded-full border border-cream flex items-center justify-center"
@@ -337,7 +348,6 @@ function Legend() {
 
 function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
   const saveSeqRef = useRef(0)  // monotonic id so only the latest save reconciliation wins
-  const scrollRef = useRef(null)  // the horizontally-scrolling pipeline, for the arrow buttons
   const [drawerNode, setDrawerNode] = useState(null)
   const [collapsed, setCollapsed] = useState({})
   const [roadmapData, setRoadmapData] = useState(null)
@@ -467,8 +477,9 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
                 {completedCount} of {totalNodes} completed · <span className="text-gold">{progressPct}%</span>
               </span>
             </div>
-            {/* The color tokens don't support alpha modifiers (bg-navy/[0.1] is a
-                silent no-op), so the track gets an explicit tint + thin border. */}
+            {/* DEV-58: the tokens don't support alpha modifiers (bg-navy/[0.1] is a
+                silent no-op), so the track gets an explicit tint + thin border —
+                otherwise its extent is invisible at low progress. */}
             <div
               className="h-2.5 rounded-full overflow-hidden"
               style={{
@@ -485,21 +496,24 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
             </div>
           </div>
 
-          {/* Legend (DEV-46): what the three status colors mean, plus the
-              separate gold "marked complete" decoration. */}
+          {/* Legend (DEV-58): the three node states — completion (green + check)
+              is the only user-driven one, so ticking/unticking always matches. */}
           <div className="flex justify-center mb-6">
             <Legend />
           </div>
 
           {/* Pipeline canvas */}
           <div className="relative">
+            {/* DEV-58: hint shows on all sizes (was mobile-only) — desktop users
+                also missed that the pipeline scrolls sideways. */}
             <p className="text-center font-body text-eyebrow font-semibold uppercase text-navy/45 mb-2">
               &larr; Scroll to explore &rarr;
             </p>
-            <div ref={scrollRef} className="roadmap-scroll overflow-x-auto pb-4 pt-4">
-              {/* roadmap.sh-style pipeline: one continuous gold spine runs through the
-                  navy stage headers (they mask it, so it only shows in the gaps), and
-                  each stage's nodes chain below their header via dotted connectors. */}
+            <div className="roadmap-scroll overflow-x-auto pb-4 pt-4">
+              {/* DEV-47/DEV-50/DEV-57: roadmap.sh-style pipeline — one continuous
+                  gold spine runs behind the solid-navy stage headers (they mask it),
+                  and each stage's cards fan out left/right of a dotted center trunk
+                  in pair rows. Pure flex, no SVG, scales to any section/node count. */}
               <div key={selectedCareer} className="relative flex items-stretch gap-x-10 w-max mx-auto pl-4 pr-12">
                 {/* Spine + arrowhead, aligned to the h-11 (44px) header row center. */}
                 <div className="absolute left-0 right-0 top-[21px] h-[2px] bg-gold" aria-hidden="true" />
@@ -513,9 +527,13 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
                 {sections.map((section, si) => {
                   const isCollapsed = !!collapsed[section.id]
                   const Chevron = isCollapsed ? ChevronRight : ChevronDown
+                  // Pair rows: node 2i hangs left of the trunk, node 2i+1 right;
+                  // an odd leftover (or a 1-node section) sits centered on it.
+                  const rows = []
+                  for (let i = 0; i < section.nodes.length; i += 2) rows.push(section.nodes.slice(i, i + 2))
                   return (
-                    <div key={section.id} className="flex flex-col min-w-[240px] shrink-0">
-                      {/* Section header — a navy pill on the spine, click to collapse */}
+                    <div key={section.id} className="flex flex-col min-w-[320px] shrink-0">
+                      {/* Section header — primary node on the spine, clickable to collapse */}
                       <button
                         onClick={() => toggleSection(section.id)}
                         className="focus-ring relative flex items-center justify-between gap-2 h-11 px-4 rounded-md bg-navy text-cream hover:bg-navy-light border border-navy transition-colors duration-fast"
@@ -526,44 +544,56 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
                         <Chevron size={15} className="text-cream opacity-70 shrink-0" aria-hidden="true" />
                       </button>
 
-                      {/* Stage nodes, threaded by dotted connectors (header -> node -> ...). */}
-                      {!isCollapsed && section.nodes.map((node, ni) => {
-                        const status = nodeStatus(node, completedNodes, missingSkills)
-                        return (
-                          <Fragment key={node.id}>
-                            <div className="self-center w-0 h-4 border-l-2 border-dotted border-gold/70 shrink-0" aria-hidden="true" />
+                      {/* Pair rows. Each row draws its own trunk segment; the last
+                          row stops at its vertical center, so the dotted trunk
+                          terminates exactly at the final stub junction. Cards paint
+                          above the segments (NodeButton is position:relative). */}
+                      {!isCollapsed && rows.map((pair, ri) => {
+                        const isLastRow = ri === rows.length - 1
+                        const trunk = (
+                          <div
+                            className={`absolute left-1/2 -translate-x-1/2 top-0 ${isLastRow ? 'bottom-1/2' : 'bottom-0'} w-0 border-l-2 border-dotted border-gold opacity-60`}
+                            aria-hidden="true"
+                          />
+                        )
+                        const stub = (
+                          <div className="w-4 border-t-2 border-dotted border-gold opacity-60 shrink-0" aria-hidden="true" />
+                        )
+                        const renderNode = (node, ni) => {
+                          const status = nodeStatus(node, completedNodes, missingSkills)
+                          return (
                             <NodeButton
                               node={node}
                               status={status}
                               isActive={drawerNode?.id === node.id}
-                              delay={(sectionOffsets[si] + ni) * 0.06}
+                              delay={(sectionOffsets[si] + ri * 2 + ni) * 0.06}
                               onClick={() => handleNodeClick(node)}
                             />
-                          </Fragment>
+                          )
+                        }
+                        return pair.length === 2 ? (
+                          <div key={pair[0].id} className="relative flex items-center py-2">
+                            {trunk}
+                            <div className="flex-1 min-w-0 flex items-center justify-end">
+                              {renderNode(pair[0], 0)}
+                              {stub}
+                            </div>
+                            <div className="flex-1 min-w-0 flex items-center justify-start">
+                              {stub}
+                              {renderNode(pair[1], 1)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div key={pair[0].id} className="relative flex items-center justify-center py-2">
+                            {trunk}
+                            {renderNode(pair[0], 0)}
+                          </div>
                         )
                       })}
                     </div>
                   )
                 })}
               </div>
-            </div>
-
-            {/* Left/right scroll arrows */}
-            <div className="flex items-center justify-center gap-3 mt-3">
-              <button
-                onClick={() => scrollRef.current?.scrollBy({ left: -360, behavior: 'smooth' })}
-                aria-label="Scroll left"
-                className="focus-ring inline-flex items-center justify-center w-9 h-9 rounded-full bg-cream border border-gold/50 text-gold hover:bg-gold hover:text-cream transition-colors duration-fast shadow-sm"
-              >
-                <ChevronLeft size={18} aria-hidden="true" />
-              </button>
-              <button
-                onClick={() => scrollRef.current?.scrollBy({ left: 360, behavior: 'smooth' })}
-                aria-label="Scroll right"
-                className="focus-ring inline-flex items-center justify-center w-9 h-9 rounded-full bg-cream border border-gold/50 text-gold hover:bg-gold hover:text-cream transition-colors duration-fast shadow-sm"
-              >
-                <ChevronRight size={18} aria-hidden="true" />
-              </button>
             </div>
           </div>
         </div>

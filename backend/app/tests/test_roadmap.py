@@ -1,9 +1,32 @@
 """Roadmap endpoint: static GET, personalized POST, LLM with static fallback."""
 from fastapi.testclient import TestClient
 
+from app.data import career_ids, load_roadmaps
 from app.main import app
 from app.services import roadmap_service as svc
 from app.services.requirements_service import FakeRequirementsService
+
+_LEVELS = {"beginner", "intermediate", "advanced"}
+_TYPES = {"required", "good-to-know", "optional"}
+
+
+def test_every_career_has_a_wellformed_roadmap():
+    """Every catalog career must resolve to a roadmap (no 404s), and each roadmap
+    must satisfy the schema Roadmap.jsx renders: non-empty sections, unique node
+    ids (they are progress keys), and legal level/type on every node."""
+    roadmaps = load_roadmaps()
+    for cid in career_ids():
+        assert cid in roadmaps, f"career '{cid}' has no roadmap entry"
+        sections = roadmaps[cid]["sections"]
+        assert sections, cid
+        node_ids = []
+        for section in sections:
+            assert section["id"] and section["label"] and section["nodes"], (cid, section.get("id"))
+            for node in section["nodes"]:
+                node_ids.append(node["id"])
+                assert node["level"] in _LEVELS, (cid, node["id"], node["level"])
+                assert node["type"] in _TYPES, (cid, node["id"], node["type"])
+        assert len(node_ids) == len(set(node_ids)), f"{cid} has duplicate node ids"
 
 
 def test_roadmap_returns_sections(client_no_repo):
