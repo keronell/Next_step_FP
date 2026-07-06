@@ -137,3 +137,29 @@ def test_inject_requirements_empty_returns_roadmap_unchanged():
     same = svc.inject_requirements(roadmap, {"required": [], "advantage": []})
     assert same is roadmap  # nothing to add -> untouched
     assert svc.inject_requirements(roadmap, None) is roadmap
+
+
+def test_slug_keeps_punctuation_skills_distinct():
+    # "C#" and "C++" used to both slug to "c" (dropped # and +) -> duplicate node ids.
+    assert svc._slug("C#") == "c-sharp"
+    assert svc._slug("C++") == "c-plus-plus"
+    assert svc._slug("C#") != svc._slug("C++")
+
+
+def test_inject_requirements_ids_unique_across_columns():
+    """Distinct skills must get distinct node ids (React keys / progress tracking).
+    Covers both the C#/C++ encoding and the belt-and-suspenders uniqueness guard."""
+    roadmap = {"sections": []}
+    reqs = {
+        "required": [
+            {"skill": "C#", "count": 20, "total": 50, "pct": 40},
+            {"skill": "C++", "count": 18, "total": 50, "pct": 36},
+        ],
+        # A contrived residual collision (both would slug to "market-c") is still
+        # disambiguated by _unique_id, even across the required/advantage split.
+        "advantage": [{"skill": "C", "count": 9, "total": 50, "pct": 18}],
+    }
+    out = svc.inject_requirements(roadmap, reqs)
+    ids = [n["id"] for s in out["sections"] for n in s["nodes"]]
+    assert ids == ["market-c-sharp", "market-c-plus-plus", "market-c"]
+    assert len(ids) == len(set(ids))  # all distinct

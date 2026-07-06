@@ -132,12 +132,31 @@ def get_roadmap(
     return static
 
 
+# Symbols that distinguish otherwise-identical skill names must survive slugging:
+# stripping them made "C#" and "C++" both collapse to "c" (duplicate node ids).
+_SLUG_SYMBOLS = {"#": " sharp ", "+": " plus "}
+
+
 def _slug(text: str) -> str:
+    for sym, word in _SLUG_SYMBOLS.items():
+        text = text.replace(sym, word)
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "skill"
 
 
-def _requirement_node(item: dict, classification: str) -> dict:
-    """One job-ad-derived skill as a roadmap node carrying a `demand` badge payload."""
+def _unique_id(base: str, seen: set[str]) -> str:
+    """Guarantee a DOM/React-key-safe unique id, even if two distinct skills still slug
+    to the same base (belt-and-suspenders beyond _SLUG_SYMBOLS). Deterministic: nodes
+    are built in a stable frequency-descending order, so the -2/-3 suffixes are stable."""
+    candidate, n = base, 2
+    while candidate in seen:
+        candidate, n = f"{base}-{n}", n + 1
+    seen.add(candidate)
+    return candidate
+
+
+def _requirement_node(item: dict, classification: str, seen: set[str]) -> dict:
+    """One job-ad-derived skill as a roadmap node carrying a `demand` badge payload.
+    `seen` tracks ids already emitted so distinct skills never share a node id."""
     skill, pct, count, total = item["skill"], item["pct"], item["count"], item["total"]
     if classification == "required":
         node_type = "required"
@@ -146,7 +165,7 @@ def _requirement_node(item: dict, classification: str) -> dict:
         node_type = "good-to-know"
         description = f"Listed as an advantage in {pct}% of job ads ({count} of {total} analyzed)."
     return {
-        "id": f"market-{_slug(skill)}",
+        "id": _unique_id(f"market-{_slug(skill)}", seen),
         "label": skill,
         "level": "intermediate",
         "type": node_type,
@@ -169,19 +188,21 @@ def inject_requirements(roadmap: dict, requirements: dict | None) -> dict:
     if not required and not advantage:
         return roadmap
 
+    # One id namespace across both columns so no two market nodes ever collide.
+    seen: set[str] = set()
     extra: list[dict] = []
     if required:
         extra.append({
             "id": "in-demand",
             "label": "In Demand Now",
             "source": "job_ads",
-            "nodes": [_requirement_node(i, "required") for i in required],
+            "nodes": [_requirement_node(i, "required", seen) for i in required],
         })
     if advantage:
         extra.append({
             "id": "advantage",
             "label": "Gives an Advantage",
             "source": "job_ads",
-            "nodes": [_requirement_node(i, "advantage") for i in advantage],
+            "nodes": [_requirement_node(i, "advantage", seen) for i in advantage],
         })
     return {**roadmap, "sections": [*roadmap.get("sections", []), *extra]}
