@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
+    # Job-ad requirement enrichment (DEV-59). Per career field, skills are mined from
+    # the job-ad corpus and classified by how often they appear across that field's ads:
+    #   Required  = skill in >= requirements_required_ratio of the sampled ads
+    #   Advantage = skill in [requirements_advantage_ratio, requirements_required_ratio)
+    requirements_required_ratio: float = 0.4
+    requirements_advantage_ratio: float = 0.15
+    requirements_sample_size: int = 100   # max ads sampled per field (the % denominator)
+    requirements_min_ads: int = 8         # below this, skip — the % would be unreliable
+    requirements_max_per_bucket: int = 6  # cap items shown per Required/Advantage bucket
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

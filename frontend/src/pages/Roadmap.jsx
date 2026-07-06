@@ -1,5 +1,5 @@
 import { Fragment, useRef, useEffect, useState } from 'react'
-import { ExternalLink, X, Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { ExternalLink, X, Check, ChevronDown, ChevronLeft, ChevronRight, Flame, Star } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ROADMAPS, CAREERS } from '../data'
 import { fetchRoadmap, fetchRoadmapProgress, saveRoadmapProgress } from '../api'
@@ -8,17 +8,18 @@ import SectionHeading from '../components/ui/SectionHeading.jsx'
 
 const progressKey = (careerId) => `nextstep_roadmap_progress_${careerId}`
 
-// DEV-46: node color = the user's status on that skill, one meaning per color.
+// Node state = one of exactly three, all rendered as soft tints of the site palette
+// (color-mix with cream) so nothing clashes with the cream/navy/gold system.
 const STATUS_COLORS = {
-  mastered: '#22C55E', // green  — mastered / completed skill
-  next:     '#F97316', // orange — in progress / recommended next
-  gap:      '#EF4444', // red    — not started / skill gap
+  done:  '#22C55E', // green — completed by you
+  focus: '#C9A84C', // gold  — recommended next ("focus here")
+  todo:  '#64748B', // slate — not started
 }
 
 const STATUS_LABELS = {
-  mastered: 'Mastered / completed',
-  next:     'Recommended next',
-  gap:      'Skill gap / not started',
+  done:  'Completed by you',
+  focus: 'Recommended next',
+  todo:  'Not started',
 }
 
 const LEVEL_LABELS = {
@@ -31,6 +32,24 @@ const TYPE_LABELS = {
   'required':     'Required',
   'good-to-know': 'Good to Know',
   'optional':     'Optional',
+}
+
+// DEV-59: job-ad-derived nodes carry a `demand` payload rendered as an outer frame +
+// badge. Harmonized to the brand accents — navy for "In Demand", gold for "Advantage" —
+// so the market frames sit distinctly on top of the soft node-state tints.
+const DEMAND_COLORS = {
+  required:  '#0F1B2D', // navy — In Demand (required in job ads)
+  advantage: '#C9A84C', // gold — Advantage (nice-to-have edge)
+}
+
+const DEMAND_BADGE = {
+  required:  'In demand',
+  advantage: 'Advantage',
+}
+
+const DEMAND_LEGEND = {
+  required:  'In demand — required in job ads',
+  advantage: 'Advantage — nice-to-have',
 }
 
 // Skill ↔ node-label matching: substring first, then canonical-token subset,
@@ -67,51 +86,78 @@ const skillHits = (skills, label) => {
   })
 }
 
-function nodeStatus(node, completedNodes, matchedSkills, missingSkills) {
-  if (completedNodes.has(node.id) || skillHits(matchedSkills, node.label)) return 'mastered'
-  if (skillHits(missingSkills, node.label)) return 'gap'
-  return 'next'
+// Exactly three states: completed (green) is the only user-driven one, so ticking a
+// node always flips it green and unticking reverts. Assessment skill gaps surface as
+// "focus" (gold); everything else is neutral "todo". matched_skills no longer color
+// the canvas (that made green ambiguous) — they show as a drawer hint instead.
+function nodeStatus(node, completedNodes, missingSkills) {
+  if (completedNodes.has(node.id)) return 'done'
+  if (skillHits(missingSkills, node.label)) return 'focus'
+  return 'todo'
 }
 
-// Type keeps its shape language (solid / outline / dashed); color now carries status.
-function nodeTypeStyle(type, color) {
-  if (type === 'required') return { background: color, color: 'white' }
-  if (type === 'good-to-know') return { border: `1.5px solid ${color}`, color }
-  return { border: `1.5px dashed ${color}`, color, opacity: 0.7 }
-}
-
-function NodeButton({ node, status, isCompleted, isActive, delay, onClick }) {
+function NodeButton({ node, status, isActive, delay, onClick }) {
   const color = STATUS_COLORS[status]
-  const shadows = []
-  // Completed decor (gold ring + check badge) stays a separate system from the
-  // status color: it marks "you ticked this off", not what the assessment says.
-  if (isCompleted) shadows.push('0 0 0 2px var(--color-cream), 0 0 0 4px var(--color-gold)')
-  if (isActive) shadows.push(`0 0 12px ${color}80`)
+  const isCompleted = status === 'done'
+  const demand = node.demand
 
-  return (
+  const button = (
     <motion.button
       onClick={onClick}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
       whileHover={{ scale: 1.04 }}
-      className="focus-ring relative rounded-md px-5 py-2.5 font-body text-[13px] font-medium text-center cursor-pointer"
-      style={{ ...nodeTypeStyle(node.type, color), boxShadow: shadows.join(', ') || undefined }}
+      className="focus-ring relative max-w-full rounded-md px-4 py-2 font-body text-[13px] font-medium text-center cursor-pointer"
+      // Soft opaque tint of the state color (color-mix with cream, so the dotted trunk
+      // can't show through) + a stronger tint border. Navy label keeps AA contrast.
+      style={{
+        background: `color-mix(in srgb, ${color} 18%, var(--color-cream))`,
+        border: `1px solid color-mix(in srgb, ${color} 55%, var(--color-cream))`,
+        color: 'var(--color-navy)',
+        boxShadow: isActive ? `0 0 12px ${color}80` : undefined,
+      }}
     >
       {node.label}
       {isCompleted && (
         <span
           aria-label="Marked complete"
-          className="absolute -top-2 -right-2 w-[18px] h-[18px] rounded-full bg-gold border border-cream flex items-center justify-center"
+          className="absolute -top-2 -right-2 w-[18px] h-[18px] rounded-full border border-cream flex items-center justify-center"
+          style={{ background: STATUS_COLORS.done }}
         >
           <Check size={11} strokeWidth={3} className="text-cream" aria-hidden="true" />
         </span>
       )}
     </motion.button>
   )
+
+  if (!demand) return button
+
+  // DEV-59: a job-ad-derived skill — wrap the node in a brand "market" frame + badge.
+  // The node still fills with its state tint, so an in-demand skill you've completed
+  // reads green inside the frame.
+  const dColor = DEMAND_COLORS[demand.classification] ?? DEMAND_COLORS.advantage
+  const DemandIcon = demand.classification === 'required' ? Flame : Star
+  const badgeText =
+    demand.classification === 'required' ? `In demand · ${demand.pct}%` : 'Advantage'
+  return (
+    <div
+      className="flex flex-col gap-1.5 rounded-lg p-1.5"
+      style={{ border: `1.5px solid ${dColor}`, background: `${dColor}0F` }}
+    >
+      <span
+        className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-eyebrow font-semibold uppercase leading-none"
+        style={{ background: `${dColor}1F`, color: dColor }}
+      >
+        <DemandIcon size={11} strokeWidth={2.5} aria-hidden="true" />
+        {badgeText}
+      </span>
+      {button}
+    </div>
+  )
 }
 
-function NodeDrawer({ node, status, onClose, isCompleted, onToggleComplete }) {
+function NodeDrawer({ node, status, isMatchedSkill, onClose, isCompleted, onToggleComplete }) {
   const color = node ? STATUS_COLORS[status] : 'var(--color-gold)'
 
   return (
@@ -167,6 +213,23 @@ function NodeDrawer({ node, status, onClose, isCompleted, onToggleComplete }) {
               >
                 {LEVEL_LABELS[node.level]}
               </span>
+              {node.demand && (
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-eyebrow font-semibold uppercase"
+                  style={{
+                    background: `${DEMAND_COLORS[node.demand.classification]}1F`,
+                    color: DEMAND_COLORS[node.demand.classification],
+                    border: `1px solid ${DEMAND_COLORS[node.demand.classification]}40`,
+                  }}
+                >
+                  {node.demand.classification === 'required' ? (
+                    <Flame size={11} strokeWidth={2.5} aria-hidden="true" />
+                  ) : (
+                    <Star size={11} strokeWidth={2.5} aria-hidden="true" />
+                  )}
+                  {DEMAND_BADGE[node.demand.classification]}
+                </span>
+              )}
             </div>
 
             <h3 className="font-display font-semibold text-h3 text-navy mb-3 tracking-tight">
@@ -176,6 +239,13 @@ function NodeDrawer({ node, status, onClose, isCompleted, onToggleComplete }) {
             <p className="font-body text-small text-navy/65 leading-relaxed mb-6">
               {node.description}
             </p>
+
+            {isMatchedSkill && status !== 'done' && (
+              <p className="flex items-center gap-2 font-body text-small text-navy/70 mb-6 -mt-2">
+                <Check size={14} className="text-gold shrink-0" aria-hidden="true" />
+                Your answers suggest you already have this skill.
+              </p>
+            )}
 
             <button
               onClick={onToggleComplete}
@@ -218,6 +288,12 @@ function NodeDrawer({ node, status, onClose, isCompleted, onToggleComplete }) {
   )
 }
 
+// Soft tint swatch matching a node card's fill for a given state color.
+const swatchStyle = (color) => ({
+  background: `color-mix(in srgb, ${color} 18%, var(--color-cream))`,
+  border: `1px solid color-mix(in srgb, ${color} 55%, var(--color-cream))`,
+})
+
 function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 rounded-lg bg-cream/95 border border-gold/25 shadow-sm">
@@ -226,24 +302,34 @@ function Legend() {
       </p>
       {Object.keys(STATUS_COLORS).map((status) => (
         <div key={status} className="flex items-center gap-2">
-          <span
-            className="w-[26px] h-[14px] rounded shrink-0"
-            style={{ background: STATUS_COLORS[status] }}
-          />
+          <span className="relative w-[26px] h-[14px] rounded shrink-0" style={swatchStyle(STATUS_COLORS[status])}>
+            {status === 'done' && (
+              <span
+                className="absolute -top-1.5 -right-1.5 w-[12px] h-[12px] rounded-full border border-cream flex items-center justify-center"
+                style={{ background: STATUS_COLORS.done }}
+              >
+                <Check size={8} strokeWidth={3.5} className="text-cream" aria-hidden="true" />
+              </span>
+            )}
+          </span>
           <span className="font-body text-small text-navy/70 whitespace-nowrap">
             {STATUS_LABELS[status]}
           </span>
         </div>
       ))}
-      <div className="flex items-center gap-2 pl-5 border-l border-navy/[0.08]">
-        <span className="relative w-[26px] h-[14px] rounded shrink-0 bg-navy/[0.08] shadow-[0_0_0_1.5px_var(--color-cream),0_0_0_3px_var(--color-gold)]">
-          <span className="absolute -top-1.5 -right-1.5 w-[12px] h-[12px] rounded-full bg-gold border border-cream flex items-center justify-center">
-            <Check size={8} strokeWidth={3.5} className="text-cream" aria-hidden="true" />
-          </span>
-        </span>
-        <span className="font-body text-small text-navy/70 whitespace-nowrap">
-          Marked complete by you
-        </span>
+      {/* DEV-59: the two job-ad "market" frames (badge + outer frame on a node). */}
+      <div className="flex items-center gap-x-4 gap-y-2 flex-wrap pl-5 border-l border-navy/[0.08]">
+        {Object.keys(DEMAND_COLORS).map((cls) => (
+          <div key={cls} className="flex items-center gap-2">
+            <span
+              className="w-[26px] h-[14px] rounded shrink-0"
+              style={{ border: `1.5px solid ${DEMAND_COLORS[cls]}`, background: `${DEMAND_COLORS[cls]}1F` }}
+            />
+            <span className="font-body text-small text-navy/70 whitespace-nowrap">
+              {DEMAND_LEGEND[cls]}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -251,6 +337,7 @@ function Legend() {
 
 function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
   const saveSeqRef = useRef(0)  // monotonic id so only the latest save reconciliation wins
+  const scrollRef = useRef(null)  // the horizontally-scrolling pipeline, for the arrow buttons
   const [drawerNode, setDrawerNode] = useState(null)
   const [collapsed, setCollapsed] = useState({})
   const [roadmapData, setRoadmapData] = useState(null)
@@ -380,7 +467,15 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
                 {completedCount} of {totalNodes} completed · <span className="text-gold">{progressPct}%</span>
               </span>
             </div>
-            <div className="h-2 bg-navy/[0.1] rounded-full overflow-hidden">
+            {/* The color tokens don't support alpha modifiers (bg-navy/[0.1] is a
+                silent no-op), so the track gets an explicit tint + thin border. */}
+            <div
+              className="h-2.5 rounded-full overflow-hidden"
+              style={{
+                background: 'color-mix(in srgb, var(--color-navy) 8%, var(--color-cream))',
+                border: '1px solid color-mix(in srgb, var(--color-navy) 30%, var(--color-cream))',
+              }}
+            >
               <motion.div
                 className="h-full bg-gradient-to-r from-gold to-gold-light rounded-full"
                 initial={false}
@@ -398,50 +493,77 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
 
           {/* Pipeline canvas */}
           <div className="relative">
-            <div className="overflow-x-auto pb-4 pt-4">
-              {/* DEV-47: sections as left-to-right pipeline stages with a tall
-                  vertical divider between each — scales to any section count. */}
-              <div key={selectedCareer} className="flex items-stretch w-max mx-auto px-2">
+            <p className="text-center font-body text-eyebrow font-semibold uppercase text-navy/45 mb-2">
+              &larr; Scroll to explore &rarr;
+            </p>
+            <div ref={scrollRef} className="roadmap-scroll overflow-x-auto pb-4 pt-4">
+              {/* roadmap.sh-style pipeline: one continuous gold spine runs through the
+                  navy stage headers (they mask it, so it only shows in the gaps), and
+                  each stage's nodes chain below their header via dotted connectors. */}
+              <div key={selectedCareer} className="relative flex items-stretch gap-x-10 w-max mx-auto pl-4 pr-12">
+                {/* Spine + arrowhead, aligned to the h-11 (44px) header row center. */}
+                <div className="absolute left-0 right-0 top-[21px] h-[2px] bg-gold" aria-hidden="true" />
+                <ChevronRight
+                  size={18}
+                  strokeWidth={2.5}
+                  className="absolute right-0 top-[22px] -translate-y-1/2 text-gold"
+                  aria-hidden="true"
+                />
+
                 {sections.map((section, si) => {
                   const isCollapsed = !!collapsed[section.id]
                   const Chevron = isCollapsed ? ChevronRight : ChevronDown
                   return (
-                    <Fragment key={section.id}>
-                      {si > 0 && (
-                        <div className="w-[2px] self-stretch rounded-full bg-gold opacity-40 mx-6 shrink-0" aria-hidden="true" />
-                      )}
-                      <div className="flex flex-col gap-3 min-w-[220px] shrink-0">
-                        {/* Section header — clickable to collapse */}
-                        <button
-                          onClick={() => toggleSection(section.id)}
-                          className="focus-ring flex items-center justify-between gap-2 px-4 py-3 mb-2 rounded-md bg-navy/[0.06] hover:bg-navy/[0.10] border border-navy/[0.12] hover:border-gold/45 transition-colors duration-fast"
-                        >
-                          <span className="font-body text-[13px] font-semibold text-navy">
-                            {section.label}
-                          </span>
-                          <Chevron size={15} className="text-navy/55 shrink-0" aria-hidden="true" />
-                        </button>
+                    <div key={section.id} className="flex flex-col min-w-[240px] shrink-0">
+                      {/* Section header — a navy pill on the spine, click to collapse */}
+                      <button
+                        onClick={() => toggleSection(section.id)}
+                        className="focus-ring relative flex items-center justify-between gap-2 h-11 px-4 rounded-md bg-navy text-cream hover:bg-navy-light border border-navy transition-colors duration-fast"
+                      >
+                        <span className="font-body text-[13px] font-semibold">
+                          {section.label}
+                        </span>
+                        <Chevron size={15} className="text-cream opacity-70 shrink-0" aria-hidden="true" />
+                      </button>
 
-                        {/* Stage nodes */}
-                        {!isCollapsed && section.nodes.map((node, ni) => {
-                          const status = nodeStatus(node, completedNodes, matchedSkills, missingSkills)
-                          return (
+                      {/* Stage nodes, threaded by dotted connectors (header -> node -> ...). */}
+                      {!isCollapsed && section.nodes.map((node, ni) => {
+                        const status = nodeStatus(node, completedNodes, missingSkills)
+                        return (
+                          <Fragment key={node.id}>
+                            <div className="self-center w-0 h-4 border-l-2 border-dotted border-gold/70 shrink-0" aria-hidden="true" />
                             <NodeButton
-                              key={node.id}
                               node={node}
                               status={status}
-                              isCompleted={completedNodes.has(node.id)}
                               isActive={drawerNode?.id === node.id}
                               delay={(sectionOffsets[si] + ni) * 0.06}
                               onClick={() => handleNodeClick(node)}
                             />
-                          )
-                        })}
-                      </div>
-                    </Fragment>
+                          </Fragment>
+                        )
+                      })}
+                    </div>
                   )
                 })}
               </div>
+            </div>
+
+            {/* Left/right scroll arrows */}
+            <div className="flex items-center justify-center gap-3 mt-3">
+              <button
+                onClick={() => scrollRef.current?.scrollBy({ left: -360, behavior: 'smooth' })}
+                aria-label="Scroll left"
+                className="focus-ring inline-flex items-center justify-center w-9 h-9 rounded-full bg-cream border border-gold/50 text-gold hover:bg-gold hover:text-cream transition-colors duration-fast shadow-sm"
+              >
+                <ChevronLeft size={18} aria-hidden="true" />
+              </button>
+              <button
+                onClick={() => scrollRef.current?.scrollBy({ left: 360, behavior: 'smooth' })}
+                aria-label="Scroll right"
+                className="focus-ring inline-flex items-center justify-center w-9 h-9 rounded-full bg-cream border border-gold/50 text-gold hover:bg-gold hover:text-cream transition-colors duration-fast shadow-sm"
+              >
+                <ChevronRight size={18} aria-hidden="true" />
+              </button>
             </div>
           </div>
         </div>
@@ -449,7 +571,8 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
 
       <NodeDrawer
         node={drawerNode}
-        status={drawerNode ? nodeStatus(drawerNode, completedNodes, matchedSkills, missingSkills) : 'next'}
+        status={drawerNode ? nodeStatus(drawerNode, completedNodes, missingSkills) : 'todo'}
+        isMatchedSkill={drawerNode ? skillHits(matchedSkills, drawerNode.label) : false}
         onClose={() => setDrawerNode(null)}
         isCompleted={drawerNode ? completedNodes.has(drawerNode.id) : false}
         onToggleComplete={() => drawerNode && toggleComplete(drawerNode.id)}
