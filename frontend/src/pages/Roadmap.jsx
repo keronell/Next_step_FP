@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
-import { ExternalLink, X, Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { ExternalLink, X, Check, ChevronDown, ChevronRight, Flame, Star } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ROADMAPS, CAREERS } from '../data'
 import { fetchRoadmap, fetchRoadmapProgress, saveRoadmapProgress } from '../api'
@@ -33,6 +33,24 @@ const TYPE_LABELS = {
   'required':     'Required',
   'good-to-know': 'Good to Know',
   'optional':     'Optional',
+}
+
+// DEV-59: job-ad-derived nodes carry a `demand` payload rendered as an outer frame +
+// badge. Harmonized to the brand accents — navy for "In Demand", gold for "Advantage" —
+// so the market frames sit distinctly on top of the soft node-state tints.
+const DEMAND_COLORS = {
+  required:  '#0F1B2D', // navy — In Demand (required in job ads)
+  advantage: '#C9A84C', // gold — Advantage (nice-to-have edge)
+}
+
+const DEMAND_BADGE = {
+  required:  'In demand',
+  advantage: 'Advantage',
+}
+
+const DEMAND_LEGEND = {
+  required:  'In demand — required in job ads',
+  advantage: 'Advantage — nice-to-have',
 }
 
 // Skill ↔ node-label matching: substring first, then canonical-token subset,
@@ -81,8 +99,9 @@ function nodeStatus(node, completedNodes, missingSkills) {
 function NodeButton({ node, status, isActive, delay, onClick }) {
   const color = STATUS_COLORS[status]
   const isCompleted = status === 'done'
+  const demand = node.demand
 
-  return (
+  const button = (
     <motion.button
       onClick={onClick}
       initial={{ opacity: 0, y: 8 }}
@@ -113,6 +132,31 @@ function NodeButton({ node, status, isActive, delay, onClick }) {
         </span>
       )}
     </motion.button>
+  )
+
+  if (!demand) return button
+
+  // DEV-59: a job-ad-derived skill — wrap the node in a brand "market" frame + badge.
+  // The node still fills with its state tint, so an in-demand skill you've completed
+  // reads green inside the frame.
+  const dColor = DEMAND_COLORS[demand.classification] ?? DEMAND_COLORS.advantage
+  const DemandIcon = demand.classification === 'required' ? Flame : Star
+  const badgeText =
+    demand.classification === 'required' ? `In demand · ${demand.pct}%` : 'Advantage'
+  return (
+    <div
+      className="flex flex-col gap-1.5 rounded-lg p-1.5"
+      style={{ border: `1.5px solid ${dColor}`, background: `${dColor}0F` }}
+    >
+      <span
+        className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-eyebrow font-semibold uppercase leading-none"
+        style={{ background: `${dColor}1F`, color: dColor }}
+      >
+        <DemandIcon size={11} strokeWidth={2.5} aria-hidden="true" />
+        {badgeText}
+      </span>
+      {button}
+    </div>
   )
 }
 
@@ -172,6 +216,23 @@ function NodeDrawer({ node, status, isMatchedSkill, onClose, isCompleted, onTogg
               >
                 {LEVEL_LABELS[node.level]}
               </span>
+              {node.demand && (
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-eyebrow font-semibold uppercase"
+                  style={{
+                    background: `${DEMAND_COLORS[node.demand.classification]}1F`,
+                    color: DEMAND_COLORS[node.demand.classification],
+                    border: `1px solid ${DEMAND_COLORS[node.demand.classification]}40`,
+                  }}
+                >
+                  {node.demand.classification === 'required' ? (
+                    <Flame size={11} strokeWidth={2.5} aria-hidden="true" />
+                  ) : (
+                    <Star size={11} strokeWidth={2.5} aria-hidden="true" />
+                  )}
+                  {DEMAND_BADGE[node.demand.classification]}
+                </span>
+              )}
             </div>
 
             <h3 className="font-display font-semibold text-h3 text-navy mb-3 tracking-tight">
@@ -267,6 +328,20 @@ function Legend() {
           </span>
         </div>
       ))}
+      {/* DEV-59: the two job-ad "market" frames (badge + outer frame on a node). */}
+      <div className="flex items-center gap-x-4 gap-y-2 flex-wrap pl-5 border-l border-navy/[0.08]">
+        {Object.keys(DEMAND_COLORS).map((cls) => (
+          <div key={cls} className="flex items-center gap-2">
+            <span
+              className="w-[26px] h-[14px] rounded shrink-0"
+              style={{ border: `1.5px solid ${DEMAND_COLORS[cls]}`, background: `${DEMAND_COLORS[cls]}1F` }}
+            />
+            <span className="font-body text-small text-navy/70 whitespace-nowrap">
+              {DEMAND_LEGEND[cls]}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

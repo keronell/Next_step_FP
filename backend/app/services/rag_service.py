@@ -20,6 +20,24 @@ class RagUnavailableError(RuntimeError):
     """Raised when the ChromaDB store is missing, empty, or cannot be queried."""
 
 
+def _skills_from_metadatas(metadatas) -> Counter:
+    """Frequency Counter of lowercased skills across job-ad metadatas. Each ad stores
+    its skills as a JSON string; the list is already de-duplicated per ad, so a skill's
+    count equals the number of ads it appears in (document frequency)."""
+    skills: Counter = Counter()
+    for meta in metadatas:
+        raw = meta.get("skills") if meta else None
+        if not raw:
+            continue
+        try:
+            for s in json.loads(raw):
+                if s:
+                    skills[str(s).strip().lower()] += 1
+        except (json.JSONDecodeError, TypeError):
+            continue
+    return skills
+
+
 class RagService:
     def __init__(self, collection, model, count: int):
         self._collection = collection
@@ -77,16 +95,18 @@ class RagService:
         sims = [max(0.0, min(1.0, 1.0 - d)) for d in distances]
         similarity = sum(sims) / len(sims)
 
-        skills: Counter = Counter()
-        for meta in metadatas:
-            raw = meta.get("skills") if meta else None
-            if not raw:
-                continue
-            try:
-                for s in json.loads(raw):
-                    if s:
-                        skills[str(s).strip().lower()] += 1
-            except (json.JSONDecodeError, TypeError):
-                continue
+        return similarity, _skills_from_metadatas(metadatas)
 
-        return similarity, skills
+    def field_skills(self, field: str, sample_size: int) -> tuple[Counter, int]:
+        """Skill document-frequency across up to `sample_size` job ads in `field`, plus
+        the number of ads sampled (the denominator for '% of ads'). Uses `.get` — a
+        metadata filter that needs no query embedding, i.e. an unranked field sample
+        rather than a semantic query — which is what aggregate field requirements want."""
+        result = self._collection.get(
+            where={"field": field},
+            limit=sample_size,
+            include=["metadatas"],
+        )
+        # `.get` returns a flat metadatas list (unlike `.query`'s one-level nesting).
+        metadatas = result.get("metadatas") or []
+        return _skills_from_metadatas(metadatas), len(metadatas)

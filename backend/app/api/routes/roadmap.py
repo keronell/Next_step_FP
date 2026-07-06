@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
 from app.models.auth import UserResponse
 from app.services import roadmap_progress_service
-from app.services.roadmap_service import get_roadmap
+from app.services.roadmap_service import get_roadmap, inject_requirements
 
 router = APIRouter(prefix="/roadmap")
 
@@ -32,12 +32,27 @@ def roadmap(career_id: str) -> dict:
 
 
 @router.post("/{career_id}")
-def roadmap_personalized(career_id: str, ctx: RoadmapContext) -> dict:
-    """Personalized roadmap when OpenAI is configured; static fallback otherwise."""
-    data = get_roadmap(career_id, profile=ctx.profile, missing_skills=ctx.missing_skills)
+def roadmap_personalized(career_id: str, ctx: RoadmapContext, request: Request) -> dict:
+    """Personalized roadmap when OpenAI is configured; static fallback otherwise.
+
+    Also enriches the roadmap with job-ad-derived requirements (DEV-59): an 'In Demand
+    Now' section of Required/Advantage skills mined from the career field's job ads.
+    The requirements source is absent in tests / when the RAG store is down, so this
+    degrades to the plain roadmap.
+    """
+    req_service = getattr(request.app.state, "requirements", None)
+    requirements = req_service.get_requirements(career_id) if req_service else None
+    market_required = [r["skill"] for r in (requirements or {}).get("required", [])]
+
+    data = get_roadmap(
+        career_id,
+        profile=ctx.profile,
+        missing_skills=ctx.missing_skills,
+        market_required=market_required,
+    )
     if data is None:
         raise HTTPException(status_code=404, detail=f"no roadmap for career '{career_id}'")
-    return data
+    return inject_requirements(data, requirements)
 
 
 @router.get("/{career_id}/progress")

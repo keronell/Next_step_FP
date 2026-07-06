@@ -18,6 +18,7 @@ from app.core.logging import get_logger
 from app.repositories.career_repository import CareerRepository
 from app.services.matcher_model import MatcherModel, MatcherModelError
 from app.services.rag_service import RagService, RagUnavailableError
+from app.services.requirements_service import RequirementsService
 
 logger = get_logger(__name__)
 
@@ -42,9 +43,11 @@ async def lifespan(app: FastAPI):
     try:
         rag = RagService.create(settings)
         app.state.repository = CareerRepository(rag, settings)
+        app.state.requirements = RequirementsService(rag, settings)
         logger.info("RAG repository ready (%d job ads)", rag.count)
     except RagUnavailableError as exc:
         app.state.repository = None
+        app.state.requirements = None
         logger.error(
             "RAG store unavailable at '%s' - /submit will return 503 and the frontend "
             "falls back to its offline estimate. Build it from the repo root with "
