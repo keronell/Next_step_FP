@@ -9,7 +9,7 @@ const STEPS = [
     number: '01',
     icon: ClipboardList,
     art: '/illustrations/step-1.png',
-    title: 'Answer 10 Questions',
+    title: 'Up to 13 Questions',
     description: 'Tell us about your skills, interests, and work style through a quick, thoughtfully designed quiz.',
   },
   {

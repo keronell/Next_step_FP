@@ -153,7 +153,7 @@ function Hero({ onStart }) {
           variants={item}
           className="font-body text-body text-navy/65 max-w-[52ch] leading-snug mb-10"
         >
-          Answer 10 thoughtful questions and get matched with your ideal tech career — plus a clear, personalized learning roadmap to get there.
+          Answer up to 13 questions and get matched with your ideal tech career — plus a personalized learning roadmap to get there. Takes 3–5 minutes.
         </motion.p>
 
         {/* CTA */}
