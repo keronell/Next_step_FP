@@ -11,6 +11,7 @@ import AuthModal from './pages/AuthModal'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
+import { REQUIRE_AUTH } from './config'
 
 function App() {
   const { user, authLoading } = useAuth()
@@ -91,7 +92,7 @@ function App() {
 
   const handleStart = () => {
     if (authLoading) return
-    if (!user) {
+    if (REQUIRE_AUTH && !user) {
       setAuthModalOpen(true)
       return
     }
@@ -110,7 +111,9 @@ function App() {
     } catch (err) {
       console.warn('Falling back to local results:', err)
       setResults(computeResults(answers))
-      setNotice('offline')
+      // In the standalone build there is no backend by design, so the local
+      // matcher is the intended path — don't flag it as an "offline estimate".
+      setNotice(REQUIRE_AUTH ? 'offline' : null)
     }
     setPhase('results_ready')
     scrollTo(resultsRef)
