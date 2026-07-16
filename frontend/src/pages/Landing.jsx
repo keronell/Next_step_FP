@@ -5,7 +5,6 @@ import Button from '../components/ui/Button.jsx'
 import Badge from '../components/ui/Badge.jsx'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
 import { useAuth } from '../contexts/AuthContext'
-import { REQUIRE_AUTH } from '../config'
 
 const container = {
   hidden: {},
@@ -28,7 +27,7 @@ function Hero({ onStart }) {
   const canvasRef = useRef(null)
   const [pulseOn, setPulseOn] = useState(true)
   const { user, authLoading } = useAuth()
-  const isLocked = REQUIRE_AUTH && !authLoading && !user
+  const isLocked = !authLoading && !user
 
   useEffect(() => {
     const canvas = canvasRef.current

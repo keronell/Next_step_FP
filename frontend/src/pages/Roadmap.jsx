@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { ExternalLink, X, Check, ChevronDown, ChevronRight, Flame, Star } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ROADMAPS, CAREERS, MARKET_DEMAND } from '../data'
+import { ROADMAPS, CAREERS } from '../data'
 import { fetchRoadmap, fetchRoadmapProgress, saveRoadmapProgress } from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import SectionHeading from '../components/ui/SectionHeading.jsx'
@@ -94,27 +94,6 @@ function nodeStatus(node, completedNodes, missingSkills) {
   if (completedNodes.has(node.id)) return 'done'
   if (skillHits(missingSkills, node.label)) return 'focus'
   return 'todo'
-}
-
-// Standalone/offline build: the backend normally injects DEV-59 job-ad demand
-// badges, so when we fall back to the bundled ROADMAPS we overlay a curated set
-// (data.js MARKET_DEMAND) instead. Copies rather than mutates the cached roadmap;
-// first matching market skill wins per node; nodes that already carry `demand`
-// (e.g. from a real backend response) are left untouched.
-function withMarketDemand(roadmap, careerId) {
-  const demands = MARKET_DEMAND[careerId]
-  if (!roadmap?.sections || !demands?.length) return roadmap
-  return {
-    ...roadmap,
-    sections: roadmap.sections.map((s) => ({
-      ...s,
-      nodes: s.nodes.map((n) => {
-        if (n.demand) return n
-        const hit = demands.find((d) => skillHits([d.skill], n.label))
-        return hit ? { ...n, demand: { classification: hit.classification, pct: hit.pct } } : n
-      }),
-    })),
-  }
 }
 
 function NodeButton({ node, status, isActive, delay, onClick }) {
@@ -426,7 +405,7 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
     let cancelled = false
     fetchRoadmap(selectedCareer, missingSkills)
       .then((data) => { if (!cancelled) setRoadmapData(data) })
-      .catch(() => { if (!cancelled) setRoadmapData(withMarketDemand(ROADMAPS[selectedCareer] ?? null, selectedCareer)) })
+      .catch(() => { if (!cancelled) setRoadmapData(ROADMAPS[selectedCareer] ?? null) })
     return () => { cancelled = true }
   }, [selectedCareer]) // eslint-disable-line react-hooks/exhaustive-deps
 

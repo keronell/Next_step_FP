@@ -7,7 +7,6 @@ import { useReveal } from '../hooks/useReveal'
 import Button from '../components/ui/Button.jsx'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
 import { useAuth } from '../contexts/AuthContext'
-import { REQUIRE_AUTH } from '../config'
 
 // answers[qId] = number (answered) | null (skipped) | undefined (not visited)
 const isAnswered = (val) => val !== null && val !== undefined
@@ -201,7 +200,7 @@ function Assessment({ phase, onStart, onComplete }) {
 
 function AssessmentStart({ onStart }) {
   const { user, authLoading } = useAuth()
-  const isLocked = REQUIRE_AUTH && !authLoading && !user
+  const isLocked = !authLoading && !user
 
   return (
     <motion.div
