@@ -375,7 +375,14 @@ def validate_vote(raw: dict, career_ids: set[str]) -> dict:
 
 def label_profiles(profiles: list[dict], questions: list[dict], careers: list[dict]) -> None:
     career_ids = {c["id"] for c in careers}
-    done = {(v["profile_id"], v["persona_id"]) for v in read_jsonl(VOTES_JSONL) if not v.get("error")}
+    # Resume only within the current PROMPT_VERSION: a prompt bump changes what the
+    # panel was asked (and profile ids like syn_0042 are reused across generations),
+    # so older log entries are provenance, never completed work.
+    done = {
+        (v["profile_id"], v["persona_id"])
+        for v in read_jsonl(VOTES_JSONL)
+        if not v.get("error") and v.get("prompt_version") == PROMPT_VERSION
+    }
     jobs = [
         (profile, persona_id, persona_desc, persona_temp)
         for profile in profiles
@@ -424,7 +431,13 @@ def label_profiles(profiles: list[dict], questions: list[dict], careers: list[di
 
 
 def collect_archetypes(questions: list[dict], careers: list[dict]) -> None:
-    done = {(a["career_id"], a["persona_id"]) for a in read_jsonl(ARCHETYPES_JSONL) if not a.get("error")}
+    # Same PROMPT_VERSION scoping as label_profiles: pre-bump archetypes may not even
+    # cover the current question bank (v1.1.0 rows stop at q10).
+    done = {
+        (a["career_id"], a["persona_id"])
+        for a in read_jsonl(ARCHETYPES_JSONL)
+        if not a.get("error") and a.get("prompt_version") == PROMPT_VERSION
+    }
     jobs = [
         (career, persona_id, persona_desc, persona_temp)
         for career in careers
@@ -528,10 +541,16 @@ def heuristic_fit_top1(answers: dict, careers: list[dict]) -> str:
 # ---------------------------------------------------------------- aggregation
 def aggregate(careers: list[dict]) -> None:
     career_ids = [c["id"] for c in careers]
-    votes = [v for v in read_jsonl(VOTES_JSONL) if not v.get("error") and v.get("top1")]
-    failures = [v for v in read_jsonl(VOTES_JSONL) if v.get("error")]
+    # Aggregate only the current PROMPT_VERSION's log entries — mixing generations
+    # would reuse labels collected under a different prompt/catalog/question bank.
+    log = [v for v in read_jsonl(VOTES_JSONL) if v.get("prompt_version") == PROMPT_VERSION]
+    votes = [v for v in log if not v.get("error") and v.get("top1")]
+    failures = [v for v in log if v.get("error")]
     if not votes:
-        raise SystemExit("No successful votes logged; nothing to aggregate.")
+        raise SystemExit(
+            f"No successful {PROMPT_VERSION} votes logged; nothing to aggregate "
+            "(older-version votes are ignored — run labeling first)."
+        )
 
     by_profile: dict[str, list[dict]] = {}
     for v in votes:
@@ -578,7 +597,10 @@ def aggregate(careers: list[dict]) -> None:
     silver.to_parquet(SILVER_PARQUET, index=False)
     ambiguous.to_parquet(AMBIGUOUS_PARQUET, index=False)
 
-    arch_records = [a for a in read_jsonl(ARCHETYPES_JSONL) if not a.get("error") and a.get("answers")]
+    arch_records = [
+        a for a in read_jsonl(ARCHETYPES_JSONL)
+        if not a.get("error") and a.get("answers") and a.get("prompt_version") == PROMPT_VERSION
+    ]
     archetypes = pd.DataFrame([
         {
             "career_id": a["career_id"],
