@@ -37,7 +37,7 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "qwen2.5:7b-instruct"
 TEMPERATURE = 0.2  # fallback; personas carry their own (see PERSONAS)
 NUM_PREDICT = 300
-PROMPT_VERSION = "panel-v1.1.0"
+PROMPT_VERSION = "panel-v1.2.0"  # v1.2.0: career count/coaching derived from the catalog (16 careers), no hardcoded six
 LABEL_SOURCE = "synthetic_llm"
 MAX_RETRIES = 2
 WORKERS = 4
@@ -54,6 +54,8 @@ CAREERS_JSON = Path("backend/app/data/careers.json")
 # hardcoded, so new questions (e.g. q11+) flow into synthetic profiles and
 # archetypes automatically. Mirrors feature_builder.QUESTION_IDS on the serving side.
 QUESTION_IDS = [q["id"] for q in json.loads(QUESTIONS_JSON.read_text(encoding="utf-8"))]
+# Career universe, same principle: derived from the catalog in catalog order.
+CAREER_IDS = [c["id"] for c in json.loads(CAREERS_JSON.read_text(encoding="utf-8"))]
 TRAINING_DIR = Path("data/training")
 REAL_PROFILES_JSON = TRAINING_DIR / "real_profiles.json"
 VOTES_JSONL = TRAINING_DIR / "panel_votes.jsonl"
@@ -82,14 +84,46 @@ BRANCH_RULES = {
 # q11-q13 are the discriminator questions (bonus-only); seeding them with each
 # career's on-theme option keeps the strongest synthetic profiles from putting noise
 # on exactly the answers that separate the careers.
+# The 10 careers added with the catalog's 6->16 growth follow the DoD archetypes in
+# backend/app/tests/test_question_bank.py (each validated to rank its career #1 on
+# raw questionnaire fit), with branch-hidden q3/q9 slots filled with on-theme values.
 CAREER_SEEDS = {
-    "frontend":        {"q1": 2, "q2": 0, "q3": 1, "q4": 0, "q5": 1, "q6": 0, "q7": 1, "q8": 1, "q9": 3, "q10": 0, "q11": 0, "q12": 2, "q13": 0},
-    "backend":         {"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 2, "q13": 1},
-    "data-science":    {"q1": 2, "q2": 2, "q3": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 2, "q12": 3, "q13": 2},
-    "devops":          {"q1": 2, "q2": 3, "q3": 2, "q4": 3, "q5": 3, "q6": 3, "q7": 3, "q8": 3, "q9": 0, "q10": 3, "q11": 3, "q12": 2, "q13": 3},
-    "product-manager": {"q1": 0, "q2": 2, "q3": 2, "q4": 2, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 2, "q10": 0, "q11": 2, "q12": 0, "q13": 0},
-    "ux-designer":     {"q1": 1, "q2": 0, "q3": 0, "q4": 0, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 3, "q10": 0, "q11": 0, "q12": 1, "q13": 0},
+    "frontend":           {"q1": 2, "q2": 0, "q3": 1, "q4": 0, "q5": 1, "q6": 0, "q7": 1, "q8": 1, "q9": 3, "q10": 0, "q11": 0, "q12": 2, "q13": 0},
+    "backend":            {"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 2, "q13": 1},
+    # q4/q6 follow the DoD archetype: the pre-16-catalog values (q4:2, q6:2) hit
+    # data-analyst's bonuses and made this seed rank data-analyst #1, not data-science.
+    "data-science":       {"q1": 2, "q2": 2, "q3": 3, "q4": 1, "q5": 2, "q6": 1, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 2, "q12": 3, "q13": 2},
+    "devops":             {"q1": 2, "q2": 3, "q3": 2, "q4": 3, "q5": 3, "q6": 3, "q7": 3, "q8": 3, "q9": 0, "q10": 3, "q11": 3, "q12": 2, "q13": 3},
+    "product-manager":    {"q1": 0, "q2": 2, "q3": 2, "q4": 2, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 2, "q10": 0, "q11": 2, "q12": 0, "q13": 0},
+    "ux-designer":        {"q1": 1, "q2": 0, "q3": 0, "q4": 0, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 3, "q10": 0, "q11": 0, "q12": 1, "q13": 0},
+    "fullstack":          {"q1": 3, "q2": 1, "q3": 1, "q4": 0, "q5": 1, "q6": 2, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 2, "q13": 1},
+    "mobile":             {"q1": 3, "q2": 0, "q3": 2, "q4": 0, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 2, "q10": 0, "q11": 0, "q12": 2, "q13": 0},
+    "data-analyst":       {"q1": 1, "q2": 2, "q3": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 2, "q10": 2, "q11": 2, "q12": 3, "q13": 2},
+    "machine-learning":   {"q1": 3, "q2": 2, "q3": 3, "q4": 1, "q5": 1, "q6": 1, "q7": 2, "q8": 2, "q9": 1, "q10": 1, "q11": 2, "q12": 2, "q13": 1},
+    "ai-engineer":        {"q1": 3, "q2": 1, "q3": 2, "q4": 0, "q5": 1, "q6": 1, "q7": 2, "q8": 1, "q9": 1, "q10": 0, "q11": 2, "q12": 2, "q13": 1},
+    "cyber-security":     {"q1": 2, "q2": 3, "q3": 2, "q4": 3, "q5": 3, "q6": 1, "q7": 2, "q8": 3, "q9": 0, "q10": 3, "q11": 3, "q12": 3, "q13": 3},
+    "qa-engineer":        {"q1": 2, "q2": 1, "q3": 1, "q4": 3, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 3, "q13": 3},
+    "game-dev":           {"q1": 3, "q2": 1, "q3": 1, "q4": 0, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 3, "q10": 0, "q11": 0, "q12": 2, "q13": 1},
+    "technical-writer":   {"q1": 1, "q2": 1, "q3": 1, "q4": 2, "q5": 2, "q6": 2, "q7": 0, "q8": 0, "q9": 2, "q10": 0, "q11": 0, "q12": 0, "q13": 0},
+    "software-architect": {"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 3, "q6": 3, "q7": 1, "q8": 1, "q9": 0, "q10": 1, "q11": 3, "q12": 0, "q13": 1},
 }
+
+# Seeds drive 60% of synthetic profiles (30% perturbed + 30% blended), so a career
+# missing here gets almost no seeded representation in training data. Fail loudly on
+# any catalog/bank drift instead of silently regenerating that bias.
+if list(CAREER_SEEDS) != CAREER_IDS:
+    raise SystemExit(
+        "CAREER_SEEDS out of sync with careers.json (must list the same careers in "
+        f"catalog order): missing={sorted(set(CAREER_IDS) - set(CAREER_SEEDS))} "
+        f"extra={sorted(set(CAREER_SEEDS) - set(CAREER_IDS))}"
+    )
+for _cid, _seed in CAREER_SEEDS.items():
+    if set(_seed) != set(QUESTION_IDS):
+        raise SystemExit(
+            f"CAREER_SEEDS[{_cid!r}] out of sync with questions.json: "
+            f"missing={sorted(set(QUESTION_IDS) - set(_seed))} "
+            f"extra={sorted(set(_seed) - set(QUESTION_IDS))}"
+        )
 
 
 def now_utc() -> str:
@@ -185,15 +219,16 @@ def build_label_prompt(persona_desc: str, profile_text: str, careers: list[dict]
 You are reviewing one beginner's answers to a career-orientation questionnaire and must
 recommend which tech career fits them best. Answer only as that expert persona.
 
-The six possible careers:
+The {len(careers)} possible careers:
 {render_careers(careers)}
 
-All six careers are equally valid outcomes — do not default to developer roles.
-Two of them are not primarily coding careers: someone who leans toward visual design
-and user empathy but not writing code may fit ux-designer better than frontend, and
-someone drawn to shaping vision, talking to users, and rallying teams rather than
-building may fit product-manager best. Recommend the career the answers actually
-support.
+All {len(careers)} careers are equally valid outcomes — do not default to developer roles.
+Some are not primarily coding careers: someone who leans toward visual design and
+user empathy but not writing code may fit ux-designer better than frontend, someone
+drawn to shaping vision, talking to users, and rallying teams rather than building
+may fit product-manager best, and someone who loves explaining technology in plain
+language may fit technical-writer over any developer role. Recommend the career the
+answers actually support.
 
 The person's questionnaire answers:
 {profile_text}
@@ -340,7 +375,14 @@ def validate_vote(raw: dict, career_ids: set[str]) -> dict:
 
 def label_profiles(profiles: list[dict], questions: list[dict], careers: list[dict]) -> None:
     career_ids = {c["id"] for c in careers}
-    done = {(v["profile_id"], v["persona_id"]) for v in read_jsonl(VOTES_JSONL) if not v.get("error")}
+    # Resume only within the current PROMPT_VERSION: a prompt bump changes what the
+    # panel was asked (and profile ids like syn_0042 are reused across generations),
+    # so older log entries are provenance, never completed work.
+    done = {
+        (v["profile_id"], v["persona_id"])
+        for v in read_jsonl(VOTES_JSONL)
+        if not v.get("error") and v.get("prompt_version") == PROMPT_VERSION
+    }
     jobs = [
         (profile, persona_id, persona_desc, persona_temp)
         for profile in profiles
@@ -389,7 +431,13 @@ def label_profiles(profiles: list[dict], questions: list[dict], careers: list[di
 
 
 def collect_archetypes(questions: list[dict], careers: list[dict]) -> None:
-    done = {(a["career_id"], a["persona_id"]) for a in read_jsonl(ARCHETYPES_JSONL) if not a.get("error")}
+    # Same PROMPT_VERSION scoping as label_profiles: pre-bump archetypes may not even
+    # cover the current question bank (v1.1.0 rows stop at q10).
+    done = {
+        (a["career_id"], a["persona_id"])
+        for a in read_jsonl(ARCHETYPES_JSONL)
+        if not a.get("error") and a.get("prompt_version") == PROMPT_VERSION
+    }
     jobs = [
         (career, persona_id, persona_desc, persona_temp)
         for career in careers
@@ -493,10 +541,16 @@ def heuristic_fit_top1(answers: dict, careers: list[dict]) -> str:
 # ---------------------------------------------------------------- aggregation
 def aggregate(careers: list[dict]) -> None:
     career_ids = [c["id"] for c in careers]
-    votes = [v for v in read_jsonl(VOTES_JSONL) if not v.get("error") and v.get("top1")]
-    failures = [v for v in read_jsonl(VOTES_JSONL) if v.get("error")]
+    # Aggregate only the current PROMPT_VERSION's log entries — mixing generations
+    # would reuse labels collected under a different prompt/catalog/question bank.
+    log = [v for v in read_jsonl(VOTES_JSONL) if v.get("prompt_version") == PROMPT_VERSION]
+    votes = [v for v in log if not v.get("error") and v.get("top1")]
+    failures = [v for v in log if v.get("error")]
     if not votes:
-        raise SystemExit("No successful votes logged; nothing to aggregate.")
+        raise SystemExit(
+            f"No successful {PROMPT_VERSION} votes logged; nothing to aggregate "
+            "(older-version votes are ignored — run labeling first)."
+        )
 
     by_profile: dict[str, list[dict]] = {}
     for v in votes:
@@ -543,7 +597,10 @@ def aggregate(careers: list[dict]) -> None:
     silver.to_parquet(SILVER_PARQUET, index=False)
     ambiguous.to_parquet(AMBIGUOUS_PARQUET, index=False)
 
-    arch_records = [a for a in read_jsonl(ARCHETYPES_JSONL) if not a.get("error") and a.get("answers")]
+    arch_records = [
+        a for a in read_jsonl(ARCHETYPES_JSONL)
+        if not a.get("error") and a.get("answers") and a.get("prompt_version") == PROMPT_VERSION
+    ]
     archetypes = pd.DataFrame([
         {
             "career_id": a["career_id"],
@@ -611,7 +668,7 @@ Generated: {now_utc()}  |  model: `{MODEL_NAME}`  |  prompt: `{PROMPT_VERSION}` 
 
 ## Synthetic agreement (NOT human agreement)
 
-- Fleiss' kappa (3 personas, 6 careers): **{fleiss:.3f}**
+- Fleiss' kappa ({len(PERSONAS)} personas, {len(career_ids)} careers): **{fleiss:.3f}**
 {chr(10).join(f"- Cohen's kappa {k}: {v:.3f}" for k, v in pairwise.items())}
 
 Interpretation caution: personas share one base model, so high kappa here means
