@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 
@@ -34,7 +35,13 @@ def submit(
     recommendations = match(submission.answers, candidates, model=model)
     logger.info("Submission %s: returning %d recommendations", request_id, len(recommendations))
 
-    # Best-effort persistence after the response is sent (never blocks the user).
+    # Best-effort persistence via Dapr pub/sub (DEV-38): the subscriber writes the
+    # state store. The publish itself is deferred with BackgroundTasks so a slow
+    # sidecar/broker can never delay this response — BackgroundTasks no longer
+    # persists anything, it only pushes a ~1ms local publish off the response path.
+    # created_at is minted HERE, not in the background task: a claim/selection can
+    # land right after this response, and the marker time-bounds compare against
+    # it — a late-run task would make this submission look newer than the claim.
     background_tasks.add_task(
         save_submission,
         request_id,
@@ -42,6 +49,7 @@ def submit(
         recommendations,
         submission.session_id,
         current_user.user_id if current_user else None,
+        datetime.now(timezone.utc).isoformat(),
     )
 
     return RecommendationsResponse(request_id=request_id, recommendations=recommendations)
@@ -49,7 +57,17 @@ def submit(
 
 @router.post("/select")
 def select(selection: CareerSelection, background_tasks: BackgroundTasks) -> dict:
-    """Record which career the user opened. Best-effort, never blocks the UI."""
+    """Record which career the user opened. Best-effort, never blocks the UI.
+
+    selected_at (click time) is minted here and travels in the event: the store
+    applies a selection only to submissions that existed at click time, so a
+    delayed event can never stamp an old choice onto a later retake.
+    """
     logger.info("Session %s selected career %s", selection.session_id, selection.career_id)
-    background_tasks.add_task(save_selection, selection.session_id, selection.career_id)
+    background_tasks.add_task(
+        save_selection,
+        selection.session_id,
+        selection.career_id,
+        datetime.now(timezone.utc).isoformat(),
+    )
     return {"ok": True}

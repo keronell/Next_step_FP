@@ -7,11 +7,23 @@ from fastapi import HTTPException, status
 
 from app.core.logging import get_logger
 from app.models.auth import AuthTokenResponse, SubmissionHistoryItem, UserResponse
+from app.services import submission_store
+from app.services.dapr_client import enabled as _dapr_enabled
 from app.services.supabase_client import get_auth_client, get_supabase_client
 
 logger = get_logger(__name__)
 
 _AUTH_UNAVAILABLE = "Authentication is unavailable — Supabase is not configured."
+_HISTORY_UNAVAILABLE = "Submission history is unavailable — the state store is not configured."
+
+
+def _require_dapr() -> None:
+    """Submission history lives in the Dapr state store (DEV-38). 503 when off."""
+    if not _dapr_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=_HISTORY_UNAVAILABLE,
+        )
 
 
 def _require(client):
@@ -185,13 +197,14 @@ def get_user_from_token(jwt: str) -> UserResponse:
 def claim_sessions(user_id: str, session_id: str) -> None:
     """Link prior anonymous submissions to a now-authenticated user.
 
-    Only updates rows where user_id IS NULL so a row can't be re-claimed.
+    Only records with no user_id are claimed (parity with the old SQL
+    `WHERE user_id IS NULL` update), so a record can't be re-claimed.
+    Best-effort past the 503 gate: state-store errors are logged, not raised.
     """
-    client = _get_data_client()
+    _require_dapr()
     try:
-        client.table("submissions").update({"user_id": user_id}).eq(
-            "session_id", session_id
-        ).is_("user_id", "null").execute()
+        claimed = submission_store.claim_sessions(user_id, session_id)
+        logger.info("Claimed %d submissions for user %s", claimed, user_id)
     except Exception as exc:
         logger.warning(
             "claim_sessions failed for user %s / session %s: %s",
@@ -203,24 +216,16 @@ def claim_sessions(user_id: str, session_id: str) -> None:
 
 def get_user_submissions(user_id: str) -> list[SubmissionHistoryItem]:
     """Return the 20 most recent submissions for a user, newest first."""
-    client = _get_data_client()
+    _require_dapr()
     try:
-        result = (
-            client.table("submissions")
-            .select("request_id, recommendations, selected_career, created_at")
-            .eq("user_id", user_id)
-            .order("created_at", desc=True)
-            .limit(20)
-            .execute()
-        )
         return [
             SubmissionHistoryItem(
-                request_id=row["request_id"],
-                recommendations=row.get("recommendations") or [],
-                selected_career=row.get("selected_career"),
-                created_at=row.get("created_at"),
+                request_id=record["request_id"],
+                recommendations=record.get("recommendations") or [],
+                selected_career=record.get("selected_career"),
+                created_at=record.get("created_at"),
             )
-            for row in (result.data or [])
+            for record in submission_store.get_user_submissions(user_id)
         ]
     except Exception as exc:
         logger.warning("Failed to fetch submissions for user %s: %s", user_id, exc)

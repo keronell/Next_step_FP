@@ -1,60 +1,73 @@
-"""Best-effort persistence of questionnaire submissions to Supabase.
+"""Best-effort persistence of questionnaire submissions via Dapr pub/sub (DEV-38).
 
-Server-only writer using the service_role key. By contract `save_submission` never
-raises: if Supabase is unconfigured or unreachable, it logs and returns so the
-/submit response (recommendations) is never blocked — same graceful-degrade spirit
-as the RAG-down fallback.
+The submit/select routes publish an event to the local sidecar; the subscriber
+(api/routes/subscriptions.py) consumes it and writes the state store — replacing
+the old FastAPI BackgroundTasks + direct Supabase insert. By contract nothing
+here ever raises: if Dapr is disabled or the sidecar is unreachable, it logs and
+returns so the /submit response (recommendations) is never blocked — same
+graceful-degrade spirit as the RAG-down fallback.
 
-# ponytail: one `submissions` table, answers + recommendations stored as JSONB.
-# Normalize into a per-career recommendations table only if analytics actually need it.
+# ponytail: one state entry per submission + session/user index keys (see
+# submission_store.py). Normalize further only if analytics actually need it.
 """
 from app.core.logging import get_logger
-
-# Single shared Supabase client, kept under the name _client for backward-compatible
-# tests (they monkeypatch/clear persistence._client). One builder => one connection.
-from app.services.supabase_client import get_supabase_client as _client
+from app.services.dapr_client import enabled, publish
 
 logger = get_logger(__name__)
+
+SUBMISSIONS_TOPIC = "submissions"
+SELECTIONS_TOPIC = "selections"
 
 
 def save_submission(
     request_id: str,
     answers: dict,
     recommendations: list[dict],
-    session_id: str | None = None,
-    user_id: str | None = None,
+    session_id: str | None,
+    user_id: str | None,
+    created_at: str,
 ) -> None:
-    """Insert one submission row. Best-effort: swallows all errors after logging."""
-    client = _client()
-    if client is None:
-        return
-    try:
-        client.table("submissions").insert(
-            {
-                "request_id": request_id,
-                "answers": answers,
-                "recommendations": recommendations,
-                "session_id": session_id,
-                "user_id": user_id,
-            }
-        ).execute()
-    except Exception:  # noqa: BLE001 - persistence must never break the request
-        logger.warning("Submission %s: failed to persist to Supabase", request_id, exc_info=True)
+    """Publish one full submission record. Best-effort: swallows all errors after logging.
 
-
-def save_selection(session_id: str, career_id: str) -> None:
-    """Record the career a session picked. Best-effort: swallows all errors after logging.
-
-    # ponytail: last-write-wins update on every row for the session — a session
-    # normally has one submission; switch to a selections history table only if
-    # analytics need every click.
+    created_at MUST be minted by the request handler (UTC ISO-8601, so
+    lexicographic == chronological): this function runs as a background task,
+    and a late mint here would postdate claims/selections that the user made
+    after receiving the response, breaking the marker time bounds.
     """
-    client = _client()
-    if client is None:
+    if not enabled():
+        return
+    record = {
+        "request_id": request_id,
+        "answers": answers,
+        "recommendations": recommendations,
+        "session_id": session_id,
+        "user_id": user_id,
+        "selected_career": None,
+        "created_at": created_at,
+    }
+    try:
+        publish(SUBMISSIONS_TOPIC, record)
+    except Exception:  # noqa: BLE001 - persistence must never break the request
+        logger.warning("Submission %s: failed to publish", request_id, exc_info=True)
+
+
+def save_selection(session_id: str, career_id: str, selected_at: str) -> None:
+    """Publish the career a session picked. Best-effort: swallows all errors after logging.
+
+    selected_at is the click time from the request handler; it rides in the
+    event so the subscriber can scope the selection to submissions that already
+    existed when the user clicked.
+
+    # ponytail: the subscriber applies last-write-wins on every record of the
+    # session — a session normally has one submission; add a selections history
+    # only if analytics need every click.
+    """
+    if not enabled():
         return
     try:
-        client.table("submissions").update(
-            {"selected_career": career_id}
-        ).eq("session_id", session_id).execute()
+        publish(
+            SELECTIONS_TOPIC,
+            {"session_id": session_id, "career_id": career_id, "selected_at": selected_at},
+        )
     except Exception:  # noqa: BLE001 - persistence must never break the request
-        logger.warning("Selection for session %s: failed to persist", session_id, exc_info=True)
+        logger.warning("Selection for session %s: failed to publish", session_id, exc_info=True)

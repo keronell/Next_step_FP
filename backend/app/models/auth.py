@@ -56,7 +56,8 @@ class UserResponse(BaseModel):
 
 
 class ClaimSessionsRequest(BaseModel):
-    session_id: str = Field(..., min_length=1)
+    # Same charset the frontend mints; session ids become state-store keys.
+    session_id: str = Field(..., pattern=r"^[A-Za-z0-9_-]{1,64}$")
 
 
 class SubmissionHistoryItem(BaseModel):

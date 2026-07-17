@@ -34,6 +34,22 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
+    # Dapr sidecar (DEV-38). dapr_enabled=False = state/pub-sub calls are no-ops (persistence
+    # off) or 503 (roadmap progress, history) — mirrors the supabase_enabled contract.
+    # DAPR_HTTP_PORT is exported into the app process by `dapr run`; never hardcode 3500.
+    dapr_enabled: bool = False
+    dapr_http_port: int = 3500
+    dapr_state_store: str = "statestore"
+    dapr_pubsub: str = "pubsub"
+    # Two independent Dapr auth directions, one env var each:
+    # - APP_API_TOKEN (sidecar -> app): daprd sends it as `dapr-api-token` on every
+    #   app-channel call; our subscriber endpoints verify it. Empty = open (dev:
+    #   uvicorn binds localhost only); REQUIRED when the app binds 0.0.0.0.
+    # - DAPR_API_TOKEN (app -> sidecar): when daprd requires API auth, every state/
+    #   publish/invoke call must carry it; dapr_client attaches it when set.
+    app_api_token: str = ""
+    dapr_api_token: str = ""
+
     # Job-ad requirement enrichment (DEV-59). Per career field, skills are mined from
     # the job-ad corpus and classified by how often they appear across that field's ads:
     #   Required  = skill in >= requirements_required_ratio of the sampled ads

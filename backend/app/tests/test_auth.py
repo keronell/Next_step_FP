@@ -1,10 +1,13 @@
 """Auth route and service tests.
 
 Strategy:
-- Default autouse fixture (_supabase_disabled) sets SUPABASE_URL="" so all
-  auth routes return 503 by default — tests the "unavailable" contract.
+- Default autouse fixture (_backends_disabled) sets SUPABASE_URL="" and
+  DAPR_ENABLED=false so all auth routes return 503 by default — tests the
+  "unavailable" contract.
 - Tests that need an "enabled" Supabase monkeypatch auth_service._get_auth_client
-  to return a FakeClient — no real DB or network calls.
+  to return a FakeClient — no real DB or network calls. Submission history lives
+  in the Dapr state store: those tests patch auth_service._require_dapr +
+  auth_service.submission_store instead.
 """
 import pytest
 from fastapi import HTTPException, status
@@ -215,7 +218,64 @@ def test_logout_success(client_with_repo, monkeypatch, auth_client):
     assert r.json() == {"ok": True}
 
 
-def test_claim_sessions_success(client_with_repo, monkeypatch, auth_client):
+def test_claim_sessions_success(client_with_repo, monkeypatch):
+    monkeypatch.setattr(
+        auth_service,
+        "get_user_from_token",
+        lambda jwt: auth_service.UserResponse(
+            user_id="user-uuid-123", email="user@example.com", username="testuser"
+        ),
+    )
+    monkeypatch.setattr(auth_service, "_require_dapr", lambda: None)
+    calls = []
+    monkeypatch.setattr(
+        auth_service.submission_store,
+        "claim_sessions",
+        lambda user_id, session_id: calls.append((user_id, session_id)) or 1,
+    )
+    r = client_with_repo.post(
+        "/api/auth/claim-sessions",
+        json={"session_id": "sess-abc"},
+        headers={"Authorization": "Bearer valid-token"},
+    )
+    assert r.status_code == 200
+    assert r.json() == {"ok": True}
+    assert calls == [("user-uuid-123", "sess-abc")]
+
+
+def test_my_submissions_returns_list(client_with_repo, monkeypatch):
+    monkeypatch.setattr(
+        auth_service,
+        "get_user_from_token",
+        lambda jwt: auth_service.UserResponse(
+            user_id="user-uuid-123", email="user@example.com", username="testuser"
+        ),
+    )
+    monkeypatch.setattr(auth_service, "_require_dapr", lambda: None)
+    monkeypatch.setattr(
+        auth_service.submission_store,
+        "get_user_submissions",
+        lambda user_id: [
+            {
+                "request_id": "r1",
+                "recommendations": [{"id": "frontend"}],
+                "selected_career": "frontend",
+                "created_at": "2026-07-16T10:00:00+00:00",
+            }
+        ],
+    )
+    r = client_with_repo.get(
+        "/api/auth/my-submissions",
+        headers={"Authorization": "Bearer valid-token"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body, list)
+    assert body[0]["request_id"] == "r1"
+    assert body[0]["selected_career"] == "frontend"
+
+
+def test_claim_sessions_rejects_malformed_session_id(client_with_repo, monkeypatch):
     monkeypatch.setattr(
         auth_service,
         "get_user_from_token",
@@ -225,14 +285,14 @@ def test_claim_sessions_success(client_with_repo, monkeypatch, auth_client):
     )
     r = client_with_repo.post(
         "/api/auth/claim-sessions",
-        json={"session_id": "sess-abc"},
+        json={"session_id": "a/b?c#d"},
         headers={"Authorization": "Bearer valid-token"},
     )
-    assert r.status_code == 200
-    assert r.json() == {"ok": True}
+    assert r.status_code == 422
 
 
-def test_my_submissions_returns_list(client_with_repo, monkeypatch, auth_client):
+def test_my_submissions_dapr_disabled_503(client_with_repo, monkeypatch):
+    # Authenticated, but the state store is off -> history 503s (auth itself is fine).
     monkeypatch.setattr(
         auth_service,
         "get_user_from_token",
@@ -244,8 +304,7 @@ def test_my_submissions_returns_list(client_with_repo, monkeypatch, auth_client)
         "/api/auth/my-submissions",
         headers={"Authorization": "Bearer valid-token"},
     )
-    assert r.status_code == 200
-    assert isinstance(r.json(), list)
+    assert r.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +323,7 @@ def test_submit_with_auth_passes_user_id(client_with_repo, valid_answers, monkey
     calls = []
     monkeypatch.setattr(
         "app.api.routes.questionnaire.save_submission",
-        lambda request_id, answers, recs, session_id, user_id=None: calls.append(
+        lambda request_id, answers, recs, session_id, user_id, created_at: calls.append(
             {"request_id": request_id, "user_id": user_id}
         ),
     )
@@ -284,7 +343,7 @@ def test_submit_without_auth_passes_null_user_id(
     calls = []
     monkeypatch.setattr(
         "app.api.routes.questionnaire.save_submission",
-        lambda request_id, answers, recs, session_id, user_id=None: calls.append(
+        lambda request_id, answers, recs, session_id, user_id, created_at: calls.append(
             {"request_id": request_id, "user_id": user_id}
         ),
     )

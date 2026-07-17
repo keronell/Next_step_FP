@@ -4,9 +4,16 @@ Accepts the frontend's real shape: { "answers": { "q1": 0..3 | null, ... } }.
 Values are 0-3 (Likert option index) or null (skipped). Unknown keys are rejected
 so a malformed payload fails fast with HTTP 422.
 """
+import re
+
 from pydantic import BaseModel, Field, field_validator
 
 from app.data import career_ids, question_ids
+
+# Both frontend mint formats (crypto.randomUUID and the s-{ts}-{rand} fallback)
+# are alnum/dash; session ids flow into state-store keys, so anything else is
+# rejected (select/claim) or dropped (submit) at this boundary.
+SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 class QuestionnaireSubmission(BaseModel):
@@ -17,6 +24,15 @@ class QuestionnaireSubmission(BaseModel):
     # Anonymous browser session id (localStorage UUID). Optional so older clients and
     # tests still validate; used to link this submission to a later career selection.
     session_id: str | None = None
+
+    @field_validator("session_id")
+    @classmethod
+    def sanitize_session_id(cls, session_id: str | None) -> str | None:
+        # Submit must never fail over a malformed session id (persistence is
+        # best-effort) — drop it instead of rejecting the whole quiz.
+        if session_id is not None and not SESSION_ID_RE.fullmatch(session_id):
+            return None
+        return session_id
 
     @field_validator("answers")
     @classmethod
@@ -43,7 +59,7 @@ class QuestionnaireSubmission(BaseModel):
 class CareerSelection(BaseModel):
     """The career a user clicked into, tied back to their session for tracking."""
 
-    session_id: str = Field(..., min_length=1)
+    session_id: str = Field(..., pattern=SESSION_ID_RE.pattern)
     career_id: str
 
     @field_validator("career_id")

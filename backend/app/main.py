@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.deps import SAFE_UNAVAILABLE
-from app.api.routes import auth, health, questionnaire, questions, roadmap
+from app.api.routes import auth, health, questionnaire, questions, roadmap, subscriptions
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.repositories.career_repository import CareerRepository
@@ -28,12 +28,25 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("Starting career-discovery-api")
     if settings.supabase_enabled:
-        logger.info("Supabase enabled (persistence + job_postings reads active)")
+        logger.info("Supabase enabled (auth + job_postings reads active)")
     else:
         logger.warning(
             "Supabase disabled: SUPABASE_URL/SUPABASE_SERVICE_KEY are unset — "
-            "submission persistence and job_postings reads are no-ops. "
+            "auth routes 503 and job_postings reads are no-ops. "
             "Set them in backend/.env to enable."
+        )
+    if settings.dapr_enabled:
+        logger.info(
+            "Dapr enabled (sidecar on :%d — state store '%s', pub/sub '%s')",
+            settings.dapr_http_port,
+            settings.dapr_state_store,
+            settings.dapr_pubsub,
+        )
+    else:
+        logger.warning(
+            "Dapr disabled: submission persistence is a no-op and roadmap "
+            "progress / submission history return 503. Run under `dapr run` "
+            "with DAPR_ENABLED=true to enable (see docs/dapr.md)."
         )
     # Log the resolved store location up front so a path/CWD mismatch between the
     # builder (data/scripts/build_rag.py) and this reader is obvious in the logs.
@@ -88,6 +101,8 @@ def create_app() -> FastAPI:
     app.include_router(questions.router, prefix="/api")
     app.include_router(roadmap.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
+    # Sidecar-facing (no /api prefix): /dapr/subscribe + /events/* (DEV-38 pub/sub).
+    app.include_router(subscriptions.router)
 
     @app.exception_handler(RagUnavailableError)
     async def _rag_unavailable(request: Request, exc: RagUnavailableError):

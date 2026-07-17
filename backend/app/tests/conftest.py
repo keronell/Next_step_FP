@@ -11,21 +11,29 @@ from app.repositories.career_repository import CareerCandidate, FakeCareerReposi
 
 
 @pytest.fixture(autouse=True)
-def _supabase_disabled(monkeypatch):
-    """Force Supabase off for every test, regardless of a developer's local
-    backend/.env — persistence/reads must be no-ops in tests (see CLAUDE.md).
-    Empty env vars take precedence over the .env file in pydantic-settings."""
+def _backends_disabled(monkeypatch):
+    """Force Supabase AND Dapr off for every test, regardless of a developer's local
+    backend/.env — persistence/reads must be no-ops or 503s in tests (see CLAUDE.md).
+    Empty env vars take precedence over the .env file in pydantic-settings.
+    DAPR_ENABLED must be the string "false", not "" — pydantic can't parse an
+    empty string as a bool and Settings() would raise."""
     from app.core.config import get_settings
-    from app.services import persistence
+    from app.services import dapr_client
     from app.services.supabase_client import get_auth_client, get_supabase_client
 
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("SUPABASE_SERVICE_KEY", "")
     monkeypatch.setenv("OPENAI_API_KEY", "")  # never call OpenAI from tests
+    monkeypatch.setenv("DAPR_ENABLED", "false")  # never call a sidecar from tests
     # Clear before each test so the forced-empty env is what gets read. (Teardown
-    # clearing is avoided: a test may monkeypatch _client to a plain function that
-    # has no cache_clear, and that patch is still in place during teardown.)
-    for cached in (get_settings, persistence._client, get_supabase_client, get_auth_client):
+    # clearing is avoided: a test may monkeypatch an accessor to a plain function
+    # that has no cache_clear, and that patch is still in place during teardown.)
+    for cached in (
+        get_settings,
+        get_supabase_client,
+        get_auth_client,
+        dapr_client._http,
+    ):
         cached.cache_clear()
     yield
 
