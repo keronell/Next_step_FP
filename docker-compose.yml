@@ -86,6 +86,59 @@ services:
       redis: { condition: service_healthy }
       consul: { condition: service_healthy }
 
+  auth:
+    build: { context: ./services, dockerfile: auth/Dockerfile }
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      # auth-service itself never calls the sidecar (GoTrue is direct);
+      # its sidecar exists so other services can invoke /internal/verify.
+      DAPR_ENABLED: "false"
+    depends_on:
+      redis: { condition: service_healthy }
+
+  auth-dapr:
+    <<: *dapr-sidecar
+    network_mode: "service:auth"
+    command:
+      ["./daprd", "--app-id", "auth", "--app-port", "8000",
+       "--dapr-http-port", "3500", "--resources-path", "/components", "--dapr-internal-grpc-port", "50002",
+       "--config", "/config/config.yaml"]
+    depends_on:
+      auth: { condition: service_started }
+      redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
+
+  history:
+    build: { context: ./services, dockerfile: history/Dockerfile }
+    environment:
+      DAPR_ENABLED: "true"
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      # Subscriber endpoints mutate identity-bearing state and this container
+      # binds 0.0.0.0 — the sidecar must prove itself on every delivery.
+      # Interpolated from the repo-root .env (compose's only file scope —
+      # backend/.env is NOT read here). Required: no default, a public fallback
+      # token would be equivalent to no gate.
+      APP_API_TOKEN: ${APP_API_TOKEN:?set APP_API_TOKEN in the repo-root .env (openssl rand -hex 16)}
+    depends_on:
+      redis: { condition: service_healthy }
+
+  history-dapr:
+    <<: *dapr-sidecar
+    network_mode: "service:history"
+    environment:
+      APP_API_TOKEN: ${APP_API_TOKEN:?set APP_API_TOKEN in the repo-root .env (openssl rand -hex 16)}
+    command:
+      ["./daprd", "--app-id", "history", "--app-port", "8000",
+       "--dapr-http-port", "3500", "--resources-path", "/components", "--dapr-internal-grpc-port", "50002",
+       "--config", "/config/config.yaml"]
+    depends_on:
+      history: { condition: service_started }
+      redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
+
   gateway:
     image: nginx:1.27-alpine
     ports:

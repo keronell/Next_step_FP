@@ -10,13 +10,11 @@ graceful-degrade spirit as the RAG-down fallback.
 # ponytail: one state entry per submission + session/user index keys (see
 # submission_store.py). Normalize further only if analytics actually need it.
 """
-from common.logging import get_logger
 from common.dapr import enabled, publish
+from common.logging import get_logger
+from common.topics import SELECTIONS_TOPIC, SUBMISSIONS_TOPIC
 
 logger = get_logger(__name__)
-
-SUBMISSIONS_TOPIC = "submissions"
-SELECTIONS_TOPIC = "selections"
 
 
 def save_submission(
