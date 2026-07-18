@@ -39,6 +39,8 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 
+from dataset_guards import MIN_LABELS_PER_CAREER
+
 # ---------------------------------------------------------------- configuration
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "qwen2.5:7b-instruct"
@@ -50,7 +52,10 @@ NUM_PREDICT = 300
 # are scoped to PROMPT_VERSION, so any bank/catalog change needs a bump like this one).
 # v2.0.0: two-stage voting (deterministic q2 family shortlist + keyed tie-breaker
 # stage 2); single-pass 16-way retained only as the q2-skipped fallback.
-PROMPT_VERSION = "panel-v2.0.0"
+# v2.1.0: coverage-guaranteed generation (pinned-cue seeded quotas + closed-loop
+# top-up). The prompt is unchanged, but syn_NNNN profile ids are reused with
+# different answers, so prior-generation votes must not resume into this one.
+PROMPT_VERSION = "panel-v2.1.0"
 LABEL_SOURCE = "synthetic_llm"
 MAX_RETRIES = 2
 WORKERS = 4
@@ -160,6 +165,23 @@ def load_catalog() -> tuple[list[dict], list[dict]]:
 
 
 # ---------------------------------------------------------------- profile generation
+# Coverage design (root-cause analysis, 2026-07-18): noise 0.35 destroys a career's
+# discriminator (q2 route + tie-breaker answer) in ~51% of seeded profiles, the
+# 30%-seeded slice holds only ~3.75 profiles per career, and the two q18-only
+# careers have a 0% answer-key share on random profiles — so the old mix could not
+# guarantee the >= MIN_LABELS_PER_CAREER silver labels the Phase 1-3 guard demands.
+# Fixes: (a) every career gets a guaranteed MIN_SEEDED_PER_CAREER seeded quota with
+# its defining cues PINNED during perturbation (all other answers keep full noise —
+# the seeded slice exists to provide strong exemplars, so noise must not erase the
+# one answer that defines them); (b) main() closes the loop with bounded label-count
+# top-up rounds, because label counts ultimately depend on the panel (game-dev's
+# intact-signal consensus rate is ~10%, a protocol ceiling volume must compensate for).
+MIN_SEEDED_PER_CAREER = 6
+SEED_NOISE = 0.35
+TOPUP_BATCH = 10        # pinned-cue profiles per starved career per coverage round
+MAX_TOPUP_ROUNDS = 10
+
+
 def apply_branching(answers: dict) -> dict:
     """Keep only questions visible under the adaptive path (mirrors visibleQuestions)."""
     out = {}
@@ -173,28 +195,46 @@ def apply_branching(answers: dict) -> dict:
     return out
 
 
-def generate_synthetic_profiles(n: int, rng: random.Random) -> list[dict]:
-    career_ids = list(CAREER_SEEDS)
-    profiles = []
+def pinned_qids(cid: str) -> frozenset[str]:
+    """Answers that make a seeded profile recognizably its career: q2 plus the
+    family tie-breaker for gated careers, the linear tie-breaker(s) for the rest."""
+    career = next(c for c in _CAREER_CATALOG if c["id"] == cid)
+    gated = {r["qId"] for r in career["bonuses"] if r["qId"] in _GATED_QIDS and r["bonus"] >= 3}
+    if gated:
+        return frozenset(gated | {"q2"})
+    return frozenset(r["qId"] for r in career["bonuses"] if r["qId"] in LINEAR_DISCRIMINATORS)
 
-    def perturb(seed_answers: dict, noise: float) -> dict:
-        answers = {}
-        for qid in QUESTION_IDS:
-            val = seed_answers.get(qid, rng.randint(0, 3))
+
+def perturb_seed(seed_answers: dict, rng: random.Random, noise: float,
+                 pinned: frozenset = frozenset()) -> dict:
+    answers = {}
+    for qid in QUESTION_IDS:
+        val = seed_answers.get(qid, rng.randint(0, 3))
+        if qid not in pinned:
             if rng.random() < noise:
                 val = rng.randint(0, 3)
             if rng.random() < 0.05:  # occasional skip, like real users
                 val = None
-            answers[qid] = val
-        return apply_branching(answers)
+        answers[qid] = val
+    return apply_branching(answers)
 
-    n_seeded = int(n * 0.3)
+
+def generate_synthetic_profiles(n: int, rng: random.Random) -> list[dict]:
+    career_ids = list(CAREER_SEEDS)
+    profiles = []
+
+    def perturb(seed_answers, noise, pinned=frozenset()):
+        return perturb_seed(seed_answers, rng, noise, pinned)
+
+    # Guaranteed pinned-cue quota per career; blended keeps its share and the
+    # random slice absorbs the difference.
+    n_seeded = max(int(n * 0.3), MIN_SEEDED_PER_CAREER * len(career_ids))
     n_mixed = int(n * 0.3)
-    n_random = n - n_seeded - n_mixed
+    n_random = max(n - n_seeded - n_mixed, 0)
 
     for i in range(n_seeded):
         cid = career_ids[i % len(career_ids)]
-        profiles.append(perturb(CAREER_SEEDS[cid], noise=0.35))
+        profiles.append(perturb(CAREER_SEEDS[cid], noise=SEED_NOISE, pinned=pinned_qids(cid)))
     for _ in range(n_mixed):
         a, b = rng.sample(career_ids, 2)
         blended = {qid: (CAREER_SEEDS[a] if rng.random() < 0.5 else CAREER_SEEDS[b]).get(qid)
@@ -882,12 +922,56 @@ like the hand weights); note this when reading Gate 1 results.
     print(f"Wrote {SILVER_PARQUET}, {AMBIGUOUS_PARQUET}, {ARCHETYPES_PARQUET}, {REPORT_MD}")
 
 
+def ensure_label_coverage(questions: list[dict], careers: list[dict], max_rounds: int) -> None:
+    """Bounded closed-loop top-up: while any career has fewer than
+    MIN_LABELS_PER_CAREER silver labels, add pinned-cue seeded profiles for the
+    starved careers, label them, and re-aggregate. Label counts depend on the
+    panel's votes, so no static generation mix can guarantee them — this loop can.
+    Exits nonzero if the round cap is hit with coverage still short (fail loud,
+    same contract as dataset_guards)."""
+    rng = random.Random(RANDOM_SEED + 1)
+
+    def shortfall() -> dict[str, int]:
+        counts = pd.read_parquet(SILVER_PARQUET)["label_top1"].value_counts()
+        return {cid: int(counts.get(cid, 0)) for cid in CAREER_IDS
+                if counts.get(cid, 0) < MIN_LABELS_PER_CAREER}
+
+    for round_no in range(1, max_rounds + 1):
+        short = shortfall()
+        if not short:
+            print(f"Label coverage ok: every career has >= {MIN_LABELS_PER_CAREER} silver labels.")
+            return
+        profiles = [
+            {
+                "profile_id": f"syn_c{round_no:02d}{i:02d}_{cid}",
+                "profile_source": "synthetic",
+                "answers": perturb_seed(CAREER_SEEDS[cid], rng, SEED_NOISE, pinned_qids(cid)),
+            }
+            for cid in short
+            for i in range(TOPUP_BATCH)
+        ]
+        print(f"Coverage round {round_no}/{max_rounds}: short={short}; labeling {len(profiles)} top-ups")
+        label_profiles(profiles, questions, careers)
+        aggregate(careers)
+
+    short = shortfall()
+    if short:
+        raise SystemExit(
+            f"Coverage top-up exhausted after {max_rounds} rounds; still short: {short}. "
+            "The panel is not producing these labels at a usable rate — see the "
+            "protocol-ceiling discussion on PR #15 before rerunning."
+        )
+    print(f"Label coverage ok: every career has >= {MIN_LABELS_PER_CAREER} silver labels.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=None, help="label only the first N profiles (smoke test)")
     parser.add_argument("--n-synthetic", type=int, default=N_SYNTHETIC_PROFILES)
     parser.add_argument("--aggregate-only", action="store_true")
     parser.add_argument("--skip-archetypes", action="store_true")
+    parser.add_argument("--max-topup-rounds", type=int, default=MAX_TOPUP_ROUNDS,
+                        help="coverage top-up round cap (0 disables the coverage loop)")
     args = parser.parse_args()
 
     questions, careers = load_catalog()
@@ -899,6 +983,10 @@ def main() -> None:
         if not args.skip_archetypes:
             collect_archetypes(questions, careers)
     aggregate(careers)
+    # Coverage loop only on full runs: smoke tests (--limit) and aggregate-only
+    # recomputations must not trigger new labeling.
+    if not args.aggregate_only and not args.limit and args.max_topup_rounds > 0:
+        ensure_label_coverage(questions, careers, args.max_topup_rounds)
 
 
 if __name__ == "__main__":
