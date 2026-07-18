@@ -18,8 +18,8 @@ from urllib.parse import quote
 
 import httpx
 
-from app.core.config import get_settings
-from app.core.logging import get_logger
+from common.config import get_settings
+from common.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -203,7 +203,9 @@ def invoke(
     timeout: float | None = None,
 ) -> httpx.Response:
     """Service invocation: sidecar routes to {app_id}'s /{method_path}. The callee's
-    status code propagates — the caller interprets the response."""
+    status code propagates — the caller interprets the response. `timeout`
+    overrides the client's 5s default: a full matching run takes ~6s in the
+    compose topology, so cheap calls keep the tight default and heavy ones opt up."""
     try:
         return _http().request(
             method,
