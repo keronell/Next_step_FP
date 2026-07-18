@@ -34,6 +34,15 @@ def submit(
     recommendations = match(submission.answers, candidates, model=model)
     logger.info("Submission %s: returning %d recommendations", request_id, len(recommendations))
 
+    # Surface the artifact's training-data caveats only when the model actually
+    # scored (match() falls back to the formula on any model error, and the recs
+    # carry the scorer's version).
+    model_caveats = (
+        model.caveats
+        if model and recommendations and recommendations[0].get("model_version") == model.version
+        else []
+    )
+
     # Best-effort persistence after the response is sent (never blocks the user).
     background_tasks.add_task(
         save_submission,
@@ -44,7 +53,9 @@ def submit(
         current_user.user_id if current_user else None,
     )
 
-    return RecommendationsResponse(request_id=request_id, recommendations=recommendations)
+    return RecommendationsResponse(
+        request_id=request_id, recommendations=recommendations, model_caveats=model_caveats
+    )
 
 
 @router.post("/select")

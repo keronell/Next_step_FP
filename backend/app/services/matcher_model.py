@@ -32,6 +32,10 @@ class MatcherModel:
         self.intercept: list[float] = artifact["intercept"]      # (n_careers,)
         self.version: str = artifact.get("model_version", "unknown")
         self.label_source: str = artifact.get("label_source", "unknown")
+        # Training-data provenance warnings; surfaced on every response the model
+        # scores (the artifact's label_source says "see caveats" — this is where
+        # consumers actually receive them).
+        self.caveats: list[str] = list(artifact.get("caveats", []))
 
         n_f, n_c = len(self.feature_names), len(self.careers)
         if artifact.get("feature_version") != FEATURE_VERSION:

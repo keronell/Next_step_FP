@@ -34,3 +34,30 @@ def assert_min_class_coverage(labels, career_ids, minimum: int = MIN_LABELS_PER_
             "Gate 0 is not satisfied — fix Phase-0 labeling coverage for these "
             "careers before running Phases 1-3."
         )
+
+
+def dataset_caveats(labels, career_ids, minimum: int = MIN_LABELS_PER_CAREER) -> list[str]:
+    """Class-balance caveats derived from the labels themselves, shared by the
+    evaluation report and the exported artifact so both always describe the
+    dataset actually loaded (never a previous run's counts). Empty when neither
+    condition holds."""
+    counts = Counter(labels)
+    n = sum(counts.values())
+    floor = [f"{cid} ({counts.get(cid, 0)} labels)" for cid in career_ids
+             if counts.get(cid, 0) <= minimum]
+    over = [f"{cid} ({counts[cid]}/{n} rows, {counts[cid] / n:.0%})" for cid in career_ids
+            if counts.get(cid, 0) / n > 2.0 / len(career_ids)]
+    caveats = []
+    if floor:
+        caveats.append(
+            f"Floor-level class representation for {', '.join(sorted(floor))} — at or "
+            f"below the {minimum}-label stratified-CV minimum; treat their predictions "
+            "and metrics as low-confidence."
+        )
+    if over:
+        caveats.append(
+            f"Over-represented classes: {', '.join(sorted(over))} (more than 2x the "
+            "uniform share). class_weight='balanced' prevents amplification during "
+            "training, but the label skew remains in the data."
+        )
+    return caveats

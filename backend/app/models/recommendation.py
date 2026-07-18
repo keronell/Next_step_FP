@@ -31,3 +31,7 @@ class Recommendation(BaseModel):
 class RecommendationsResponse(BaseModel):
     request_id: str
     recommendations: list[Recommendation]
+    # Provenance warnings embedded in the model artifact (training-data caveats).
+    # Populated only when the learned matcher actually scored this response —
+    # empty for the formula path, including the mid-request model-error fallback.
+    model_caveats: list[str] = []

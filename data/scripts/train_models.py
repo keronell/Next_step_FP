@@ -366,6 +366,12 @@ def main() -> None:
     contenders = [n for n, r in results.items() if best_top2 - r["top2"] <= 0.01]
     winner = min(contenders, key=lambda n: results[n]["ece_scaled"])
 
+    # Phase-2 reference recomputed on THIS dataset (a hardcoded copy of a previous
+    # run's numbers silently went stale when the dataset was regenerated).
+    from evaluate_matchers import formula_scores
+    f_order = np.argsort(-formula_scores(df, careers), axis=1)
+    formula_top2_ref = float(np.mean([y[i] in f_order[i, :2] for i in range(len(y))]))
+
     def fmt(name, m):
         return (f"| {name} | {m['top1']:.3f} | {m['top2']:.3f} | {m['top3']:.3f} | "
                 f"{m['mrr']:.3f} | {m['balanced_top1']:.3f} | {m['ece_raw']:.3f} | "
@@ -386,8 +392,9 @@ def main() -> None:
 Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 Dataset: {len(df)} rows, feature `{meta["feature_version"]}`, seed {SEED},
 outer {N_FOLDS}-fold stratified CV (same folds as Phase 2).
-Phase 2 references: formula top-2 0.668; logistic (default) top-2 0.932; lightgbm
-(default) top-2 0.927.
+Phase 2 reference (recomputed on THIS dataset, not hardcoded from a previous run):
+production-formula top-2 agreement {formula_top2_ref:.3f}; full Phase-2 comparison
+in baseline_evaluation.md.
 
 ## Comparison (pooled out-of-fold)
 

@@ -38,7 +38,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from dataset_guards import assert_min_class_coverage
+from dataset_guards import assert_min_class_coverage, dataset_caveats
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -245,11 +245,23 @@ def main() -> None:
     heuristic_agree = float((silver["label_top1"] == silver["heuristic_fit_top1"]).mean())
     prompt_versions = sorted(silver["prompt_version"].unique().tolist())
 
-    # Gate 1 (reframed): calibration + top-2 recommendation stability.
-    best_learned = min(("logistic", "lightgbm"), key=lambda n: results[n]["ece"])
+    # Gate 1 (reframed): calibration + top-2 recommendation stability. The gate is
+    # existential — it passes if ANY learned model clears both thresholds; the
+    # preferred candidate is the best-calibrated of the qualifiers (falling back to
+    # best-calibrated overall for reporting when none qualify).
+    learned = ("logistic", "lightgbm")
+    qualifiers = [n for n in learned
+                  if results[n]["ece"] <= GATE1_MAX_ECE and stability[n] >= GATE1_MIN_TOP2_STABILITY]
+    gate1 = bool(qualifiers)
+    best_learned = min(qualifiers or learned, key=lambda n: results[n]["ece"])
     best_ece = results[best_learned]["ece"]
     best_stab = stability[best_learned]
-    gate1 = best_ece <= GATE1_MAX_ECE and best_stab >= GATE1_MIN_TOP2_STABILITY
+    gate_rows = "\n".join(
+        f"| {n} | {results[n]['ece']:.3f} | {'yes' if results[n]['ece'] <= GATE1_MAX_ECE else 'NO'} | "
+        f"{stability[n]:.3f} | {'yes' if stability[n] >= GATE1_MIN_TOP2_STABILITY else 'NO'} | "
+        f"{'QUALIFIES' if n in qualifiers else '—'} |"
+        for n in learned
+    )
 
     balance_rows = "\n".join(
         f"| {c} | {label_share[c]:.1%} | {pred_share['formula'][c]:.1%} | "
@@ -260,19 +272,14 @@ def main() -> None:
     report = f"""# Baseline Evaluation — Phase 2 / Gate 1 (reframed)
 
 > **CAVEATS THAT TRAVEL WITH EVERY RESULT BELOW**
-> (a) Silver labels are **bank-consistent, not independently validated**: the
+> - Silver labels are **bank-consistent, not independently validated**: the
 > panel's stage-2 vote follows the answer key derived from careers.json bonuses
 > ~94% of the time it speaks. In this dataset the labels agree with the
 > questionnaire-only heuristic fit (the answer-key winner) **{heuristic_agree:.1%}**
 > of the time, and with the full production formula (fit+sem+skill) top-1
 > **{results["formula"]["top1"]:.1%}** of the time. Panel-agreement numbers measure
 > fidelity to the hand-authored bonus table, nothing more — Gate 1 no longer uses them.
-> (b) **game-dev has floor-level representation** ({int((df["label_top1"] == "game-dev").sum())} labels,
-> the 5-per-class minimum) — treat every game-dev metric and prediction as
-> low-confidence.
-> (c) **frontend is over-represented** ({int((df["label_top1"] == "frontend").sum())}/{len(df)} rows,
-> {label_share["frontend"]:.0%}) as spillover from compensating game-dev's ~10%
-> panel-labelability; see the class-balance table.
+{chr(10).join(f"> - {c}" for c in dataset_caveats(df["label_top1"], careers)) or "> - (no class-balance caveats: no floor-level or over-represented classes in this dataset)"}
 
 Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 Dataset: {len(df)} rows ({meta["rows_by_source"]}), feature version `{meta["feature_version"]}`,
@@ -305,10 +312,16 @@ predictions. Both trained scorers use class_weight="balanced".
 
 ## Gate 1 verdict (reframed: calibration + stability, NOT beats-the-formula)
 
-- Best-calibrated learned model: **{best_learned}**
-- Pooled OOF ECE: **{best_ece:.3f}** (threshold <= {GATE1_MAX_ECE})
-- Top-2 stability (mean pairwise fold-model Jaccard): **{best_stab:.3f}** (threshold >= {GATE1_MIN_TOP2_STABILITY})
-- **Gate 1: {"PASSED — proceed to Phase 3" if gate1 else "NOT PASSED — the learned models are miscalibrated or unstable; stop or revisit labels"}**
+The gate is existential: it passes if any learned model clears BOTH thresholds
+(ECE <= {GATE1_MAX_ECE}, stability >= {GATE1_MIN_TOP2_STABILITY}).
+
+| model | ECE | calibrated? | top-2 stability | stable? | verdict |
+|---|---|---|---|---|---|
+{gate_rows}
+
+- Preferred candidate (best-calibrated qualifier): **{best_learned}**
+  (ECE {best_ece:.3f}, stability {best_stab:.3f})
+- **Gate 1: {"PASSED — proceed to Phase 3" if gate1 else "NOT PASSED — no learned model clears both thresholds; stop or revisit labels"}**
 
 The old criterion ("beat the formula on panel agreement") is reported above for
 transparency but is not meaningful under key-anchored labeling — a model wins it by

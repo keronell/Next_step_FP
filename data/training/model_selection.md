@@ -5,11 +5,12 @@
 > out-of-fold predictions — prototype-grade; redo on gold labels before trusting
 > displayed percentages.
 
-Generated: 2026-07-18T16:53:44Z
+Generated: 2026-07-18T17:28:29Z
 Dataset: 232 rows, feature `features-v4`, seed 42,
 outer 5-fold stratified CV (same folds as Phase 2).
-Phase 2 references: formula top-2 0.668; logistic (default) top-2 0.932; lightgbm
-(default) top-2 0.927.
+Phase 2 reference (recomputed on THIS dataset, not hardcoded from a previous run):
+production-formula top-2 agreement 0.582; full Phase-2 comparison
+in baseline_evaluation.md.
 
 ## Comparison (pooled out-of-fold)
 

@@ -1,21 +1,17 @@
 # Baseline Evaluation — Phase 2 / Gate 1 (reframed)
 
 > **CAVEATS THAT TRAVEL WITH EVERY RESULT BELOW**
-> (a) Silver labels are **bank-consistent, not independently validated**: the
+> - Silver labels are **bank-consistent, not independently validated**: the
 > panel's stage-2 vote follows the answer key derived from careers.json bonuses
 > ~94% of the time it speaks. In this dataset the labels agree with the
 > questionnaire-only heuristic fit (the answer-key winner) **52.2%**
 > of the time, and with the full production formula (fit+sem+skill) top-1
 > **46.1%** of the time. Panel-agreement numbers measure
 > fidelity to the hand-authored bonus table, nothing more — Gate 1 no longer uses them.
-> (b) **game-dev has floor-level representation** (5 labels,
-> the 5-per-class minimum) — treat every game-dev metric and prediction as
-> low-confidence.
-> (c) **frontend is over-represented** (47/232 rows,
-> 20%) as spillover from compensating game-dev's ~10%
-> panel-labelability; see the class-balance table.
+> - Floor-level class representation for game-dev (5 labels) — at or below the 5-label stratified-CV minimum; treat their predictions and metrics as low-confidence.
+> - Over-represented classes: frontend (47/232 rows, 20%) (more than 2x the uniform share). class_weight='balanced' prevents amplification during training, but the label skew remains in the data.
 
-Generated: 2026-07-18T17:14:09Z
+Generated: 2026-07-18T17:26:21Z
 Dataset: 232 rows ({'synthetic': 225, 'real': 7}), feature version `features-v4`,
 labels `panel-v2.1.0`, Chroma snapshot 1853 docs.
 Protocol: stratified 5-fold CV (seed 42); metrics on pooled out-of-fold
@@ -140,9 +136,16 @@ predictions. Both trained scorers use class_weight="balanced".
 
 ## Gate 1 verdict (reframed: calibration + stability, NOT beats-the-formula)
 
-- Best-calibrated learned model: **logistic**
-- Pooled OOF ECE: **0.034** (threshold <= 0.1)
-- Top-2 stability (mean pairwise fold-model Jaccard): **0.638** (threshold >= 0.6)
+The gate is existential: it passes if any learned model clears BOTH thresholds
+(ECE <= 0.1, stability >= 0.6).
+
+| model | ECE | calibrated? | top-2 stability | stable? | verdict |
+|---|---|---|---|---|---|
+| logistic | 0.034 | yes | 0.638 | yes | QUALIFIES |
+| lightgbm | 0.128 | NO | 0.557 | NO | — |
+
+- Preferred candidate (best-calibrated qualifier): **logistic**
+  (ECE 0.034, stability 0.638)
 - **Gate 1: PASSED — proceed to Phase 3**
 
 The old criterion ("beat the formula on panel agreement") is reported above for

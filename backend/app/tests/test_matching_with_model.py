@@ -71,6 +71,48 @@ def test_model_path_handles_missing_market_data():
         assert r["matched_skills"] == []
 
 
+# ---------------------------------------------------------------- caveat propagation
+def _submit(client):
+    resp = client.post("/api/questionnaire/submit", json={"answers": {"q1": 1}})
+    assert resp.status_code == 200
+    return resp.json()
+
+
+def test_submit_surfaces_model_caveats_when_model_scores(client_with_repo):
+    from app.main import app
+
+    model = make_model("frontend")
+    model.caveats = ["caveat one", "caveat two"]
+    app.state.matcher_model = model
+    try:
+        body = _submit(client_with_repo)
+        assert body["model_caveats"] == ["caveat one", "caveat two"]
+        assert body["recommendations"][0]["model_version"] == "test-model-v0"
+    finally:
+        app.state.matcher_model = None
+
+
+def test_submit_formula_path_has_empty_model_caveats(client_with_repo):
+    body = _submit(client_with_repo)
+    assert body["model_caveats"] == []
+    assert body["recommendations"][0]["model_version"] == FORMULA_VERSION
+
+
+def test_submit_model_error_fallback_drops_caveats(client_with_repo):
+    from app.main import app
+
+    model = make_model()
+    model.caveats = ["should not surface"]
+    model.feature_names = ["wrong"]  # forces fallback to the formula mid-request
+    app.state.matcher_model = model
+    try:
+        body = _submit(client_with_repo)
+        assert body["model_caveats"] == []
+        assert body["recommendations"][0]["model_version"] == FORMULA_VERSION
+    finally:
+        app.state.matcher_model = None
+
+
 def test_model_path_dedupes_candidates():
     frontend = CAREERS[0]
     cands = candidates() + [CareerCandidate(frontend, 0.9, Counter())]
