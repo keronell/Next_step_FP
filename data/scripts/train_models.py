@@ -34,6 +34,8 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from dataset_guards import assert_min_class_coverage
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
 OUT_MD = TRAINING_DIR / "model_selection.md"
@@ -66,6 +68,10 @@ def load_data():
     careers = [n[: -len("_fit")] for n in feature_names if n.endswith("_fit")]
     question_ids = [n for n in feature_names if _QID_RE.fullmatch(n)]
     label_to_idx = {c: i for i, c in enumerate(careers)}
+
+    # Guard before any training: nested CV and the NN validation split need every
+    # class present in every outer-fold training partition (>= 5 labels each).
+    assert_min_class_coverage(df["label_top1"], careers, context="train_features.parquet")
 
     X = df[feature_names].to_numpy(dtype=np.float32)
     y = df["label_top1"].map(label_to_idx).to_numpy()

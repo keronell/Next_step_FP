@@ -28,6 +28,8 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
+from dataset_guards import assert_min_class_coverage
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
@@ -67,6 +69,11 @@ def main() -> None:
 
     silver = pd.read_parquet(SILVER_PARQUET)
     careers = load_careers()
+    # Fail fast before touching ChromaDB: a label-starved class breaks the
+    # stratified 5-fold protocol in Phases 2-3 (Gate 0 coverage requirement).
+    assert_min_class_coverage(
+        silver["label_top1"], [c["id"] for c in careers], context="silver_labels.parquet"
+    )
     settings = Settings()
     rag = RagService.create(settings)
     names = fb.feature_names(careers)
