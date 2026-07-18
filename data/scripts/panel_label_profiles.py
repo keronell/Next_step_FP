@@ -4,6 +4,13 @@ Labels questionnaire profiles (real ones exported from public.submissions plus
 generated synthetic ones) with multiple synthetic expert personas via local Ollama.
 The labels are SILVER labels — LLM-generated, not expert ground truth.
 
+Voting is two-stage (panel-v2.0.0): a deterministic stage 1 shortlists the q2
+family's careers plus the q18-only careers, and the LLM stage 2 disambiguates
+within that shortlist anchored on the tie-breaker answers (q14-q17/q18) and the
+option->career key derived from careers.json bonuses. A single-pass 16-way vote
+remains as the fallback when q2 was skipped. Rationale + Gate-0 numbers in the
+comment above candidate_ids().
+
 Outputs (data/training/):
     silver_labels.parquet          high-consensus profiles + panel votes + metadata
     ambiguous_labels.parquet       low-agreement profiles (excluded from training)
@@ -41,7 +48,9 @@ NUM_PREDICT = 300
 # v1.3.0: 18-question bank (q14-q18 discriminators) — profiles/archetypes rendered under
 # the old bank must not resume or aggregate into this generation (resume and aggregate
 # are scoped to PROMPT_VERSION, so any bank/catalog change needs a bump like this one).
-PROMPT_VERSION = "panel-v1.3.0"
+# v2.0.0: two-stage voting (deterministic q2 family shortlist + keyed tie-breaker
+# stage 2); single-pass 16-way retained only as the q2-skipped fallback.
+PROMPT_VERSION = "panel-v2.0.0"
 LABEL_SOURCE = "synthetic_llm"
 MAX_RETRIES = 2
 WORKERS = 4
@@ -60,7 +69,8 @@ CAREERS_JSON = Path("backend/app/data/careers.json")
 _QUESTION_BANK = json.loads(QUESTIONS_JSON.read_text(encoding="utf-8"))
 QUESTION_IDS = [q["id"] for q in _QUESTION_BANK]
 # Career universe, same principle: derived from the catalog in catalog order.
-CAREER_IDS = [c["id"] for c in json.loads(CAREERS_JSON.read_text(encoding="utf-8"))]
+_CAREER_CATALOG = json.loads(CAREERS_JSON.read_text(encoding="utf-8"))
+CAREER_IDS = [c["id"] for c in _CAREER_CATALOG]
 TRAINING_DIR = Path("data/training")
 REAL_PROFILES_JSON = TRAINING_DIR / "real_profiles.json"
 VOTES_JSONL = TRAINING_DIR / "panel_votes.jsonl"
@@ -263,6 +273,153 @@ Rules:
 """.strip()
 
 
+# ---------------------------------------------------------------- two-stage voting
+# Stage 1 is deterministic: q2 is the product's own family router (it gates the
+# q14-q17 family follow-ups), so the candidate shortlist is that family plus the
+# careers whose only discriminator is the ungated q18 — those must stay reachable
+# from every branch. Stage 2 is the LLM vote, over the shortlist only, anchored on
+# the tie-breaker answers plus the option->career key the bank encodes as bonuses.
+# Gate-0 result vs single-pass 16-way (48-profile pool, 3-persona qwen2.5:7b):
+# newer-10 careers 22/30 vs 1/30 correct consensus, original six unchanged (11/18);
+# with the discriminator signal intact in the profile, 33/34.
+#
+# Everything here is DERIVED from questions.json/careers.json (family = careers
+# with a bonus on the branch's follow-up question; key = those bonuses), so bank
+# and catalog changes flow through without edits — only PROMPT_VERSION must bump.
+
+# q2 answer -> its family follow-up question id (the single-value show_if gates).
+GATED_BY_Q2 = {
+    q["show_if"]["in"][0]: q["id"]
+    for q in _QUESTION_BANK
+    if q.get("show_if", {}).get("q") == "q2" and len(q["show_if"]["in"]) == 1
+}
+_GATED_QIDS = set(GATED_BY_Q2.values())
+# Careers with no family follow-up home — their discriminator must be linear
+# (currently product-manager and technical-writer via q18).
+_UNGATED_CAREER_IDS = {
+    c["id"] for c in _CAREER_CATALOG
+    if not any(r["qId"] in _GATED_QIDS for r in c["bonuses"])
+}
+# Linear tie-breakers for stage 2: ungated pure-discriminator questions (zero
+# weight for every career) whose primary (+3) signals all belong to the ungated
+# careers — i.e., the questions that exist to make those careers reachable from
+# every branch. (q11-q13 host +3 rules for gated careers like backend/devops, and
+# q5 is weighted, so none of them qualify — currently this selects exactly q18.)
+LINEAR_DISCRIMINATORS = [
+    q["id"] for q in _QUESTION_BANK
+    if "show_if" not in q
+    and not any(c["weights"].get(q["id"], 0) for c in _CAREER_CATALOG)
+    and (primary := [
+        c["id"] for c in _CAREER_CATALOG for r in c["bonuses"]
+        if r["qId"] == q["id"] and r["bonus"] >= 3
+    ])
+    and all(cid in _UNGATED_CAREER_IDS for cid in primary)
+]
+
+
+def _bonus_key(careers: list[dict], qid: str) -> dict[int, list[str]]:
+    """option value -> career ids carrying a bonus on (qid, option)."""
+    key: dict[int, list[str]] = {}
+    for c in careers:
+        for r in c["bonuses"]:
+            if r["qId"] == qid:
+                key.setdefault(r["answerValue"], []).append(c["id"])
+    return key
+
+
+def candidate_ids(answers: dict, careers: list[dict]) -> list[str] | None:
+    """Deterministic stage 1. None => q2 unanswered, fall back to the 16-way vote."""
+    family_q = GATED_BY_Q2.get(answers.get("q2"))
+    if family_q is None:
+        return None
+    family = [c["id"] for c in careers if any(r["qId"] == family_q for r in c["bonuses"])]
+    gated = set(GATED_BY_Q2.values())
+    always = [
+        c["id"] for c in careers
+        if c["id"] not in family and not any(r["qId"] in gated for r in c["bonuses"])
+        and any(r["qId"] in LINEAR_DISCRIMINATORS for r in c["bonuses"])
+    ]
+    return family + always
+
+
+def _render_tiebreakers(answers: dict, questions: list[dict], shortlist: list[dict]) -> str:
+    by_id = {q["id"]: q for q in questions}
+    blocks = []
+    for qid in [GATED_BY_Q2[answers["q2"]], *LINEAR_DISCRIMINATORS]:
+        q = by_id[qid]
+        key = _bonus_key(shortlist, qid)
+        legend = "\n".join(
+            f"    option \"{q['options'][av]}\" -> points to {', '.join(key[av])}"
+            for av in sorted(key)
+        )
+        val = answers.get(qid)
+        if qid not in answers or val is None:
+            chosen = "(they skipped this question — no signal here)"
+        else:
+            chosen = f"THEY CHOSE: \"{q['options'][int(val)]}\""
+        blocks.append(f"- Question: {q['text']}\n  What each option indicates:\n{legend}\n  {chosen}")
+    return "\n".join(blocks)
+
+
+def build_shortlist_prompt(persona_desc: str, answers: dict, questions: list[dict],
+                           shortlist: list[dict]) -> str:
+    ids = json.dumps([c["id"] for c in shortlist])
+    profile_text = render_profile(answers, questions)
+    tiebreakers = _render_tiebreakers(answers, questions, shortlist)
+    return f"""You are {persona_desc}.
+A first screening pass already narrowed one beginner's best-fit tech careers down to this
+shortlist based on their broad interests. Your job is the FINAL call between these closely
+related careers. They look similar from general answers, so general impressions will NOT
+separate them — the questionnaire has dedicated tie-breaker questions for exactly this
+shortlist, and each tie-breaker option was written to indicate specific careers.
+
+The shortlist (choose only from these):
+{render_careers(shortlist)}
+
+The tie-breaker questions, what each option indicates, and what this person chose:
+{tiebreakers}
+
+Decision rule, in order:
+1) The person's chosen tie-breaker option is their own description of the work they want.
+   Recommend the career it points to. General answers about beauty, polish, visuals, or
+   comfort with code are NOT a contradiction — every career on this shortlist shares them,
+   which is exactly why the tie-breaker question exists. Override a tie-breaker choice only
+   if a DIFFERENT tie-breaker points elsewhere or it was skipped.
+2) If the tie-breakers point at different careers, or one was skipped, use the full
+   profile below to decide between the indicated careers.
+3) Only if all tie-breakers were skipped, judge from the full profile alone.
+
+Their full questionnaire answers, for context:
+{profile_text}
+
+Return STRICT JSON ONLY with this exact schema:
+{{
+  "top1": "career id",
+  "top2": "career id or null",
+  "confidence": 0.0,
+  "explanation": "string"
+}}
+
+Rules:
+1) "top1" is required and must be one of: {ids}
+2) Always provide "top2" — your second-best fit from the same list, different from top1.
+3) "confidence" is your confidence in top1, a number in [0, 1].
+4) "explanation" must cite the tie-breaker answer(s) (or explain why you overrode them).
+""".strip()
+
+
+def build_vote_call(persona_desc: str, profile: dict, questions: list[dict],
+                    careers: list[dict]) -> tuple[str, set[str]]:
+    """Prompt + valid career ids for one panel vote: shortlist stage-2 when q2 was
+    answered, the original 16-way prompt otherwise."""
+    answers = profile["answers"]
+    cands = candidate_ids(answers, careers)
+    if cands is None:
+        return build_label_prompt(persona_desc, render_profile(answers, questions), careers), {c["id"] for c in careers}
+    shortlist = [c for c in careers if c["id"] in cands]
+    return build_shortlist_prompt(persona_desc, answers, questions, shortlist), set(cands)
+
+
 def build_archetype_prompt(persona_desc: str, career: dict, questions: list[dict]) -> str:
     q_lines = []
     for q in questions:
@@ -409,12 +566,12 @@ def label_profiles(profiles: list[dict], questions: list[dict], careers: list[di
 
     def _one(job) -> dict:
         profile, persona_id, persona_desc, persona_temp = job
-        prompt = build_label_prompt(persona_desc, render_profile(profile["answers"], questions), careers)
+        prompt, valid_ids = build_vote_call(persona_desc, profile, questions, careers)
         error = ""
         vote = None
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                vote = validate_vote(call_ollama(prompt, persona_temp), career_ids)
+                vote = validate_vote(call_ollama(prompt, persona_temp), valid_ids)
                 break
             except Exception as exc:  # noqa: BLE001 - log and retry
                 error = f"attempt_{attempt}: {exc}"
