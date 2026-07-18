@@ -25,6 +25,8 @@ from sklearn.preprocessing import StandardScaler
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
+from dataset_guards import MIN_LABELS_PER_CAREER  # noqa: E402
+
 from app.services.feature_builder import FEATURE_VERSION  # noqa: E402
 
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -34,19 +36,35 @@ SEED = 42
 C_GRID = [0.05, 0.25, 1.0, 4.0]
 MODEL_VERSION = "matcher-logistic-v2"
 
-# These travel INSIDE the artifact so every consumer of the model's results sees
-# them, not just readers of the training PR.
-CAVEATS = [
-    "Labels are bank-consistent, not independently validated: silver labels come "
-    "from an LLM panel whose stage-2 vote follows the answer key derived from "
-    "careers.json bonuses ~94% of the time it speaks. Panel-agreement metrics "
-    "measure fidelity to the hand-authored bonus table, not real-world accuracy.",
-    "game-dev has floor-level representation (5 labels, the 5-fold-CV minimum): "
-    "treat game-dev predictions and metrics as low-confidence.",
-    "frontend is over-represented (47/232 rows, ~20%) as spillover from "
-    "compensating game-dev's ~10% panel-labelability ceiling; "
-    "class_weight='balanced' prevents amplification but the label skew remains.",
-]
+
+def build_caveats(df: pd.DataFrame) -> list[str]:
+    """Caveats travel INSIDE the artifact so every consumer of the model's results
+    sees them. The class-balance ones are derived from the loaded dataset so a
+    rerun on refreshed data reports its own counts, not a previous run's."""
+    counts = df["label_top1"].value_counts()
+    n = len(df)
+    floor = [f"{c} ({int(v)} labels)" for c, v in counts.items() if v <= MIN_LABELS_PER_CAREER]
+    over = [f"{c} ({int(v)}/{n} rows, {v / n:.0%})" for c, v in counts.items()
+            if v / n > 2.0 / len(counts)]
+    caveats = [
+        "Labels are bank-consistent, not independently validated: silver labels come "
+        "from an LLM panel whose stage-2 vote follows the answer key derived from "
+        "careers.json bonuses ~94% of the time it speaks. Panel-agreement metrics "
+        "measure fidelity to the hand-authored bonus table, not real-world accuracy.",
+    ]
+    if floor:
+        caveats.append(
+            f"Floor-level class representation for {', '.join(sorted(floor))} — at or "
+            f"below the {MIN_LABELS_PER_CAREER}-label stratified-CV minimum; treat "
+            "their predictions and metrics as low-confidence."
+        )
+    if over:
+        caveats.append(
+            f"Over-represented classes: {', '.join(sorted(over))} (more than 2x the "
+            "uniform share). class_weight='balanced' prevents amplification during "
+            "training, but the label skew remains in the data."
+        )
+    return caveats
 
 
 def main() -> None:
@@ -94,7 +112,7 @@ def main() -> None:
         "intercept": clf.intercept_.tolist(),
         "temperature": 1.0,  # Gate 2: raw probabilities were best-calibrated
         "label_source": "synthetic_llm (bank-consistent silver labels; see caveats)",
-        "caveats": CAVEATS,
+        "caveats": build_caveats(df),
         "training": {
             "n_rows": len(df),
             "rows_by_label": {k: int(v) for k, v in df["label_top1"].value_counts().to_dict().items()},

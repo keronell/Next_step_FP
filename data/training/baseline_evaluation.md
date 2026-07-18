@@ -3,9 +3,11 @@
 > **CAVEATS THAT TRAVEL WITH EVERY RESULT BELOW**
 > (a) Silver labels are **bank-consistent, not independently validated**: the
 > panel's stage-2 vote follows the answer key derived from careers.json bonuses
-> ~94% of the time it speaks; formula-vs-panel top-1 agreement in this dataset is
-> **52.2%**. Panel-agreement numbers measure fidelity to the
-> hand-authored bonus table, nothing more — Gate 1 no longer uses them.
+> ~94% of the time it speaks. In this dataset the labels agree with the
+> questionnaire-only heuristic fit (the answer-key winner) **52.2%**
+> of the time, and with the full production formula (fit+sem+skill) top-1
+> **46.1%** of the time. Panel-agreement numbers measure
+> fidelity to the hand-authored bonus table, nothing more — Gate 1 no longer uses them.
 > (b) **game-dev has floor-level representation** (5 labels,
 > the 5-per-class minimum) — treat every game-dev metric and prediction as
 > low-confidence.
@@ -13,7 +15,7 @@
 > 20%) as spillover from compensating game-dev's ~10%
 > panel-labelability; see the class-balance table.
 
-Generated: 2026-07-18T16:51:21Z
+Generated: 2026-07-18T17:14:09Z
 Dataset: 232 rows ({'synthetic': 225, 'real': 7}), feature version `features-v4`,
 labels `panel-v2.1.0`, Chroma snapshot 1853 docs.
 Protocol: stratified 5-fold CV (seed 42); metrics on pooled out-of-fold
@@ -25,8 +27,8 @@ predictions. Both trained scorers use class_weight="balanced".
 |---|---|---|---|---|---|---|---|
 | formula (production) | 0.461 | 0.582 | 0.659 | 0.611 | 0.493 | 0.162 | 1.000** |
 | archetype_nn (zero-train) | 0.099 | 0.250 | 0.353 | 0.284 | 0.102 | 0.133 | 1.000** |
-| logistic (balanced) | 0.741 | 0.871 | 0.927 | 0.838 | 0.694 | 0.034 | 0.771 |
-| lightgbm (balanced) | 0.789 | 0.871 | 0.914 | 0.858 | 0.744 | 0.128 | 0.698 |
+| logistic (balanced) | 0.741 | 0.871 | 0.927 | 0.838 | 0.694 | 0.034 | 0.638 |
+| lightgbm (balanced) | 0.789 | 0.871 | 0.914 | 0.858 | 0.744 | 0.128 | 0.557 |
 
 *ECE for `formula` and `archetype_nn` is computed on softmax-normalized scores
 (pseudo-probabilities) — directional only. Trained models emit real probabilities.
@@ -140,7 +142,7 @@ predictions. Both trained scorers use class_weight="balanced".
 
 - Best-calibrated learned model: **logistic**
 - Pooled OOF ECE: **0.034** (threshold <= 0.1)
-- Top-2 stability (mean pairwise fold-model Jaccard): **0.771** (threshold >= 0.6)
+- Top-2 stability (mean pairwise fold-model Jaccard): **0.638** (threshold >= 0.6)
 - **Gate 1: PASSED — proceed to Phase 3**
 
 The old criterion ("beat the formula on panel agreement") is reported above for

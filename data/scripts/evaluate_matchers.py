@@ -174,11 +174,15 @@ def main() -> None:
     }
 
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
-    # Out-of-fold predictions pooled across folds, one array per scorer; plus every
-    # fold-model's top-2 sets over ALL rows for the stability criterion.
+    # Out-of-fold predictions pooled across folds, one array per scorer.
     oof_scores = {name: np.zeros((len(df), n_classes)) for name in
                   ["formula", "archetype_nn", "logistic", "lightgbm"]}
-    fold_top2 = {"logistic": [], "lightgbm": []}
+    # Stability sub-model top-2 sets, collected per outer fold on that fold's TEST
+    # rows only: sub-models are trained on inner resamples of the outer training
+    # partition, so the rows they're compared on are unseen by every sub-model —
+    # predicting over all rows would let shared training rows inflate agreement.
+    INNER_SPLITS = 3  # floor class has ~4 members inside an outer training partition
+    stability_pairs = {"logistic": [], "lightgbm": []}
 
     for tr_idx, te_idx in skf.split(X, y):
         for name, s in static_scores.items():
@@ -186,25 +190,29 @@ def main() -> None:
 
         logit = make_logistic().fit(X[tr_idx], y[tr_idx])
         oof_scores["logistic"][te_idx] = logit.predict_proba(X[te_idx])
-        fold_top2["logistic"].append(np.argsort(-logit.predict_proba(X), axis=1)[:, :2])
 
         gbm = make_lightgbm().fit(X[tr_idx], y[tr_idx])
         oof_scores["lightgbm"][te_idx] = gbm.predict_proba(X[te_idx])
-        fold_top2["lightgbm"].append(np.argsort(-gbm.predict_proba(X), axis=1)[:, :2])
 
-    def top2_stability(preds: list[np.ndarray]) -> float:
-        """Mean pairwise Jaccard of top-2 sets across fold-models, over all rows —
-        how robust the recommendation pair is to training-data resampling."""
-        vals = []
-        for i in range(len(preds)):
-            for j in range(i + 1, len(preds)):
-                a, b = preds[i], preds[j]
-                inter = np.array([len(set(a[r]) & set(b[r])) for r in range(len(a))], dtype=float)
-                union = np.array([len(set(a[r]) | set(b[r])) for r in range(len(a))], dtype=float)
-                vals.append(float((inter / union).mean()))
-        return float(np.mean(vals))
+        inner = StratifiedKFold(n_splits=INNER_SPLITS, shuffle=True, random_state=SEED)
+        sub_top2 = {"logistic": [], "lightgbm": []}
+        for sub_tr, _ in inner.split(X[tr_idx], y[tr_idx]):
+            idx = tr_idx[sub_tr]
+            sub_logit = make_logistic().fit(X[idx], y[idx])
+            sub_top2["logistic"].append(np.argsort(-sub_logit.predict_proba(X[te_idx]), axis=1)[:, :2])
+            sub_gbm = make_lightgbm().fit(X[idx], y[idx])
+            sub_top2["lightgbm"].append(np.argsort(-sub_gbm.predict_proba(X[te_idx]), axis=1)[:, :2])
+        for name, preds in sub_top2.items():
+            for i in range(len(preds)):
+                for j in range(i + 1, len(preds)):
+                    a, b = preds[i], preds[j]
+                    inter = np.array([len(set(a[r]) & set(b[r])) for r in range(len(a))], dtype=float)
+                    union = np.array([len(set(a[r]) | set(b[r])) for r in range(len(a))], dtype=float)
+                    stability_pairs[name].append(float((inter / union).mean()))
 
-    stability = {name: top2_stability(preds) for name, preds in fold_top2.items()}
+    # Mean pairwise Jaccard of top-2 sets across inner sub-models, evaluated only on
+    # rows unseen by all of them, averaged over outer folds.
+    stability = {name: float(np.mean(vals)) for name, vals in stability_pairs.items()}
 
     results = {}
     for name, s in oof_scores.items():
@@ -230,7 +238,11 @@ def main() -> None:
         for name, s in oof_scores.items()
     }
     silver = pd.read_parquet(TRAINING_DIR / "silver_labels.parquet")
-    formula_panel_agree = float((silver["label_top1"] == silver["heuristic_fit_top1"]).mean())
+    # heuristic_fit_top1 is the questionnaire-only answer-key winner (no semantic/
+    # skill signals) — distinct from the production formula, whose agreement is
+    # results["formula"]["top1"]. Label both precisely; conflating them overstated
+    # "formula agreement" in earlier reports.
+    heuristic_agree = float((silver["label_top1"] == silver["heuristic_fit_top1"]).mean())
     prompt_versions = sorted(silver["prompt_version"].unique().tolist())
 
     # Gate 1 (reframed): calibration + top-2 recommendation stability.
@@ -250,9 +262,11 @@ def main() -> None:
 > **CAVEATS THAT TRAVEL WITH EVERY RESULT BELOW**
 > (a) Silver labels are **bank-consistent, not independently validated**: the
 > panel's stage-2 vote follows the answer key derived from careers.json bonuses
-> ~94% of the time it speaks; formula-vs-panel top-1 agreement in this dataset is
-> **{formula_panel_agree:.1%}**. Panel-agreement numbers measure fidelity to the
-> hand-authored bonus table, nothing more — Gate 1 no longer uses them.
+> ~94% of the time it speaks. In this dataset the labels agree with the
+> questionnaire-only heuristic fit (the answer-key winner) **{heuristic_agree:.1%}**
+> of the time, and with the full production formula (fit+sem+skill) top-1
+> **{results["formula"]["top1"]:.1%}** of the time. Panel-agreement numbers measure
+> fidelity to the hand-authored bonus table, nothing more — Gate 1 no longer uses them.
 > (b) **game-dev has floor-level representation** ({int((df["label_top1"] == "game-dev").sum())} labels,
 > the 5-per-class minimum) — treat every game-dev metric and prediction as
 > low-confidence.

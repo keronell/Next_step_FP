@@ -1678,8 +1678,8 @@
   "label_source": "synthetic_llm (bank-consistent silver labels; see caveats)",
   "caveats": [
     "Labels are bank-consistent, not independently validated: silver labels come from an LLM panel whose stage-2 vote follows the answer key derived from careers.json bonuses ~94% of the time it speaks. Panel-agreement metrics measure fidelity to the hand-authored bonus table, not real-world accuracy.",
-    "game-dev has floor-level representation (5 labels, the 5-fold-CV minimum): treat game-dev predictions and metrics as low-confidence.",
-    "frontend is over-represented (47/232 rows, ~20%) as spillover from compensating game-dev's ~10% panel-labelability ceiling; class_weight='balanced' prevents amplification but the label skew remains."
+    "Floor-level class representation for game-dev (5 labels) \u2014 at or below the 5-label stratified-CV minimum; treat their predictions and metrics as low-confidence.",
+    "Over-represented classes: frontend (47/232 rows, 20%) (more than 2x the uniform share). class_weight='balanced' prevents amplification during training, but the label skew remains in the data."
   ],
   "training": {
     "n_rows": 232,
@@ -1722,6 +1722,6 @@
     "silver_prompt_versions": [
       "panel-v2.1.0"
     ],
-    "trained_at": "2026-07-18T16:54:43.963565+00:00"
+    "trained_at": "2026-07-18T17:14:25.412050+00:00"
   }
 }
