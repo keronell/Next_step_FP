@@ -7,12 +7,18 @@ Evaluates four scorers on the silver-label feature table under stratified 5-fold
     lightgbm       gradient-boosted trees, class-balanced
     archetype_nn   zero-train cosine to the LLM-panel career archetypes
 
-FRAMING: every metric here is **agreement with the synthetic LLM panel** (silver
-labels), not expert-validated accuracy. A scorer that wins has learned to predict
-the panel — nothing more.
+FRAMING: panel-agreement metrics are **agreement with the synthetic LLM panel**
+(silver labels), not expert-validated accuracy — and under panel-v2.x the labels
+are confirmed circular with the hand-authored career weights (stage-2 votes follow
+the bonus-derived answer key ~94% of the time it speaks). A scorer that wins on
+agreement has learned the bonus table — nothing more. Agreement is therefore
+reported descriptively only.
 
-Gate 1: a learned model must beat the formula on top-2 agreement by a meaningful
-margin, or the rework stops at the formula.
+Gate 1 (reframed 2026-07-18): a learned model must be (a) well-calibrated against
+the silver labels — pooled out-of-fold ECE <= GATE1_MAX_ECE — and (b) stable in
+what it recommends: mean pairwise Jaccard of the top-2 sets produced by the five
+fold-models over all rows >= GATE1_MIN_TOP2_STABILITY. Beating the formula on
+panel agreement is NOT a criterion.
 
 Output: data/training/baseline_evaluation.md
 Run from repo root: python data/scripts/evaluate_matchers.py
@@ -49,6 +55,11 @@ _QID_RE = re.compile(r"q\d+$")
 
 # Same weights as backend/app/services/matching_service.FORMULA_WEIGHTS.
 FORMULA_WEIGHTS = {"fit": 0.40, "sem": 0.40, "skill": 0.20}
+
+# Gate-1 thresholds (judgment calls, stated in the report): calibration and
+# recommendation stability, replacing the circular beats-the-formula criterion.
+GATE1_MAX_ECE = 0.10
+GATE1_MIN_TOP2_STABILITY = 0.60
 
 
 def load_data():
@@ -163,9 +174,11 @@ def main() -> None:
     }
 
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
-    # Out-of-fold predictions pooled across folds, one array per scorer.
+    # Out-of-fold predictions pooled across folds, one array per scorer; plus every
+    # fold-model's top-2 sets over ALL rows for the stability criterion.
     oof_scores = {name: np.zeros((len(df), n_classes)) for name in
                   ["formula", "archetype_nn", "logistic", "lightgbm"]}
+    fold_top2 = {"logistic": [], "lightgbm": []}
 
     for tr_idx, te_idx in skf.split(X, y):
         for name, s in static_scores.items():
@@ -173,9 +186,25 @@ def main() -> None:
 
         logit = make_logistic().fit(X[tr_idx], y[tr_idx])
         oof_scores["logistic"][te_idx] = logit.predict_proba(X[te_idx])
+        fold_top2["logistic"].append(np.argsort(-logit.predict_proba(X), axis=1)[:, :2])
 
         gbm = make_lightgbm().fit(X[tr_idx], y[tr_idx])
         oof_scores["lightgbm"][te_idx] = gbm.predict_proba(X[te_idx])
+        fold_top2["lightgbm"].append(np.argsort(-gbm.predict_proba(X), axis=1)[:, :2])
+
+    def top2_stability(preds: list[np.ndarray]) -> float:
+        """Mean pairwise Jaccard of top-2 sets across fold-models, over all rows —
+        how robust the recommendation pair is to training-data resampling."""
+        vals = []
+        for i in range(len(preds)):
+            for j in range(i + 1, len(preds)):
+                a, b = preds[i], preds[j]
+                inter = np.array([len(set(a[r]) & set(b[r])) for r in range(len(a))], dtype=float)
+                union = np.array([len(set(a[r]) | set(b[r])) for r in range(len(a))], dtype=float)
+                vals.append(float((inter / union).mean()))
+        return float(np.mean(vals))
+
+    stability = {name: top2_stability(preds) for name, preds in fold_top2.items()}
 
     results = {}
     for name, s in oof_scores.items():
@@ -194,50 +223,84 @@ def main() -> None:
         rows = "\n".join(f"| {careers[c]} | {v:.2f} |" for c, v in m["per_class"].items())
         per_class_tables.append(f"### {name}\n\n| career | top-1 recall |\n|---|---|\n{rows}")
 
-    formula_top2 = results["formula"]["top2"]
-    best_learned = max(("logistic", "lightgbm"), key=lambda n: results[n]["top2"])
-    margin = results[best_learned]["top2"] - formula_top2
-    gate1 = margin >= 0.05  # meaningful-margin threshold, stated in the report
+    # Class balance: label share vs each scorer's predicted share (over-prediction check).
+    label_share = {c: float((y == i).mean()) for i, c in enumerate(careers)}
+    pred_share = {
+        name: {careers[c]: float((np.argsort(-s, axis=1)[:, 0] == c).mean()) for c in range(n_classes)}
+        for name, s in oof_scores.items()
+    }
+    silver = pd.read_parquet(TRAINING_DIR / "silver_labels.parquet")
+    formula_panel_agree = float((silver["label_top1"] == silver["heuristic_fit_top1"]).mean())
+    prompt_versions = sorted(silver["prompt_version"].unique().tolist())
 
-    report = f"""# Baseline Evaluation — Phase 2 / Gate 1
+    # Gate 1 (reframed): calibration + top-2 recommendation stability.
+    best_learned = min(("logistic", "lightgbm"), key=lambda n: results[n]["ece"])
+    best_ece = results[best_learned]["ece"]
+    best_stab = stability[best_learned]
+    gate1 = best_ece <= GATE1_MAX_ECE and best_stab >= GATE1_MIN_TOP2_STABILITY
 
-> **All metrics are agreement with the synthetic LLM panel (silver labels), not
-> expert-validated accuracy.** A high number means the scorer predicts the panel's
-> labels; it does not certify real-world recommendation quality.
+    balance_rows = "\n".join(
+        f"| {c} | {label_share[c]:.1%} | {pred_share['formula'][c]:.1%} | "
+        f"{pred_share['logistic'][c]:.1%} | {pred_share['lightgbm'][c]:.1%} |"
+        for c in careers
+    )
+
+    report = f"""# Baseline Evaluation — Phase 2 / Gate 1 (reframed)
+
+> **CAVEATS THAT TRAVEL WITH EVERY RESULT BELOW**
+> (a) Silver labels are **bank-consistent, not independently validated**: the
+> panel's stage-2 vote follows the answer key derived from careers.json bonuses
+> ~94% of the time it speaks; formula-vs-panel top-1 agreement in this dataset is
+> **{formula_panel_agree:.1%}**. Panel-agreement numbers measure fidelity to the
+> hand-authored bonus table, nothing more — Gate 1 no longer uses them.
+> (b) **game-dev has floor-level representation** ({int((df["label_top1"] == "game-dev").sum())} labels,
+> the 5-per-class minimum) — treat every game-dev metric and prediction as
+> low-confidence.
+> (c) **frontend is over-represented** ({int((df["label_top1"] == "frontend").sum())}/{len(df)} rows,
+> {label_share["frontend"]:.0%}) as spillover from compensating game-dev's ~10%
+> panel-labelability; see the class-balance table.
 
 Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 Dataset: {len(df)} rows ({meta["rows_by_source"]}), feature version `{meta["feature_version"]}`,
-Chroma snapshot {meta["chroma_snapshot"]["document_count"]} docs.
+labels `{", ".join(prompt_versions)}`, Chroma snapshot {meta["chroma_snapshot"]["document_count"]} docs.
 Protocol: stratified {N_FOLDS}-fold CV (seed {SEED}); metrics on pooled out-of-fold
-predictions. Trained scorers use class weights (labels are imbalanced: PM=14, FE=17).
+predictions. Both trained scorers use class_weight="balanced".
 
-## Comparison
+## Comparison (panel agreement is DESCRIPTIVE only — see caveat a)
 
-| scorer | top-1 | top-2 | top-3 | MRR | balanced top-1 | ECE* |
-|---|---|---|---|---|---|---|
-{fmt_row("formula (production)", results["formula"])}
-{fmt_row("archetype_nn (zero-train)", results["archetype_nn"])}
-{fmt_row("logistic (balanced)", results["logistic"])}
-{fmt_row("lightgbm (balanced)", results["lightgbm"])}
+| scorer | top-1 | top-2 | top-3 | MRR | balanced top-1 | ECE* | top-2 stability |
+|---|---|---|---|---|---|---|---|
+{fmt_row("formula (production)", results["formula"])} 1.000** |
+{fmt_row("archetype_nn (zero-train)", results["archetype_nn"])} 1.000** |
+{fmt_row("logistic (balanced)", results["logistic"])} {stability["logistic"]:.3f} |
+{fmt_row("lightgbm (balanced)", results["lightgbm"])} {stability["lightgbm"]:.3f} |
 
 *ECE for `formula` and `archetype_nn` is computed on softmax-normalized scores
 (pseudo-probabilities) — directional only. Trained models emit real probabilities.
+**Static scorers involve no training, so resampling stability is 1.0 by construction.
+
+## Class balance: label share vs predicted share (over-prediction check)
+
+| career | label share | formula pred | logistic pred | lightgbm pred |
+|---|---|---|---|---|
+{balance_rows}
 
 ## Per-class top-1 recall
 
 {chr(10).join(per_class_tables)}
 
-## Gate 1 verdict
+## Gate 1 verdict (reframed: calibration + stability, NOT beats-the-formula)
 
-- Formula top-2 agreement: **{formula_top2:.3f}**
-- Best learned model: **{best_learned}** at top-2 **{results[best_learned]["top2"]:.3f}**
-  (margin {margin:+.3f}; threshold for "meaningful" set at +0.05)
-- **Gate 1: {"PASSED — proceed to Phase 3" if gate1 else "NOT PASSED — the learned models do not beat the formula meaningfully; stop or revisit labels"}**
+- Best-calibrated learned model: **{best_learned}**
+- Pooled OOF ECE: **{best_ece:.3f}** (threshold <= {GATE1_MAX_ECE})
+- Top-2 stability (mean pairwise fold-model Jaccard): **{best_stab:.3f}** (threshold >= {GATE1_MIN_TOP2_STABILITY})
+- **Gate 1: {"PASSED — proceed to Phase 3" if gate1 else "NOT PASSED — the learned models are miscalibrated or unstable; stop or revisit labels"}**
 
-Caveats:
-- Circularity: the formula's inputs (fit/sem/skill) are also model features, and
-  formula-vs-panel top-1 agreement was 43.4% at labeling time — partial circularity
-  in both directions; see synthetic_agreement_report.md.
+The old criterion ("beat the formula on panel agreement") is reported above for
+transparency but is not meaningful under key-anchored labeling — a model wins it by
+learning the bonus table (see caveat a).
+
+Additional notes:
 - {len(df[df.profile_source == "real"])} real profiles ride along in the pool; far too few
   for a separate evaluation slice.
 """
