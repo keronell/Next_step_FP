@@ -37,7 +37,11 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "qwen2.5:7b-instruct"
 TEMPERATURE = 0.2  # fallback; personas carry their own (see PERSONAS)
 NUM_PREDICT = 300
-PROMPT_VERSION = "panel-v1.2.0"  # v1.2.0: career count/coaching derived from the catalog (16 careers), no hardcoded six
+# v1.2.0: career count/coaching derived from the catalog (16 careers), no hardcoded six.
+# v1.3.0: 18-question bank (q14-q18 discriminators) — profiles/archetypes rendered under
+# the old bank must not resume or aggregate into this generation (resume and aggregate
+# are scoped to PROMPT_VERSION, so any bank/catalog change needs a bump like this one).
+PROMPT_VERSION = "panel-v1.3.0"
 LABEL_SOURCE = "synthetic_llm"
 MAX_RETRIES = 2
 WORKERS = 4
@@ -53,7 +57,8 @@ CAREERS_JSON = Path("backend/app/data/careers.json")
 # Single source of truth for the question set — derived from the bank, never
 # hardcoded, so new questions (e.g. q11+) flow into synthetic profiles and
 # archetypes automatically. Mirrors feature_builder.QUESTION_IDS on the serving side.
-QUESTION_IDS = [q["id"] for q in json.loads(QUESTIONS_JSON.read_text(encoding="utf-8"))]
+_QUESTION_BANK = json.loads(QUESTIONS_JSON.read_text(encoding="utf-8"))
+QUESTION_IDS = [q["id"] for q in _QUESTION_BANK]
 # Career universe, same principle: derived from the catalog in catalog order.
 CAREER_IDS = [c["id"] for c in json.loads(CAREERS_JSON.read_text(encoding="utf-8"))]
 TRAINING_DIR = Path("data/training")
@@ -73,39 +78,47 @@ PERSONAS = [
     ("bootcamp_instructor", "a coding-bootcamp instructor who has watched hundreds of beginners discover which tech track fits them", 0.9),
 ]
 
-# Mirrors frontend/src/data.js showIf: q3 for logic/data leaners, q9 for design/code leaners.
+# Branch rules derived from the bank's declarative show_if (mirrors visibleQuestions
+# in frontend/src/data.js). Previously hand-coded lambdas for q3/q9 only, which
+# silently drifted when the q14-q17 family follow-ups landed — derived rules make
+# that impossible: any gated question in questions.json is gated here too.
 BRANCH_RULES = {
-    "q3": lambda a: a.get("q2") in (1, 2),
-    "q9": lambda a: a.get("q2") in (0, 1),
+    q["id"]: (lambda a, cond=q["show_if"]: a.get(cond["q"]) in cond["in"])
+    for q in _QUESTION_BANK if "show_if" in q
 }
 
 # Hand-built seed answer vectors per career (option semantics, not weight argmax).
-# Branching is re-derived after perturbation, so q3/q9 here are only used when visible.
-# q11-q13 are the discriminator questions (bonus-only); seeding them with each
+# Branching is re-derived after perturbation, so branch-gated slots (q3/q9 and the
+# q14-q17 family follow-ups) are only used when visible under the seed's q2 answer;
+# hidden slots still carry an on-theme value for when perturbation flips q2.
+# q11-q18 are the discriminator questions (bonus-only); seeding them with each
 # career's on-theme option keeps the strongest synthetic profiles from putting noise
-# on exactly the answers that separate the careers.
-# The 10 careers added with the catalog's 6->16 growth follow the DoD archetypes in
-# backend/app/tests/test_question_bank.py (each validated to rank its career #1 on
-# raw questionnaire fit), with branch-hidden q3/q9 slots filled with on-theme values.
+# on exactly the answers that separate the careers. Reached family slots and q18
+# mirror the DoD archetypes in backend/app/tests/test_question_bank.py (each
+# validated to rank its career #1 on raw questionnaire fit) — including the two
+# deliberate None skips (product-manager on q16, technical-writer on q15: every
+# option there boosts a rival, and skipping is a first-class answer). game-dev and
+# ai-engineer q2 follow the archetypes' branch moves (1->0 and 1->2) so each seed
+# reaches its own discriminator question.
 CAREER_SEEDS = {
-    "frontend":           {"q1": 2, "q2": 0, "q3": 1, "q4": 0, "q5": 1, "q6": 0, "q7": 1, "q8": 1, "q9": 3, "q10": 0, "q11": 0, "q12": 2, "q13": 0},
-    "backend":            {"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 2, "q13": 1},
+    "frontend":           {"q1": 2, "q2": 0, "q3": 1, "q4": 0, "q5": 1, "q6": 0, "q7": 1, "q8": 1, "q9": 3, "q10": 0, "q11": 0, "q12": 2, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 2},
+    "backend":            {"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 2, "q13": 1, "q14": 0, "q15": 3, "q16": 1, "q17": 0, "q18": 3},
     # q4/q6 follow the DoD archetype: the pre-16-catalog values (q4:2, q6:2) hit
     # data-analyst's bonuses and made this seed rank data-analyst #1, not data-science.
-    "data-science":       {"q1": 2, "q2": 2, "q3": 3, "q4": 1, "q5": 2, "q6": 1, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 2, "q12": 3, "q13": 2},
-    "devops":             {"q1": 2, "q2": 3, "q3": 2, "q4": 3, "q5": 3, "q6": 3, "q7": 3, "q8": 3, "q9": 0, "q10": 3, "q11": 3, "q12": 2, "q13": 3},
-    "product-manager":    {"q1": 0, "q2": 2, "q3": 2, "q4": 2, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 2, "q10": 0, "q11": 2, "q12": 0, "q13": 0},
-    "ux-designer":        {"q1": 1, "q2": 0, "q3": 0, "q4": 0, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 3, "q10": 0, "q11": 0, "q12": 1, "q13": 0},
-    "fullstack":          {"q1": 3, "q2": 1, "q3": 1, "q4": 0, "q5": 1, "q6": 2, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 2, "q13": 1},
-    "mobile":             {"q1": 3, "q2": 0, "q3": 2, "q4": 0, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 2, "q10": 0, "q11": 0, "q12": 2, "q13": 0},
-    "data-analyst":       {"q1": 1, "q2": 2, "q3": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 2, "q10": 2, "q11": 2, "q12": 3, "q13": 2},
-    "machine-learning":   {"q1": 3, "q2": 2, "q3": 3, "q4": 1, "q5": 1, "q6": 1, "q7": 2, "q8": 2, "q9": 1, "q10": 1, "q11": 2, "q12": 2, "q13": 1},
-    "ai-engineer":        {"q1": 3, "q2": 1, "q3": 2, "q4": 0, "q5": 1, "q6": 1, "q7": 2, "q8": 1, "q9": 1, "q10": 0, "q11": 2, "q12": 2, "q13": 1},
-    "cyber-security":     {"q1": 2, "q2": 3, "q3": 2, "q4": 3, "q5": 3, "q6": 1, "q7": 2, "q8": 3, "q9": 0, "q10": 3, "q11": 3, "q12": 3, "q13": 3},
-    "qa-engineer":        {"q1": 2, "q2": 1, "q3": 1, "q4": 3, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 3, "q13": 3},
-    "game-dev":           {"q1": 3, "q2": 1, "q3": 1, "q4": 0, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 3, "q10": 0, "q11": 0, "q12": 2, "q13": 1},
-    "technical-writer":   {"q1": 1, "q2": 1, "q3": 1, "q4": 2, "q5": 2, "q6": 2, "q7": 0, "q8": 0, "q9": 2, "q10": 0, "q11": 0, "q12": 0, "q13": 0},
-    "software-architect": {"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 3, "q6": 3, "q7": 1, "q8": 1, "q9": 0, "q10": 1, "q11": 3, "q12": 0, "q13": 1},
+    "data-science":       {"q1": 2, "q2": 2, "q3": 3, "q4": 1, "q5": 2, "q6": 1, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 2, "q12": 3, "q13": 2, "q14": 0, "q15": 0, "q16": 1, "q17": 0, "q18": 0},
+    "devops":             {"q1": 2, "q2": 3, "q3": 2, "q4": 3, "q5": 3, "q6": 3, "q7": 3, "q8": 3, "q9": 0, "q10": 3, "q11": 3, "q12": 2, "q13": 3, "q14": 0, "q15": 3, "q16": 0, "q17": 0, "q18": 0},
+    "product-manager":    {"q1": 0, "q2": 2, "q3": 2, "q4": 2, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 2, "q10": 0, "q11": 2, "q12": 0, "q13": 0, "q14": 3, "q15": 1, "q16": None, "q17": 2, "q18": 1},
+    "ux-designer":        {"q1": 1, "q2": 0, "q3": 0, "q4": 0, "q5": 0, "q6": 0, "q7": 0, "q8": 0, "q9": 3, "q10": 0, "q11": 0, "q12": 1, "q13": 0, "q14": 3, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
+    "fullstack":          {"q1": 3, "q2": 1, "q3": 1, "q4": 0, "q5": 1, "q6": 2, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 2, "q13": 1, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 3},
+    "mobile":             {"q1": 3, "q2": 0, "q3": 2, "q4": 0, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 2, "q10": 0, "q11": 0, "q12": 2, "q13": 0, "q14": 1, "q15": 0, "q16": 0, "q17": 0, "q18": 2},
+    "data-analyst":       {"q1": 1, "q2": 2, "q3": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 2, "q10": 2, "q11": 2, "q12": 3, "q13": 2, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
+    "machine-learning":   {"q1": 3, "q2": 2, "q3": 3, "q4": 1, "q5": 1, "q6": 1, "q7": 2, "q8": 2, "q9": 1, "q10": 1, "q11": 2, "q12": 2, "q13": 1, "q14": 0, "q15": 3, "q16": 2, "q17": 0, "q18": 0},
+    "ai-engineer":        {"q1": 3, "q2": 2, "q3": 2, "q4": 0, "q5": 1, "q6": 1, "q7": 2, "q8": 1, "q9": 1, "q10": 0, "q11": 2, "q12": 2, "q13": 1, "q14": 0, "q15": 0, "q16": 3, "q17": 0, "q18": 0},
+    "cyber-security":     {"q1": 2, "q2": 3, "q3": 2, "q4": 3, "q5": 3, "q6": 1, "q7": 2, "q8": 3, "q9": 0, "q10": 3, "q11": 3, "q12": 3, "q13": 3, "q14": 0, "q15": 2, "q16": 0, "q17": 1, "q18": 0},
+    "qa-engineer":        {"q1": 2, "q2": 1, "q3": 1, "q4": 3, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 1, "q10": 1, "q11": 1, "q12": 3, "q13": 3, "q14": 0, "q15": 2, "q16": 0, "q17": 3, "q18": 0},
+    "game-dev":           {"q1": 3, "q2": 0, "q3": 1, "q4": 0, "q5": 1, "q6": 1, "q7": 1, "q8": 1, "q9": 3, "q10": 0, "q11": 0, "q12": 2, "q13": 1, "q14": 2, "q15": 0, "q16": 0, "q17": 0, "q18": 2},
+    "technical-writer":   {"q1": 1, "q2": 1, "q3": 1, "q4": 2, "q5": 2, "q6": 2, "q7": 0, "q8": 0, "q9": 2, "q10": 0, "q11": 0, "q12": 0, "q13": 0, "q14": 3, "q15": None, "q16": 0, "q17": 0, "q18": 0},
+    "software-architect": {"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 3, "q6": 3, "q7": 1, "q8": 1, "q9": 0, "q10": 1, "q11": 3, "q12": 0, "q13": 1, "q14": 0, "q15": 1, "q16": 0, "q17": 2, "q18": 0},
 }
 
 # Seeds drive 60% of synthetic profiles (30% perturbed + 30% blended), so a career

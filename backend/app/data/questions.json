@@ -24,5 +24,15 @@
   {"id": "q12", "category": "workstyle", "text": "A friend asks for help with their new app idea. What would you do first?",
    "options": ["talk to the people who would use it and map out what to build", "sketch how the screens should look and feel", "start building a rough working version right away", "look for numbers that prove people actually want it"]},
   {"id": "q13", "category": "personality", "text": "You just finished a project you are proud of. Which part do you show off?",
-   "options": ["how beautiful and smooth it looks", "the clever machinery nobody sees that makes it work", "a surprising discovery I found in the numbers", "that it ran for months without breaking once"]}
+   "options": ["how beautiful and smooth it looks", "the clever machinery nobody sees that makes it work", "a surprising discovery I found in the numbers", "that it ran for months without breaking once"]},
+  {"id": "q14", "category": "interests", "show_if": {"q": "q2", "in": [0]}, "text": "You get a free weekend to build something fun. What would you make?",
+   "options": ["a website anyone can open in their browser", "an app for phones that people carry everywhere", "a small video game with characters and levels", "drawings of how an app should look — someone else can build it"]},
+  {"id": "q15", "category": "workstyle", "show_if": {"q": "q2", "in": [1]}, "text": "On a team building an app, which role sounds most like you?",
+   "options": ["building whole features end to end, from the screen to the data behind it", "drawing the big blueprint that everyone else builds on", "trying to break the app on purpose to find problems before users do", "building the hidden engine that quietly makes everything work"]},
+  {"id": "q16", "category": "interests", "show_if": {"q": "q2", "in": [2]}, "text": "Which of these sounds most satisfying?",
+   "options": ["making clear charts and reports that show what happened", "digging into messy numbers to figure out why something happened", "teaching the computer to predict what will happen next", "building an app around a smart AI assistant or chatbot"]},
+  {"id": "q17", "category": "workstyle", "show_if": {"q": "q2", "in": [3]}, "text": "A website crashes in the middle of the night. Which job would you enjoy most?",
+   "options": ["getting it back up fast and making sure it never happens again", "checking whether someone broke in, and locking the doors better", "redesigning the setup so one failure can't take everything down", "writing the checks that would have caught the problem before launch"]},
+  {"id": "q18", "category": "personality", "text": "You've finished something you're proud of. Which finishing touch sounds most fun?",
+   "options": ["writing a simple guide so anyone can use it", "showing it to people and hearing what they'd improve", "making it look and feel perfect", "tidying up the inside so it's easy to build on later"]}
 ]
