@@ -37,7 +37,11 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "qwen2.5:7b-instruct"
 TEMPERATURE = 0.2  # fallback; personas carry their own (see PERSONAS)
 NUM_PREDICT = 300
-PROMPT_VERSION = "panel-v1.2.0"  # v1.2.0: career count/coaching derived from the catalog (16 careers), no hardcoded six
+# v1.2.0: career count/coaching derived from the catalog (16 careers), no hardcoded six.
+# v1.3.0: 18-question bank (q14-q18 discriminators) — profiles/archetypes rendered under
+# the old bank must not resume or aggregate into this generation (resume and aggregate
+# are scoped to PROMPT_VERSION, so any bank/catalog change needs a bump like this one).
+PROMPT_VERSION = "panel-v1.3.0"
 LABEL_SOURCE = "synthetic_llm"
 MAX_RETRIES = 2
 WORKERS = 4

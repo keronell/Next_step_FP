@@ -216,7 +216,7 @@ function AssessmentStart({ onStart }) {
         <span className="italic text-gold">tech career</span>
       </h2>
       <p className="font-body text-navy/65 text-body max-w-[52ch] mx-auto leading-snug mb-10">
-        Up to 13 questions · 3–5 minutes
+        Up to 15 questions · 3–5 minutes
       </p>
       <div className="flex flex-wrap justify-center gap-2 mb-10">
         {['Skills & interests', 'Work style', 'Personality fit', 'Personalized match'].map((tag) => (
