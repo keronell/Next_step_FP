@@ -29,10 +29,13 @@ import pandas as pd
 from tqdm import tqdm
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT / "backend"))
+# The matching internals moved to services/ at the DEV-43 cutover:
+# services/ provides the `common` package, services/matching the `app` package.
+sys.path.insert(0, str(REPO_ROOT / "services"))
+sys.path.insert(0, str(REPO_ROOT / "services" / "matching"))
 
-from app.core.config import Settings  # noqa: E402
-from app.data import load_careers  # noqa: E402
+from common.config import Settings  # noqa: E402
+from common.data import load_careers  # noqa: E402
 from app.services import feature_builder as fb  # noqa: E402
 from app.services.profile import build_profile  # noqa: E402
 from app.services.rag_service import RagService  # noqa: E402

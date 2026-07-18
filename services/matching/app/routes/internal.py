@@ -19,10 +19,12 @@ def match_endpoint(req: MatchRequest, request: Request) -> MatchResponse:
     return MatchResponse(recommendations=match(req.answers, candidates, model=model))
 
 
-@router.get("/field-skills/{field}", response_model=FieldSkillsResponse)
+@router.get("/field-skills", response_model=FieldSkillsResponse)
 def field_skills(
-    field: str,
     request: Request,
+    # Query param, not a path segment: field values contain slashes
+    # ("UI / UX Design"), and encoded slashes never match a path parameter.
+    field: str = Query(..., min_length=1),
     sample_size: int = Query(default=100, ge=1, le=500),
 ) -> FieldSkillsResponse:
     rag = getattr(request.app.state, "rag", None)

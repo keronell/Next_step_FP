@@ -139,6 +139,29 @@ services:
       redis: { condition: service_healthy }
       consul: { condition: service_healthy }
 
+  roadmap:
+    build: { context: ./services, dockerfile: roadmap/Dockerfile }
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      DAPR_ENABLED: "true"
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+    depends_on:
+      redis: { condition: service_healthy }
+
+  roadmap-dapr:
+    <<: *dapr-sidecar
+    network_mode: "service:roadmap"
+    command:
+      ["./daprd", "--app-id", "roadmap", "--app-port", "8000",
+       "--dapr-http-port", "3500", "--resources-path", "/components", "--dapr-internal-grpc-port", "50002",
+       "--config", "/config/config.yaml"]
+    depends_on:
+      roadmap: { condition: service_started }
+      redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
+
   gateway:
     image: nginx:1.27-alpine
     ports:

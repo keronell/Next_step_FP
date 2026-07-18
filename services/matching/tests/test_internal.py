@@ -49,7 +49,7 @@ def test_field_skills_returns_counts(client_with_repo):
 
     app.state.rag = _FakeRag()
     try:
-        r = client_with_repo.get("/internal/field-skills/software-development?sample_size=50")
+        r = client_with_repo.get("/internal/field-skills?field=software-development&sample_size=50")
         assert r.status_code == 200
         assert r.json() == {"counts": {"python": 30, "sql": 12}, "n_ads": 40}
     finally:
@@ -60,10 +60,10 @@ def test_field_skills_503_without_rag(client_no_repo):
     from app.main import app
 
     app.state.rag = None
-    r = client_no_repo.get("/internal/field-skills/software-development")
+    r = client_no_repo.get("/internal/field-skills?field=software-development")
     assert r.status_code == 503
 
 
 def test_field_skills_sample_size_validated(client_with_repo):
-    r = client_with_repo.get("/internal/field-skills/x?sample_size=0")
+    r = client_with_repo.get("/internal/field-skills?field=x&sample_size=0")
     assert r.status_code == 422

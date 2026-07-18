@@ -2,6 +2,8 @@
 
 Loaded when working under `frontend/`. Cross-cutting invariants (dual client/server data sources, commands) live in the root `CLAUDE.md`.
 
+The backend behind `VITE_API_BASE_URL` (default `http://localhost:8000`) is now the microservices gateway (`docs/architecture.md`) — same paths, same response shapes, so nothing in this frontend changed for DEV-43. The offline fallback story below is unchanged.
+
 ## Frontend architecture
 
 Single page, scroll-based, sections stacked in `App.jsx`. A `phase` string in `App.jsx` is the source of truth and gates what each section renders:

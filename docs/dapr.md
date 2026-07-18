@@ -1,4 +1,11 @@
-# Dapr runbook (DEV-38)
+# Dapr building blocks (DEV-38)
+
+> **Historical note:** this document was written for the DEV-38 phase, when the
+> single FastAPI monolith (`backend/app/`, since deleted at the DEV-43 cutover)
+> ran under `dapr run`. The **state schema, pub/sub topics, marker semantics,
+> and token model described here are still exactly what the microservices use**
+> (`services/history` owns the store + subscribers now) — only the `dapr run`
+> runbook below is obsolete; use `docker compose up` per `docs/architecture.md`.
 
 The backend uses the [Dapr](https://dapr.io) sidecar for state management and
 pub/sub instead of writing Supabase directly:
