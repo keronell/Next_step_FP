@@ -5,7 +5,7 @@
 > sharing one base model (qwen2.5:7b-instruct); they are NOT a human inter-expert noise
 > ceiling and must never be presented as expert validation.
 
-Generated: 2026-07-04T08:10:26Z  |  model: `qwen2.5:7b-instruct`  |  prompt: `panel-v1.1.0`  |  temperatures: hiring_manager=0.2, career_counselor=0.6, bootcamp_instructor=0.9
+Generated: 2026-07-18T14:09:36Z  |  model: `qwen2.5:7b-instruct`  |  prompt: `panel-v2.0.0`  |  temperatures: hiring_manager=0.2, career_counselor=0.6, bootcamp_instructor=0.9
 
 ## Pool
 
@@ -18,15 +18,15 @@ Generated: 2026-07-04T08:10:26Z  |  model: `qwen2.5:7b-instruct`  |  prompt: `pa
 
 ## Consensus filtering (>= 2/3 personas agree on top-1)
 
-- High-consensus -> `silver_labels.parquet`: **205** (unanimous: 174)
-- Low-agreement -> `ambiguous_labels.parquet`: **2**
+- High-consensus -> `silver_labels.parquet`: **207** (unanimous: 185)
+- Low-agreement -> `ambiguous_labels.parquet`: **0**
 
 ## Synthetic agreement (NOT human agreement)
 
-- Fleiss' kappa (3 personas, 6 careers): **0.864**
-- Cohen's kappa hiring_manager vs career_counselor: 0.892
-- Cohen's kappa hiring_manager vs bootcamp_instructor: 0.850
-- Cohen's kappa career_counselor vs bootcamp_instructor: 0.850
+- Fleiss' kappa (3 personas, 16 careers): **0.923**
+- Cohen's kappa hiring_manager vs career_counselor: 0.916
+- Cohen's kappa hiring_manager vs bootcamp_instructor: 0.937
+- Cohen's kappa career_counselor vs bootcamp_instructor: 0.916
 
 Interpretation caution: personas share one base model, so high kappa here means
 self-consistency, not correctness. Near-perfect kappa would be a red flag for
@@ -36,95 +36,120 @@ persona non-independence rather than a quality guarantee.
 
 | career | count | share |
 |---|---|---|
-| frontend | 17 | 8.3% |
-| backend | 50 | 24.4% |
-| data-science | 50 | 24.4% |
-| devops | 38 | 18.5% |
-| product-manager | 14 | 6.8% |
-| ux-designer | 36 | 17.6% |
+| frontend | 23 | 11.1% |
+| backend | 21 | 10.1% |
+| data-science | 11 | 5.3% |
+| devops | 20 | 9.7% |
+| product-manager | 3 | 1.4% |
+| ux-designer | 13 | 6.3% |
+| fullstack | 12 | 5.8% |
+| mobile | 7 | 3.4% |
+| data-analyst | 17 | 8.2% |
+| machine-learning | 7 | 3.4% |
+| ai-engineer | 5 | 2.4% |
+| cyber-security | 8 | 3.9% |
+| qa-engineer | 25 | 12.1% |
+| game-dev | 1 | 0.5% |
+| technical-writer | 11 | 5.3% |
+| software-architect | 23 | 11.1% |
 
 ## Per-persona top-1 distribution (all complete panels)
 
 ### hiring_manager
 | career | count | share |
 |---|---|---|
-| frontend | 15 | 7.2% |
-| backend | 49 | 23.7% |
-| data-science | 50 | 24.2% |
-| devops | 37 | 17.9% |
-| product-manager | 16 | 7.7% |
-| ux-designer | 40 | 19.3% |
+| frontend | 24 | 11.6% |
+| backend | 21 | 10.1% |
+| data-science | 11 | 5.3% |
+| devops | 20 | 9.7% |
+| product-manager | 4 | 1.9% |
+| ux-designer | 14 | 6.8% |
+| fullstack | 11 | 5.3% |
+| mobile | 7 | 3.4% |
+| data-analyst | 17 | 8.2% |
+| machine-learning | 7 | 3.4% |
+| ai-engineer | 5 | 2.4% |
+| cyber-security | 8 | 3.9% |
+| qa-engineer | 25 | 12.1% |
+| game-dev | 0 | 0.0% |
+| technical-writer | 10 | 4.8% |
+| software-architect | 23 | 11.1% |
 ### career_counselor
 | career | count | share |
 |---|---|---|
-| frontend | 18 | 8.7% |
-| backend | 50 | 24.2% |
-| data-science | 50 | 24.2% |
-| devops | 38 | 18.4% |
-| product-manager | 16 | 7.7% |
-| ux-designer | 35 | 16.9% |
+| frontend | 20 | 9.7% |
+| backend | 21 | 10.1% |
+| data-science | 11 | 5.3% |
+| devops | 21 | 10.1% |
+| product-manager | 3 | 1.4% |
+| ux-designer | 14 | 6.8% |
+| fullstack | 13 | 6.3% |
+| mobile | 8 | 3.9% |
+| data-analyst | 16 | 7.7% |
+| machine-learning | 7 | 3.4% |
+| ai-engineer | 4 | 1.9% |
+| cyber-security | 8 | 3.9% |
+| qa-engineer | 25 | 12.1% |
+| game-dev | 1 | 0.5% |
+| technical-writer | 11 | 5.3% |
+| software-architect | 24 | 11.6% |
 ### bootcamp_instructor
 | career | count | share |
 |---|---|---|
-| frontend | 18 | 8.7% |
-| backend | 54 | 26.1% |
-| data-science | 51 | 24.6% |
-| devops | 39 | 18.8% |
-| product-manager | 12 | 5.8% |
-| ux-designer | 33 | 15.9% |
+| frontend | 23 | 11.1% |
+| backend | 21 | 10.1% |
+| data-science | 11 | 5.3% |
+| devops | 21 | 10.1% |
+| product-manager | 3 | 1.4% |
+| ux-designer | 14 | 6.8% |
+| fullstack | 12 | 5.8% |
+| mobile | 6 | 2.9% |
+| data-analyst | 17 | 8.2% |
+| machine-learning | 7 | 3.4% |
+| ai-engineer | 5 | 2.4% |
+| cyber-security | 8 | 3.9% |
+| qa-engineer | 25 | 12.1% |
+| game-dev | 2 | 1.0% |
+| technical-writer | 10 | 4.8% |
+| software-architect | 22 | 10.6% |
 
 ## Formula-vs-panel agreement (circularity check)
 
 The current hand-authored questionnaire_fit heuristic's top-1 agrees with the panel
-consensus on **43.4%** of silver profiles. High agreement means the
+consensus on **41.1%** of silver profiles. High agreement means the
 learned-vs-formula comparison in Phase 2 is partly circular (the panel may reason
 like the hand weights); note this when reading Gate 1 results.
 
 ## Confidence
 
-- Mean panel confidence (silver): 0.80
-- Mean panel confidence (ambiguous): 0.80
+- Mean panel confidence (silver): 0.81
+- Mean panel confidence (ambiguous): nan
 
-## Gate 0 checklist — PASSED (prototype-grade) at panel-v1.1.0
+## Gate 0 checklist
 
-- [x] Synthetic agreement acceptable: Fleiss kappa 0.864 (down from 0.930 at v1.0.1
-      after per-persona temperatures 0.2/0.6/0.9). Still high because all personas
-      share one base model — recorded as a limitation, not treated as quality proof.
-- [x] Label distribution plausible: all 6 careers populated (7–24% each). At v1.0.1
-      ux-designer had 0 labels and product-manager 2.9%; the v1.1.0 neutrality
-      instruction fixed the developer-role default.
-- [x] Manual sanity check passed on a spot-check of 8+20 rows: explanations cite the
-      actual answers; design/PM-leaning profiles now route to ux-designer /
-      product-manager. Residual quirks: confidence is nearly constant (~0.8, weakly
-      informative) and occasional secondary-explanation stretches.
-
-### Version history
-
-- `panel-v1.0.1` (archived logs: `panel_votes_v1.0.1.jsonl`): single temperature 0.2.
-  FAILED Gate 0 — kappa 0.930 (clone effect), ux-designer 0%, product-manager 2.9%,
-  formula agreement 34.5%.
-- `panel-v1.1.0` (current): per-persona temperatures + equal-validity instruction for
-  non-coding careers. Kappa 0.864, all classes populated, formula agreement 43.4%.
+- [ ] Synthetic agreement acceptable (kappa neither near 0 nor suspiciously ~1.0) — see numbers above
+- [ ] Label distribution plausible (no career ~0%, none dominating) — see table above
+- [ ] Manual sanity check of the sample below passed
 
 ## Manual sanity-check sample (20 silver rows)
 
-- **syn_0008** (synthetic) -> data-science (votes 3/3, conf 0.80); answers `{"q1": 1, "q2": 2, "q3": 0, "q4": null, "q5": 2, "q6": 3, "q7": 2, "q8": 2, "q10": 2}`; first explanation: "The candidate's interest in wrangling data and finding patterns, coupled with a focus on business impact, strongly aligns with the role of a Data Scientist."
-- **syn_0002** (synthetic) -> devops (votes 3/3, conf 0.80); answers `{"q1": 1, "q2": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q10": 2}`; first explanation: 'The candidate’s comfort with code, interest in complex system maintenance, and focus on data-driven insights align well with DevOps. They also show traits of a Product Manager, such as analyzing results and driving business impact.'
-- **syn_0093** (synthetic) -> backend (votes 3/3, conf 0.80); answers `{"q1": 2, "q2": 1, "q3": 3, "q4": 1, "q5": 1, "q6": 0, "q7": 3, "q8": 3, "q9": 1, "q10": 0}`; first explanation: 'The person enjoys solving logical puzzles and prefers writing code, which aligns well with backend engineering. They also show interest in data by feeling curious about datasets.'
-- **syn_0126** (synthetic) -> ux-designer (votes 3/3, conf 0.80); answers `{"q1": 1, "q2": 0, "q4": 3, "q5": null, "q6": 2, "q7": 3, "q8": 1, "q9": 3, "q10": 3}`; first explanation: "The person values visual design highly and finds it their 'happy place,' indicating a strong fit for UX Designer. Their preference for analysis and discussion also aligns with the collaborative nature of this role."
-- **syn_0061** (synthetic) -> frontend (votes 3/3, conf 0.77); answers `{"q1": 1, "q2": 1, "q3": 0, "q4": 1, "q5": 1, "q6": null, "q7": 1, "q8": 0, "q9": 3, "q10": 0}`; first explanation: 'The person prefers elegant code and finds visual design appealing, aligning well with frontend development. They also enjoy solving logical puzzles.'
-- **syn_0088** (synthetic) -> ux-designer (votes 3/3, conf 0.80); answers `{"q1": 2, "q2": 0, "q4": 0, "q5": 1, "q6": 0, "q7": 0, "q8": 1, "q9": 3, "q10": 0}`; first explanation: "The candidate's preference for visual design, making things look beautiful and valuing a polished final product aligns strongly with UX Designer. Additionally, they naturally drift toward writing code in teams, which fits better with the frontend role."
-- **syn_0154** (synthetic) -> data-science (votes 3/3, conf 0.80); answers `{"q1": 2, "q2": 2, "q3": 3, "q4": 3, "q5": 1, "q6": 0, "q7": 0, "q8": 1, "q10": 2}`; first explanation: "The person's interest in wrangling data and finding patterns, as well as their desire for insights with business impact, aligns closely with a Data Scientist role."
-- **syn_0157** (synthetic) -> product-manager (votes 3/3, conf 0.80); answers `{"q1": 1, "q2": 1, "q3": 0, "q4": 0, "q5": 0, "q6": 1, "q7": 1, "q8": null, "q9": 1, "q10": 0}`; first explanation: 'The person prefers talking to users and shaping vision over coding, and values user satisfaction highly.'
-- **syn_0141** (synthetic) -> devops (votes 3/3, conf 0.80); answers `{"q1": 0, "q2": 3, "q4": 3, "q5": 2, "q6": 2, "q7": 1, "q8": 0, "q10": 0}`; first explanation: 'The person values system reliability and excels in keeping complex systems running, aligning well with DevOps. They also show a preference for analysis and discussion, which can be key in both DevOps and backend roles.'
-- **syn_0177** (synthetic) -> product-manager (votes 2/3, conf 0.80); answers `{"q1": 0, "q2": 1, "q3": null, "q4": 1, "q5": 2, "q6": 1, "q7": 2, "q8": 3, "q9": 3, "q10": 0}`; first explanation: "The person values deep focus on elegant code and solving logical puzzles, aligning well with product management's strategic vision. Additionally, their interest in team analysis and reporting findings suggests a natural fit for this role."
-- **syn_0186** (synthetic) -> backend (votes 3/3, conf 0.80); answers `{"q1": 3, "q2": 0, "q4": 3, "q5": null, "q6": 3, "q7": 1, "q8": 0, "q9": 0, "q10": 3}`; first explanation: "The candidate's comfort with writing code and desire for a system that never goes down align well with backend engineering, while their preference for independently owning an end-to-end system also fits devops."
-- **syn_0159** (synthetic) -> backend (votes 3/3, conf 0.80); answers `{"q1": 3, "q2": 3, "q4": 1, "q5": 3, "q6": 0, "q7": 0, "q8": 2, "q10": null}`; first explanation: "The candidate's comfort with writing code, desire for elegant solutions, and focus on complex systems align well with backend development. Their preference for building infrastructure also supports a strong fit in devops."
-- **syn_0058** (synthetic) -> data-science (votes 3/3, conf 0.80); answers `{"q1": 0, "q2": 2, "q3": 2, "q4": 1, "q5": 3, "q6": 0, "q7": 0, "q8": 0, "q10": 0}`; first explanation: "The person's interest in wrangling data and finding patterns, along with their desire for elegant code, suggests a strong fit for data science. Their inclination towards building infrastructure aligns well with backend engineering."
-- **syn_0170** (synthetic) -> devops (votes 3/3, conf 0.80); answers `{"q1": 1, "q2": 3, "q4": 0, "q5": 3, "q6": 0, "q7": 3, "q8": 2, "q10": 3}`; first explanation: "The candidate's interest in keeping complex systems running and a preference for infrastructure aligns strongly with devops, while their love for zero-downtime deploys further supports this choice."
-- **syn_0066** (synthetic) -> devops (votes 3/3, conf 0.80); answers `{"q1": 2, "q2": 3, "q4": 3, "q5": 2, "q6": 2, "q7": 3, "q8": 2, "q10": 3}`; first explanation: "The candidate's interest in keeping complex systems running and their desire for zero-downtime deploys align well with DevOps roles. Their preference for a mix of analysis and discussion also fits well with the need to analyze results and report findings."
-- **syn_0146** (synthetic) -> product-manager (votes 3/3, conf 0.80); answers `{"q1": 0, "q2": null, "q4": 2, "q5": 1, "q6": 3, "q7": 2, "q8": 2, "q10": 0}`; first explanation: 'The person values user satisfaction and prefers owning a system end-to-end, which aligns with product management. They also prefer working independently, which can fit into frontend development.'
-- **syn_0011** (synthetic) -> ux-designer (votes 3/3, conf 0.80); answers `{"q1": 1, "q2": 0, "q4": 0, "q5": 3, "q6": 0, "q7": 0, "q8": 0, "q9": 1, "q10": 0}`; first explanation: 'The person values visual aesthetics and user experience highly, aligning with UX Designer, and desires a polished product that users love, which is a core aspect of this role.'
-- **syn_0075** (synthetic) -> data-science (votes 3/3, conf 0.80); answers `{"q1": 2, "q2": 2, "q3": 2, "q4": 0, "q5": 3, "q6": 0, "q7": 1, "q8": 3, "q10": 3}`; first explanation: "The candidate's interest in wrangling data and a preference for infrastructure suggest they would thrive as a Data Scientist or Backend Engineer, with Data Science being slightly more aligned."
-- **syn_0079** (synthetic) -> backend (votes 3/3, conf 0.82); answers `{"q1": 3, "q2": 2, "q3": 0, "q4": 1, "q5": 3, "q6": 2, "q7": 1, "q8": 2, "q10": 1}`; first explanation: "The candidate's comfort with writing code daily, preference for elegant solutions and working on infrastructure align well with backend engineering. The enjoyment in wrangling data also suggests a fit for data science."
-- **syn_0137** (synthetic) -> backend (votes 3/3, conf 0.82); answers `{"q1": 3, "q2": 3, "q4": 3, "q5": 3, "q6": 3, "q7": 3, "q8": 2, "q10": 1}`; first explanation: "The person's comfort with writing code daily and a preference for keeping complex systems running align well with backend engineering."
+- **syn_0154** (synthetic) -> backend (votes 3/3, conf 0.80); answers `{"q1": 2, "q2": 1, "q3": 3, "q4": 3, "q5": null, "q6": 2, "q7": 0, "q8": 3, "q9": 2, "q10": null, "q11": 0, "q12": 2, "q13": 3, "q15": 3, "q18": 3}`; first explanation: "The person chose 'building the hidden engine that quietly makes everything work' for the tie-breaker question, which points to backend. Additionally, they indicated a preference for solving logical puzzles and ensuring systems never go down, aligning well with backend engineering. The chosen finishing touch of 'tidying up the inside so it's easy to build on later' further supports this decision, a"
+- **syn_0008** (synthetic) -> data-analyst (votes 3/3, conf 0.87); answers `{"q1": 1, "q2": 2, "q3": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 3, "q8": 2, "q10": 2, "q11": 2, "q12": 3, "q13": 2, "q16": 0, "q18": 0}`; first explanation: "The candidate chose 'making clear charts and reports that show what happened,' which directly points to data analyst. Additionally, their preference for writing a simple guide when finished something they are proud of further supports the role of a technical writer, but given the strong tie-breaker choice, data analyst is the stronger fit."
+- **syn_0066** (synthetic) -> devops (votes 3/3, conf 0.80); answers `{"q1": 1, "q2": 3, "q4": 0, "q5": 0, "q6": 0, "q7": 2, "q8": 2, "q10": 1, "q11": 3, "q12": 1, "q13": 0, "q17": 0, "q18": 0}`; first explanation: "The candidate chose 'getting it back up fast and making sure it never happens again' for the tie-breaker question about a website crashing, which aligns with DevOps Engineer responsibilities. Additionally, they preferred writing a simple guide over other options in the second tie-breaker, indicating a preference for documentation and clarity, which is also aligned with Technical Writer's role."
+- **syn_0089** (synthetic) -> data-analyst (votes 3/3, conf 0.83); answers `{"q1": 1, "q2": 2, "q3": 0, "q4": 2, "q5": 0, "q6": 2, "q7": 0, "q8": 0, "q10": 2, "q11": 3, "q12": 1, "q13": 0, "q16": 0, "q18": 0}`; first explanation: "The person chose 'making clear charts and reports that show what happened' in the tie-breaker, which directly points to data-analyst. Additionally, their preference for wrangling data to find patterns and producing a report that changes a decision further supports this choice."
+- **syn_0159** (synthetic) -> ux-designer (votes 3/3, conf 0.83); answers `{"q1": 3, "q2": 0, "q4": 2, "q5": 2, "q6": null, "q7": 1, "q8": 0, "q9": 3, "q10": 0, "q11": 2, "q12": 2, "q13": 3, "q14": 3, "q18": null}`; first explanation: "The candidate chose 'drawings of how an app should look — someone else can build it' as their tie-breaker answer, which directly aligns with the role of UX Designer. Additionally, they mentioned that visual design is their 'happy place,' further supporting this choice."
+- **syn_0002** (synthetic) -> data-science (votes 3/3, conf 0.83); answers `{"q1": 2, "q2": 2, "q3": 1, "q4": 3, "q5": 3, "q6": 3, "q7": 2, "q8": 2, "q10": null, "q11": 0, "q12": 3, "q13": 1, "q16": 1, "q18": 1}`; first explanation: "The individual's chosen tie-breaker option 'digging into messy numbers to figure out why something happened' strongly aligns with the role of a Data Scientist, making top1 'data-science'. The second-best fit is 'machine-learning', as both involve working with data but focus more on model training for predictions in the former and building AI products in the latter."
+- **syn_0093** (synthetic) -> ux-designer (votes 3/3, conf 0.80); answers `{"q1": 1, "q2": 0, "q4": null, "q5": 2, "q6": 1, "q7": 2, "q8": 0, "q9": 3, "q10": 0, "q11": null, "q12": 3, "q13": 0, "q14": 2, "q18": 0}`; first explanation: "The person chose to make 'a small video game with characters and levels' in the tie-breaker question, which points to 'game-dev'. However, they also selected 'writing a simple guide so anyone can use it' as their preferred finishing touch, indicating a strong preference for documentation and clarity, which aligns more closely with 'technical-writer'. Given that both questions are tied between 'ux-"
+- **syn_0128** (synthetic) -> backend (votes 3/3, conf 0.80); answers `{"q1": 0, "q2": null, "q4": 2, "q5": 3, "q6": null, "q7": 0, "q8": 0, "q10": 2, "q11": 1, "q12": 2, "q13": 3, "q18": 1}`; first explanation: 'The person enjoys building stable systems and tends to rally the team, indicating a backend engineer role. Additionally, their desire for insights that drive business impact aligns well with product management.'
+- **syn_0011** (synthetic) -> devops (votes 3/3, conf 0.87); answers `{"q1": 2, "q2": 3, "q4": 3, "q5": 1, "q6": 3, "q7": 1, "q8": 3, "q10": 3, "q11": 3, "q12": 2, "q13": 3, "q17": 0, "q18": 0}`; first explanation: "The candidate chose 'getting it back up fast and making sure it never happens again' for the tie-breaker question, which directly points to a DevOps Engineer role. Additionally, they also indicated a preference for writing simple guides, pointing towards a Technical Writer, but their strong emphasis on keeping complex systems running and ensuring zero-downtime deploys further solidifies DevOps as "
+- **syn_0141** (synthetic) -> frontend (votes 3/3, conf 0.80); answers `{"q1": 0, "q2": 0, "q4": 1, "q5": 3, "q6": 1, "q7": 1, "q8": 1, "q9": 2, "q10": 2, "q11": 0, "q12": 3, "q13": 1, "q14": 0, "q18": 0}`; first explanation: "The candidate's chosen tie-breakers clearly point towards frontend: they chose to build a website and emphasized writing guides for others to use it, indicating a preference for documentation and user experience. While the technical writer option aligns with their desire for elegant code, the repeated emphasis on creating visible, accessible interfaces and written instructions makes frontend more "
+- **syn_0164** (synthetic) -> software-architect (votes 3/3, conf 0.80); answers `{"q1": 2, "q2": 3, "q4": 1, "q5": 3, "q6": 0, "q7": 2, "q8": 3, "q10": 1, "q11": 1, "q12": 0, "q13": 3, "q17": 2, "q18": 1}`; first explanation: "The person chose 'redesigning the setup so one failure can't take everything down' for the first tie-breaker, which points to software-architect. For the second tie-breaker, they chose 'showing it to people and hearing what they'd improve,' which indicates a product-manager role. However, the profile strongly emphasizes building infrastructure that everyone depends on, and enjoys shipping clean ma"
+- **syn_0023** (synthetic) -> mobile (votes 3/3, conf 0.80); answers `{"q1": 3, "q2": 0, "q4": null, "q5": 1, "q6": 2, "q7": 3, "q8": 3, "q9": 2, "q10": 0, "q11": 0, "q12": 2, "q13": 0, "q14": 1, "q18": 2}`; first explanation: "The candidate's choice of 'an app for phones that people carry everywhere' in the tie-breaker question points strongly towards Mobile Developer, as it aligns with their interest in building applications for smartphones. Their preference to focus on making things look and feel perfect further supports this choice, as user interface and experience are key aspects of mobile app development. While Fro"
+- **syn_0148** (synthetic) -> qa-engineer (votes 3/3, conf 0.80); answers `{"q1": null, "q2": 1, "q3": 2, "q4": 0, "q5": null, "q6": 2, "q7": null, "q8": 0, "q9": 0, "q10": 2, "q11": 3, "q12": 3, "q13": 3, "q15": 2, "q18": 1}`; first explanation: "The candidate's tie-breaker choice 'trying to break the app on purpose to find problems before users do' directly points to QA Engineer, indicating a strong preference for this role. While they also chose 'showing it to people and hearing what they'd improve' in another question, which could suggest Product Manager, their primary interest seems more aligned with the proactive testing aspect of QA."
+- **syn_0198** (synthetic) -> ux-designer (votes 3/3, conf 0.80); answers `{"q1": 3, "q2": 0, "q4": 0, "q5": 0, "q6": 0, "q7": 1, "q8": 3, "q9": 3, "q10": 0, "q11": 1, "q12": 0, "q13": 0, "q14": 3, "q18": 2}`; first explanation: "The person chose 'drawings of how an app should look — someone else can build it' in the tie-breaker question, which directly aligns with the role of a UX Designer. Additionally, their preference to show off 'how beautiful and smooth it looks' also supports this choice. The second-best fit is Frontend Developer, as they are very comfortable writing code daily and enjoy making things look perfect."
+- **syn_0118** (synthetic) -> ai-engineer (votes 2/3, conf 0.80); answers `{"q1": 2, "q2": 2, "q3": 2, "q4": 2, "q5": 1, "q6": 1, "q7": 0, "q8": 0, "q10": 0, "q11": 0, "q12": 2, "q13": 0, "q16": null, "q18": 2}`; first explanation: "The person chose 'making it look and feel perfect' as their finishing touch, which aligns most closely with the role of an AI Engineer who focuses on the visual and user experience aspects of building products around large language models. While Data Analyst also values aesthetics in their reports, the emphasis on making something visually perfect is more characteristic of AI Engineering."
+- **syn_0189** (synthetic) -> cyber-security (votes 3/3, conf 0.80); answers `{"q1": 2, "q2": 3, "q4": 3, "q5": 0, "q6": 3, "q7": 0, "q8": 3, "q10": 0, "q11": 0, "q12": 1, "q13": null, "q17": 1, "q18": 3}`; first explanation: "The person chose 'checking whether someone broke in, and locking the doors better' for both tie-breaker questions, which strongly points towards a career focused on security. While they also showed interest in maintaining systems reliability (as indicated by their desire to 'tidy up the inside so it's easy to build on later'), the emphasis on defending against attacks aligns more closely with cybe"
+- **syn_0157** (synthetic) -> technical-writer (votes 2/3, conf 0.80); answers `{"q1": 1, "q2": 3, "q4": 1, "q5": 1, "q6": 1, "q7": 2, "q8": 2, "q10": 1, "q11": 1, "q12": 1, "q13": 3, "q17": 2, "q18": 0}`; first explanation: "The candidate chose 'redesigning the setup so one failure can't take everything down' for the question about enjoying fixing a website crash, which aligns with DevOps. However, they also chose 'writing a simple guide so anyone can use it,' which points to Technical Writer as their preferred role. Given the emphasis on writing and making complex technology understandable, Technical Writer is the be"
+- **syn_0182** (synthetic) -> data-science (votes 3/3, conf 0.83); answers `{"q1": 0, "q2": 2, "q3": 2, "q4": 0, "q5": null, "q6": 2, "q7": null, "q8": 2, "q10": 2, "q11": 3, "q12": 2, "q13": 3, "q16": 1, "q18": null}`; first explanation: "The individual chose 'digging into messy numbers to figure out why something happened,' which most closely aligns with the Data Scientist role. Although they are equally interested in understanding data, their preference for delving into complex datasets and finding underlying reasons is more characteristic of a Data Scientist than a Data Analyst or other roles."
+- **syn_0077** (synthetic) -> fullstack (votes 3/3, conf 0.83); answers `{"q1": 2, "q2": 1, "q3": 3, "q4": 1, "q5": 1, "q6": 1, "q7": 3, "q8": 1, "q9": 1, "q10": 1, "q11": 2, "q12": 3, "q13": 3, "q15": 0, "q18": 0}`; first explanation: "The person chose 'building whole features end to end, from the screen to the data behind it' in the first tie-breaker question, which points directly to fullstack. In the second tie-breaker question, they chose 'writing a simple guide so anyone can use it,' which aligns with technical writer's role of making complex technology understandable through documentation."
+- **syn_0068** (synthetic) -> fullstack (votes 3/3, conf 0.80); answers `{"q1": 3, "q2": 1, "q3": 2, "q4": 1, "q5": 3, "q6": 3, "q7": 1, "q8": 1, "q9": 0, "q10": 1, "q11": 2, "q12": 0, "q13": 1, "q15": 0, "q18": 0}`; first explanation: "The person chose 'building whole features end to end, from the screen to the data behind it' for their tie-breaker question on team roles, which points to fullstack. Additionally, they showed a strong preference for writing code and solving logical puzzles, which aligns with the role of a backend engineer but more closely matches the fullstack developer's role in owning complete features end-to-en"
