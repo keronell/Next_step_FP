@@ -226,11 +226,19 @@ def generate_synthetic_profiles(n: int, rng: random.Random) -> list[dict]:
     def perturb(seed_answers, noise, pinned=frozenset()):
         return perturb_seed(seed_answers, rng, noise, pinned)
 
-    # Guaranteed pinned-cue quota per career; blended keeps its share and the
-    # random slice absorbs the difference.
-    n_seeded = max(int(n * 0.3), MIN_SEEDED_PER_CAREER * len(career_ids))
-    n_mixed = int(n * 0.3)
-    n_random = max(n - n_seeded - n_mixed, 0)
+    # Guaranteed pinned-cue quota per career; blended and random slices shrink as
+    # needed so the requested total is always honored exactly. Below the quota
+    # floor no valid mix exists — reject rather than silently over-generate.
+    quota_floor = MIN_SEEDED_PER_CAREER * len(career_ids)
+    if n < quota_floor:
+        raise SystemExit(
+            f"--n-synthetic {n} is below the coverage floor: the guaranteed seeded "
+            f"quota alone needs {MIN_SEEDED_PER_CAREER} x {len(career_ids)} = "
+            f"{quota_floor} profiles."
+        )
+    n_seeded = max(int(n * 0.3), quota_floor)
+    n_mixed = min(int(n * 0.3), n - n_seeded)
+    n_random = n - n_seeded - n_mixed
 
     for i in range(n_seeded):
         cid = career_ids[i % len(career_ids)]
@@ -929,12 +937,24 @@ def ensure_label_coverage(questions: list[dict], careers: list[dict], max_rounds
     panel's votes, so no static generation mix can guarantee them — this loop can.
     Exits nonzero if the round cap is hit with coverage still short (fail loud,
     same contract as dataset_guards)."""
-    rng = random.Random(RANDOM_SEED + 1)
 
     def shortfall() -> dict[str, int]:
         counts = pd.read_parquet(SILVER_PARQUET)["label_top1"].value_counts()
         return {cid: int(counts.get(cid, 0)) for cid in CAREER_IDS
                 if counts.get(cid, 0) < MIN_LABELS_PER_CAREER}
+
+    def topup_profile(cid: str, round_no: int, i: int) -> dict:
+        # Randomness is derived from the profile id itself, never from a shared
+        # sequential RNG: label_profiles resumes by (profile_id, persona_id), so a
+        # given id must always map to the same answers — even when an interrupted
+        # run restarts with a different shortfall career set for the same round.
+        pid = f"syn_c{round_no:02d}{i:02d}_{cid}"
+        rng = random.Random(f"{RANDOM_SEED}:{pid}")
+        return {
+            "profile_id": pid,
+            "profile_source": "synthetic",
+            "answers": perturb_seed(CAREER_SEEDS[cid], rng, SEED_NOISE, pinned_qids(cid)),
+        }
 
     for round_no in range(1, max_rounds + 1):
         short = shortfall()
@@ -942,11 +962,7 @@ def ensure_label_coverage(questions: list[dict], careers: list[dict], max_rounds
             print(f"Label coverage ok: every career has >= {MIN_LABELS_PER_CAREER} silver labels.")
             return
         profiles = [
-            {
-                "profile_id": f"syn_c{round_no:02d}{i:02d}_{cid}",
-                "profile_source": "synthetic",
-                "answers": perturb_seed(CAREER_SEEDS[cid], rng, SEED_NOISE, pinned_qids(cid)),
-            }
+            topup_profile(cid, round_no, i)
             for cid in short
             for i in range(TOPUP_BATCH)
         ]
