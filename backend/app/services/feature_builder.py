@@ -25,10 +25,11 @@ from collections import Counter
 
 from app.data import load_questions
 
-# features-v3: career catalog grew 6 -> 16, so the per-career fit/sem/skill blocks
-# are wider. Older artifacts are refused on load; matching falls back to the
-# formula until a model is retrained (pipeline: docs/matching-rework-plan.md).
-FEATURE_VERSION = "features-v3"
+# features-v4: question bank grew 13 -> 18 (q14-q17 career-family follow-ups gated
+# on q2, q18 linear), so the raw-answer/presence blocks are wider. Older artifacts
+# are refused on load; matching falls back to the formula until a model is
+# retrained (pipeline: docs/matching-rework-plan.md).
+FEATURE_VERSION = "features-v4"
 
 QUESTION_IDS = [q["id"] for q in load_questions()]
 

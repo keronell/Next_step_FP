@@ -7,7 +7,7 @@
     "icon": "Monitor",
     "roadmapKey": "frontend",
     "field": "Frontend Development",
-    "weights": {"q1": 2, "q2": 3, "q3": 0, "q4": 2, "q5": 2, "q6": 1, "q7": 3, "q8": 1, "q9": 2, "q10": 1, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 2, "q2": 3, "q3": 0, "q4": 2, "q5": 2, "q6": 1, "q7": 3, "q8": 1, "q9": 2, "q10": 1, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q2", "answerValue": 0, "bonus": 1},
       {"qId": "q9", "answerValue": 3, "bonus": 1},
@@ -15,7 +15,9 @@
       {"qId": "q12", "answerValue": 2, "bonus": 1},
       {"qId": "q13", "answerValue": 0, "bonus": 2},
       {"qId": "q7", "answerValue": 1, "bonus": 1},
-      {"qId": "q10", "answerValue": 0, "bonus": 2}
+      {"qId": "q10", "answerValue": 0, "bonus": 2},
+      {"qId": "q14", "answerValue": 0, "bonus": 3},
+      {"qId": "q18", "answerValue": 2, "bonus": 1}
     ]
   },
   {
@@ -26,7 +28,7 @@
     "icon": "Server",
     "roadmapKey": "backend",
     "field": "Backend Development",
-    "weights": {"q1": 3, "q2": 2, "q3": 1, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 0, "q10": 3, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 3, "q2": 2, "q3": 1, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q4", "answerValue": 1, "bonus": 2},
       {"qId": "q8", "answerValue": 1, "bonus": 1},
@@ -34,7 +36,9 @@
       {"qId": "q11", "answerValue": 1, "bonus": 3},
       {"qId": "q12", "answerValue": 2, "bonus": 1},
       {"qId": "q13", "answerValue": 1, "bonus": 3},
-      {"qId": "q13", "answerValue": 3, "bonus": 1}
+      {"qId": "q13", "answerValue": 3, "bonus": 1},
+      {"qId": "q15", "answerValue": 3, "bonus": 3},
+      {"qId": "q18", "answerValue": 3, "bonus": 1}
     ]
   },
   {
@@ -45,13 +49,15 @@
     "icon": "BarChart2",
     "roadmapKey": "data-science",
     "field": "Data Science",
-    "weights": {"q1": 1, "q2": 1, "q3": 3, "q4": 1, "q5": 1, "q6": 2, "q7": 3, "q8": 2, "q9": 0, "q10": 2, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 1, "q2": 1, "q3": 3, "q4": 1, "q5": 1, "q6": 2, "q7": 3, "q8": 2, "q9": 0, "q10": 2, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q11", "answerValue": 2, "bonus": 2},
       {"qId": "q12", "answerValue": 3, "bonus": 2},
       {"qId": "q13", "answerValue": 2, "bonus": 2},
       {"qId": "q6", "answerValue": 1, "bonus": 1},
-      {"qId": "q7", "answerValue": 2, "bonus": 2}
+      {"qId": "q7", "answerValue": 2, "bonus": 2},
+      {"qId": "q16", "answerValue": 1, "bonus": 3},
+      {"qId": "q2", "answerValue": 2, "bonus": 2}
     ]
   },
   {
@@ -62,14 +68,15 @@
     "icon": "Layers",
     "roadmapKey": "devops",
     "field": "DevOps",
-    "weights": {"q1": 2, "q2": 1, "q3": 1, "q4": 2, "q5": 2, "q6": 3, "q7": 2, "q8": 2, "q9": 0, "q10": 3, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 2, "q2": 1, "q3": 1, "q4": 2, "q5": 2, "q6": 3, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q2", "answerValue": 3, "bonus": 2},
       {"qId": "q7", "answerValue": 3, "bonus": 3},
       {"qId": "q4", "answerValue": 3, "bonus": 2},
       {"qId": "q8", "answerValue": 3, "bonus": 1},
       {"qId": "q11", "answerValue": 3, "bonus": 3},
-      {"qId": "q13", "answerValue": 3, "bonus": 2}
+      {"qId": "q13", "answerValue": 3, "bonus": 2},
+      {"qId": "q17", "answerValue": 0, "bonus": 3}
     ]
   },
   {
@@ -80,14 +87,15 @@
     "icon": "Compass",
     "roadmapKey": "product-manager",
     "field": "Product Management",
-    "weights": {"q1": 0, "q2": 0, "q3": 2, "q4": 1, "q5": 3, "q6": 1, "q7": 0, "q8": 3, "q9": 1, "q10": 1, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 0, "q2": 0, "q3": 2, "q4": 1, "q5": 3, "q6": 1, "q7": 0, "q8": 3, "q9": 1, "q10": 1, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q5", "answerValue": 0, "bonus": 3},
       {"qId": "q8", "answerValue": 0, "bonus": 2},
       {"qId": "q12", "answerValue": 0, "bonus": 3},
       {"qId": "q12", "answerValue": 3, "bonus": 1},
       {"qId": "q4", "answerValue": 2, "bonus": 2},
-      {"qId": "q11", "answerValue": 2, "bonus": 1}
+      {"qId": "q11", "answerValue": 2, "bonus": 1},
+      {"qId": "q18", "answerValue": 1, "bonus": 3}
     ]
   },
   {
@@ -98,14 +106,16 @@
     "icon": "Pen",
     "roadmapKey": "ux-designer",
     "field": "UI / UX Design",
-    "weights": {"q1": 1, "q2": 0, "q3": 0, "q4": 1, "q5": 1, "q6": 1, "q7": 0, "q8": 1, "q9": 3, "q10": 1, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 1, "q2": 0, "q3": 0, "q4": 1, "q5": 1, "q6": 1, "q7": 0, "q8": 1, "q9": 3, "q10": 1, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q2", "answerValue": 0, "bonus": 3},
       {"qId": "q7", "answerValue": 0, "bonus": 3},
       {"qId": "q9", "answerValue": 3, "bonus": 2},
       {"qId": "q11", "answerValue": 0, "bonus": 1},
       {"qId": "q12", "answerValue": 1, "bonus": 3},
-      {"qId": "q13", "answerValue": 0, "bonus": 2}
+      {"qId": "q13", "answerValue": 0, "bonus": 2},
+      {"qId": "q14", "answerValue": 3, "bonus": 3},
+      {"qId": "q18", "answerValue": 2, "bonus": 1}
     ]
   },
   {
@@ -116,13 +126,14 @@
     "icon": "Code2",
     "roadmapKey": "fullstack",
     "field": "Full Stack Development",
-    "weights": {"q1": 3, "q2": 2, "q3": 1, "q4": 2, "q5": 2, "q6": 2, "q7": 3, "q8": 2, "q9": 1, "q10": 2, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 3, "q2": 2, "q3": 1, "q4": 2, "q5": 2, "q6": 2, "q7": 3, "q8": 2, "q9": 1, "q10": 2, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q4", "answerValue": 0, "bonus": 2},
       {"qId": "q7", "answerValue": 1, "bonus": 2},
       {"qId": "q11", "answerValue": 1, "bonus": 2},
       {"qId": "q12", "answerValue": 2, "bonus": 3},
-      {"qId": "q13", "answerValue": 1, "bonus": 2}
+      {"qId": "q13", "answerValue": 1, "bonus": 2},
+      {"qId": "q15", "answerValue": 0, "bonus": 3}
     ]
   },
   {
@@ -133,7 +144,7 @@
     "icon": "Smartphone",
     "roadmapKey": "mobile",
     "field": "Mobile Development",
-    "weights": {"q1": 3, "q2": 1, "q3": 0, "q4": 1, "q5": 2, "q6": 2, "q7": 2, "q8": 1, "q9": 2, "q10": 1, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 3, "q2": 1, "q3": 0, "q4": 1, "q5": 2, "q6": 2, "q7": 2, "q8": 1, "q9": 2, "q10": 1, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q2", "answerValue": 0, "bonus": 2},
       {"qId": "q4", "answerValue": 0, "bonus": 2},
@@ -141,7 +152,8 @@
       {"qId": "q10", "answerValue": 0, "bonus": 1},
       {"qId": "q11", "answerValue": 0, "bonus": 1},
       {"qId": "q12", "answerValue": 2, "bonus": 1},
-      {"qId": "q13", "answerValue": 0, "bonus": 1}
+      {"qId": "q13", "answerValue": 0, "bonus": 1},
+      {"qId": "q14", "answerValue": 1, "bonus": 3}
     ]
   },
   {
@@ -152,14 +164,15 @@
     "icon": "PieChart",
     "roadmapKey": "data-analyst",
     "field": "Data Analysis",
-    "weights": {"q1": 1, "q2": 2, "q3": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 1, "q2": 2, "q3": 3, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q1", "answerValue": 1, "bonus": 2},
       {"qId": "q4", "answerValue": 2, "bonus": 2},
       {"qId": "q6", "answerValue": 2, "bonus": 2},
       {"qId": "q11", "answerValue": 2, "bonus": 2},
       {"qId": "q12", "answerValue": 3, "bonus": 2},
-      {"qId": "q13", "answerValue": 2, "bonus": 2}
+      {"qId": "q13", "answerValue": 2, "bonus": 2},
+      {"qId": "q16", "answerValue": 0, "bonus": 3}
     ]
   },
   {
@@ -170,14 +183,15 @@
     "icon": "Brain",
     "roadmapKey": "machine-learning",
     "field": "Machine Learning",
-    "weights": {"q1": 3, "q2": 2, "q3": 3, "q4": 1, "q5": 1, "q6": 2, "q7": 3, "q8": 2, "q9": 0, "q10": 2, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 3, "q2": 2, "q3": 3, "q4": 1, "q5": 1, "q6": 2, "q7": 3, "q8": 2, "q9": 0, "q10": 2, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q1", "answerValue": 3, "bonus": 1},
       {"qId": "q3", "answerValue": 3, "bonus": 2},
       {"qId": "q7", "answerValue": 2, "bonus": 2},
       {"qId": "q11", "answerValue": 2, "bonus": 1},
       {"qId": "q12", "answerValue": 2, "bonus": 1},
-      {"qId": "q13", "answerValue": 1, "bonus": 2}
+      {"qId": "q13", "answerValue": 1, "bonus": 2},
+      {"qId": "q16", "answerValue": 2, "bonus": 3}
     ]
   },
   {
@@ -188,14 +202,15 @@
     "icon": "Sparkles",
     "roadmapKey": "ai-engineer",
     "field": "AI Engineering",
-    "weights": {"q1": 3, "q2": 2, "q3": 2, "q4": 2, "q5": 2, "q6": 2, "q7": 3, "q8": 2, "q9": 1, "q10": 2, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 3, "q2": 2, "q3": 2, "q4": 2, "q5": 2, "q6": 2, "q7": 3, "q8": 2, "q9": 1, "q10": 2, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q3", "answerValue": 2, "bonus": 2},
       {"qId": "q4", "answerValue": 0, "bonus": 1},
       {"qId": "q7", "answerValue": 2, "bonus": 1},
       {"qId": "q11", "answerValue": 2, "bonus": 1},
       {"qId": "q12", "answerValue": 2, "bonus": 2},
-      {"qId": "q13", "answerValue": 1, "bonus": 1}
+      {"qId": "q13", "answerValue": 1, "bonus": 1},
+      {"qId": "q16", "answerValue": 3, "bonus": 3}
     ]
   },
   {
@@ -206,13 +221,14 @@
     "icon": "ShieldCheck",
     "roadmapKey": "cyber-security",
     "field": "Cyber Security",
-    "weights": {"q1": 2, "q2": 2, "q3": 1, "q4": 3, "q5": 2, "q6": 2, "q7": 2, "q8": 3, "q9": 0, "q10": 3, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 2, "q2": 2, "q3": 1, "q4": 2, "q5": 2, "q6": 2, "q7": 2, "q8": 3, "q9": 0, "q10": 3, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q2", "answerValue": 3, "bonus": 1},
       {"qId": "q6", "answerValue": 1, "bonus": 2},
       {"qId": "q8", "answerValue": 3, "bonus": 3},
       {"qId": "q11", "answerValue": 3, "bonus": 2},
-      {"qId": "q13", "answerValue": 3, "bonus": 2}
+      {"qId": "q13", "answerValue": 3, "bonus": 2},
+      {"qId": "q17", "answerValue": 1, "bonus": 3}
     ]
   },
   {
@@ -223,14 +239,16 @@
     "icon": "Bug",
     "roadmapKey": "qa-engineer",
     "field": "QA / Software Testing",
-    "weights": {"q1": 2, "q2": 1, "q3": 1, "q4": 2, "q5": 1, "q6": 2, "q7": 1, "q8": 2, "q9": 1, "q10": 2, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 2, "q2": 1, "q3": 1, "q4": 2, "q5": 1, "q6": 2, "q7": 1, "q8": 2, "q9": 1, "q10": 2, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q4", "answerValue": 3, "bonus": 3},
       {"qId": "q6", "answerValue": 1, "bonus": 1},
       {"qId": "q8", "answerValue": 1, "bonus": 2},
       {"qId": "q11", "answerValue": 1, "bonus": 2},
       {"qId": "q12", "answerValue": 3, "bonus": 1},
-      {"qId": "q13", "answerValue": 3, "bonus": 2}
+      {"qId": "q13", "answerValue": 3, "bonus": 2},
+      {"qId": "q15", "answerValue": 2, "bonus": 3},
+      {"qId": "q17", "answerValue": 3, "bonus": 2}
     ]
   },
   {
@@ -241,14 +259,15 @@
     "icon": "Gamepad2",
     "roadmapKey": "game-dev",
     "field": "Game Development",
-    "weights": {"q1": 3, "q2": 1, "q3": 0, "q4": 1, "q5": 2, "q6": 2, "q7": 1, "q8": 1, "q9": 3, "q10": 1, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 3, "q2": 1, "q3": 0, "q4": 1, "q5": 2, "q6": 2, "q7": 1, "q8": 1, "q9": 3, "q10": 1, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q2", "answerValue": 1, "bonus": 1},
       {"qId": "q4", "answerValue": 0, "bonus": 2},
       {"qId": "q6", "answerValue": 1, "bonus": 2},
       {"qId": "q9", "answerValue": 3, "bonus": 2},
       {"qId": "q12", "answerValue": 2, "bonus": 1},
-      {"qId": "q13", "answerValue": 1, "bonus": 2}
+      {"qId": "q13", "answerValue": 1, "bonus": 2},
+      {"qId": "q14", "answerValue": 2, "bonus": 3}
     ]
   },
   {
@@ -259,12 +278,13 @@
     "icon": "FileText",
     "roadmapKey": "technical-writer",
     "field": "Technical Writing",
-    "weights": {"q1": 1, "q2": 0, "q3": 1, "q4": 2, "q5": 1, "q6": 1, "q7": 0, "q8": 1, "q9": 2, "q10": 1, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 1, "q2": 0, "q3": 1, "q4": 3, "q5": 1, "q6": 1, "q7": 0, "q8": 1, "q9": 2, "q10": 1, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q1", "answerValue": 1, "bonus": 2},
       {"qId": "q4", "answerValue": 2, "bonus": 3},
       {"qId": "q9", "answerValue": 2, "bonus": 2},
-      {"qId": "q12", "answerValue": 0, "bonus": 2}
+      {"qId": "q12", "answerValue": 0, "bonus": 2},
+      {"qId": "q18", "answerValue": 0, "bonus": 3}
     ]
   },
   {
@@ -275,14 +295,17 @@
     "icon": "Network",
     "roadmapKey": "software-architect",
     "field": "Software Architecture",
-    "weights": {"q1": 3, "q2": 2, "q3": 1, "q4": 3, "q5": 3, "q6": 3, "q7": 2, "q8": 2, "q9": 0, "q10": 3, "q11": 0, "q12": 0, "q13": 0},
+    "weights": {"q1": 2, "q2": 2, "q3": 1, "q4": 2, "q5": 3, "q6": 2, "q7": 2, "q8": 2, "q9": 0, "q10": 2, "q11": 0, "q12": 0, "q13": 0, "q14": 0, "q15": 0, "q16": 0, "q17": 0, "q18": 0},
     "bonuses": [
       {"qId": "q4", "answerValue": 1, "bonus": 1},
       {"qId": "q5", "answerValue": 3, "bonus": 2},
       {"qId": "q6", "answerValue": 3, "bonus": 3},
       {"qId": "q11", "answerValue": 3, "bonus": 2},
       {"qId": "q12", "answerValue": 0, "bonus": 1},
-      {"qId": "q13", "answerValue": 1, "bonus": 2}
+      {"qId": "q13", "answerValue": 1, "bonus": 2},
+      {"qId": "q15", "answerValue": 1, "bonus": 3},
+      {"qId": "q17", "answerValue": 2, "bonus": 2},
+      {"qId": "q18", "answerValue": 3, "bonus": 1}
     ]
   }
 ]
