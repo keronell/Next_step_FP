@@ -450,6 +450,10 @@ Notes:
         "winner": winner,
         "deployable": deployable,
         "deployable_reason": deployable_reason,
+        # Which dataset build this selection was computed on; export_model.py
+        # refuses to export against a different build so a regenerated
+        # train_features.parquet can't be paired with a stale selection.
+        "dataset_fingerprint": {"created_at": meta["created_at"], "n_rows": len(df)},
         "metrics": {k: v for k, v in results[winner].items() if k != "per_class"},
         "gbt_params_per_fold": gbt_params,
         "logistic_C_per_fold": log_params,

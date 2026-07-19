@@ -72,6 +72,17 @@ def main() -> None:
             "produces logistic only — reconcile the deployment selection (train_models.py) "
             "or build a serving path for that architecture before exporting."
         )
+    # The selection must have been computed on THIS dataset build — a stale
+    # gate2_winner.json paired with regenerated features would embed an obsolete
+    # winner and rationale in the artifact.
+    fingerprint = gate2.get("dataset_fingerprint", {})
+    current = {"created_at": meta["created_at"], "n_rows": len(df)}
+    if fingerprint != current:
+        raise SystemExit(
+            f"gate2_winner.json was produced for a different dataset build "
+            f"({fingerprint or 'no fingerprint recorded'} vs current {current}) — "
+            "rerun train_models.py (Phase 3) on the current train_features.parquet first."
+        )
 
     X = df[feature_names].to_numpy(dtype=float)
     y = df["label_top1"].map({c: i for i, c in enumerate(careers)}).to_numpy()

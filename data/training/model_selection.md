@@ -5,7 +5,7 @@
 > out-of-fold predictions — prototype-grade; redo on gold labels before trusting
 > displayed percentages.
 
-Generated: 2026-07-19T04:11:43Z
+Generated: 2026-07-19T14:34:54Z
 Dataset: 232 rows, feature `features-v4`, seed 42,
 outer 5-fold stratified CV (same folds as Phase 2).
 Phase 2 reference (recomputed on THIS dataset, not hardcoded from a previous run):
