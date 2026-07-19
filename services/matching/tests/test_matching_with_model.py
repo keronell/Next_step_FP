@@ -71,6 +71,51 @@ def test_model_path_handles_missing_market_data():
         assert r["matched_skills"] == []
 
 
+# ---------------------------------------------------------------- caveat propagation
+# The artifact's caveats are embedded per recommendation, because /internal/match
+# is the only thing questionnaire-service sees — it derives its response-level
+# field from these recs, and the persisted jsonb keeps them attached.
+def _match(client):
+    resp = client.post("/internal/match", json={"answers": {"q1": 1}})
+    assert resp.status_code == 200
+    return resp.json()["recommendations"]
+
+
+def test_match_embeds_model_caveats_when_model_scores(client_with_repo):
+    from app.main import app
+
+    model = make_model("frontend")
+    model.caveats = ["caveat one", "caveat two"]
+    app.state.matcher_model = model
+    try:
+        recs = _match(client_with_repo)
+        assert all(r["model_caveats"] == ["caveat one", "caveat two"] for r in recs)
+        assert recs[0]["model_version"] == "test-model-v0"
+    finally:
+        app.state.matcher_model = None
+
+
+def test_match_formula_recs_carry_empty_caveats(client_with_repo):
+    recs = _match(client_with_repo)
+    assert all(r["model_caveats"] == [] for r in recs)
+    assert recs[0]["model_version"] == FORMULA_VERSION
+
+
+def test_match_model_error_fallback_drops_caveats(client_with_repo):
+    from app.main import app
+
+    model = make_model()
+    model.caveats = ["should not surface"]
+    model.feature_names = ["wrong"]  # forces fallback to the formula mid-request
+    app.state.matcher_model = model
+    try:
+        recs = _match(client_with_repo)
+        assert all(r["model_caveats"] == [] for r in recs)
+        assert recs[0]["model_version"] == FORMULA_VERSION
+    finally:
+        app.state.matcher_model = None
+
+
 def test_model_path_dedupes_candidates():
     frontend = CAREERS[0]
     cands = candidates() + [CareerCandidate(frontend, 0.9, Counter())]

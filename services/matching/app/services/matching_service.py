@@ -176,6 +176,10 @@ def _match_model(
                 "matched_skills": matched,
                 "missing_skills": missing,
                 "model_version": model.version,
+                # Embedded per-recommendation (not only response-level) so the
+                # persisted jsonb and the history restore path carry the artifact's
+                # training-data warnings wherever these recs travel.
+                "model_caveats": model.caveats,
             }
         )
     return results
@@ -223,6 +227,7 @@ def _match_formula(answers: dict[str, int | None], candidates: list[CareerCandid
                 "matched_skills": matched,
                 "missing_skills": missing,
                 "model_version": FORMULA_VERSION,
+                "model_caveats": [],  # formula path: no learned-model warnings
             }
         )
 

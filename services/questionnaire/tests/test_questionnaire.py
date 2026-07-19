@@ -46,12 +46,26 @@ def test_submit_returns_matching_result(client, valid_answers, matching_ok, pers
     assert r.status_code == 200
     body = r.json()
     assert body["recommendations"][0]["id"] == "frontend"
+    assert body["model_caveats"] == []  # CANNED_RECS are formula-scored
     assert matching_ok == [valid_answers]
     assert len(persisted) == 1
     assert persisted[0]["request_id"] == body["request_id"]
     assert persisted[0]["session_id"] == "sess-1"
     assert persisted[0]["user_id"] is None  # anonymous (auth-service not consulted)
     assert persisted[0]["created_at"]  # minted in the handler
+
+
+def test_submit_derives_response_caveats_from_model_scored_recs(
+    client, valid_answers, persisted, monkeypatch
+):
+    """The response-level model_caveats field mirrors what matching-service embedded
+    per recommendation — this service has no model object of its own."""
+    model_recs = [dict(CANNED_RECS[0], model_version="matcher-logistic-v2",
+                       model_caveats=["warning one", "warning two"])]
+    monkeypatch.setattr(q_routes, "match_remote", lambda answers: model_recs)
+    r = client.post("/api/questionnaire/submit", json={"answers": valid_answers})
+    assert r.status_code == 200
+    assert r.json()["model_caveats"] == ["warning one", "warning two"]
 
 
 def test_submit_propagates_matching_unavailable_503(client, valid_answers, monkeypatch):

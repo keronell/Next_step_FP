@@ -34,7 +34,7 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from dataset_guards import assert_min_class_coverage
+from dataset_guards import assert_min_class_coverage, dataset_digest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -327,6 +327,25 @@ def train_two_tower_fold(Xtr, ytr, Xte, arch_mat, n_classes):
 # ---------------------------------------------------------------- main
 def main() -> None:
     df, X, y, soft, careers, arch_mat, meta = load_data()
+
+    # Prerequisites FIRST — a stale or out-of-order pipeline run must fail here,
+    # not after nested CV and the neural challengers have burned minutes of work.
+    digest = dataset_digest(df, meta["feature_names"])
+    gate1_path = TRAINING_DIR / "gate1_verdict.json"
+    if not gate1_path.exists():
+        raise SystemExit(f"{gate1_path} not found — run evaluate_matchers.py (Phase 2) first.")
+    gate1 = json.loads(gate1_path.read_text(encoding="utf-8"))
+    if gate1.get("dataset_digest") != digest:
+        raise SystemExit(
+            "gate1_verdict.json was computed on a different dataset build — rerun "
+            "evaluate_matchers.py (Phase 2) on the current train_features.parquet first."
+        )
+    # Gate-1 qualifier names are the Phase-2 default-config scorers; "logistic"
+    # qualifying makes the logistic ARCHITECTURE a deployment candidate. The
+    # exact hyperparameter configuration that ships is revalidated against the
+    # Gate-1 thresholds by export_model.py — qualification does not transfer
+    # across configurations unchecked.
+    logistic_qualified = "logistic" in gate1.get("qualifiers", [])
     n_classes = len(careers)
     outer = StratifiedKFold(N_FOLDS, shuffle=True, random_state=SEED)
 
@@ -366,6 +385,36 @@ def main() -> None:
     contenders = [n for n, r in results.items() if best_top2 - r["top2"] <= 0.01]
     winner = min(contenders, key=lambda n: results[n]["ece_scaled"])
 
+    # Deployment selection, explicit: the serving path (matcher_model.py) is
+    # dependency-free LINEAR inference with exact attribution, so only logistic is
+    # deployable — and only if it QUALIFIED under Gate 1 (calibration + stability;
+    # verified up front, right after load_data). A model the gate rejected must
+    # never become deployable just because the Gate-2 winner has no serving path;
+    # export refuses when deployable is null.
+    if winner == "logistic_tuned" and logistic_qualified:
+        deployable = "logistic_tuned"
+        deployable_reason = "gate2 winner is servable and Gate-1-qualified"
+    elif logistic_qualified:
+        deployable = "logistic_tuned"
+        deployable_reason = (
+            f"gate2 winner '{winner}' has no serving path (matcher_model.py is linear-only "
+            "with exact attribution — the Phase-4 explainability requirement); logistic is "
+            "the Gate-1-qualified deployable selection"
+        )
+    else:
+        deployable = None
+        deployable_reason = (
+            "no servable model qualified under Gate 1 "
+            f"(qualifiers={gate1.get('qualifiers', [])}, servable=logistic only) — "
+            "nothing is deployable; export_model.py will refuse"
+        )
+
+    # Phase-2 reference recomputed on THIS dataset (a hardcoded copy of a previous
+    # run's numbers silently went stale when the dataset was regenerated).
+    from evaluate_matchers import formula_scores
+    f_order = np.argsort(-formula_scores(df, careers), axis=1)
+    formula_top2_ref = float(np.mean([y[i] in f_order[i, :2] for i in range(len(y))]))
+
     def fmt(name, m):
         return (f"| {name} | {m['top1']:.3f} | {m['top2']:.3f} | {m['top3']:.3f} | "
                 f"{m['mrr']:.3f} | {m['balanced_top1']:.3f} | {m['ece_raw']:.3f} | "
@@ -386,8 +435,9 @@ def main() -> None:
 Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 Dataset: {len(df)} rows, feature `{meta["feature_version"]}`, seed {SEED},
 outer {N_FOLDS}-fold stratified CV (same folds as Phase 2).
-Phase 2 references: formula top-2 0.668; logistic (default) top-2 0.932; lightgbm
-(default) top-2 0.927.
+Phase 2 reference (recomputed on THIS dataset, not hardcoded from a previous run):
+production-formula top-2 agreement {formula_top2_ref:.3f}; full Phase-2 comparison
+in baseline_evaluation.md.
 
 ## Comparison (pooled out-of-fold)
 
@@ -412,6 +462,13 @@ Chosen hyperparameters per outer fold:
 scaling {results[winner]["ece_scaled"]:.3f} (T={results[winner]["temperature"]:.2f}).
 Selection rule: highest top-2; ties within 0.01 broken by scaled ECE.
 
+## Deployment selection
+
+**Deployable winner: `{deployable or "NONE"}`** — {deployable_reason}.
+export_model.py refuses to export unless this names the architecture it produces
+(and refuses outright when it is NONE), so the served artifact and this report
+cannot silently disagree — and a Gate-1-rejected model can never ship.
+
 Notes:
 - The soft-target NN consumes the panel vote distribution (top1=1.0, top2={TOP2_VOTE_WEIGHT});
   the other models train on hard consensus labels with class weights.
@@ -421,6 +478,16 @@ Notes:
     OUT_MD.write_text(report, encoding="utf-8")
     OUT_WINNER.write_text(json.dumps({
         "winner": winner,
+        "deployable": deployable,
+        "deployable_reason": deployable_reason,
+        # Which dataset build this selection was computed on; export_model.py
+        # refuses to export against a different build so a regenerated (or
+        # hand-edited) train_features.parquet can't be paired with a stale
+        # selection. The digest hashes the actual features+labels content —
+        # sidecar metadata alone can't detect a replaced table.
+        "dataset_digest": digest,
+        "dataset_fingerprint": {"created_at": meta["created_at"], "n_rows": len(df)},
+        "gate1": {"passed": gate1["passed"], "qualifiers": gate1.get("qualifiers", [])},
         "metrics": {k: v for k, v in results[winner].items() if k != "per_class"},
         "gbt_params_per_fold": gbt_params,
         "logistic_C_per_fold": log_params,

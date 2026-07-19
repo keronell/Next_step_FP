@@ -28,14 +28,30 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "services"))
 sys.path.insert(0, str(REPO_ROOT / "services" / "matching"))
 
+from dataset_guards import dataset_caveats, dataset_digest  # noqa: E402
+
 from app.services.feature_builder import FEATURE_VERSION  # noqa: E402
 
 TRAINING_DIR = REPO_ROOT / "data" / "training"
-OUT_PATH = REPO_ROOT / "data" / "models" / "matcher_logistic_v1.json"
+OUT_PATH = REPO_ROOT / "data" / "models" / "matcher_logistic_v2.json"
 
 SEED = 42
 C_GRID = [0.05, 0.25, 1.0, 4.0]
-MODEL_VERSION = "matcher-logistic-v1"
+MODEL_VERSION = "matcher-logistic-v2"
+
+
+def build_caveats(df: pd.DataFrame, careers: list[str]) -> list[str]:
+    """Caveats travel INSIDE the artifact so every consumer of the model's results
+    sees them. The circularity caveat is a property of the labeling protocol; the
+    class-balance ones come from dataset_guards.dataset_caveats (shared with the
+    Phase-2 report) so a rerun on refreshed data embeds its own counts."""
+    return [
+        "Labels are bank-consistent, not independently validated: silver labels come "
+        "from an LLM panel whose stage-2 vote follows the answer key derived from "
+        "careers.json bonuses ~94% of the time it speaks. Panel-agreement metrics "
+        "measure fidelity to the hand-authored bonus table, not real-world accuracy.",
+        *dataset_caveats(df["label_top1"], careers),
+    ]
 
 
 def main() -> None:
@@ -45,6 +61,38 @@ def main() -> None:
     careers = [n[: -len("_fit")] for n in feature_names if n.endswith("_fit")]
     if meta["feature_version"] != FEATURE_VERSION:
         raise SystemExit("dataset feature_version != code FEATURE_VERSION — rebuild the dataset")
+
+    # This exporter produces logistic-regression artifacts only (the serving path
+    # is linear). Require Phase 3's explicit deployment selection to agree, so the
+    # published artifact can never silently diverge from the selection report.
+    gate2_path = TRAINING_DIR / "gate2_winner.json"
+    if not gate2_path.exists():
+        raise SystemExit(f"{gate2_path} not found — run train_models.py (Phase 3) first.")
+    gate2 = json.loads(gate2_path.read_text(encoding="utf-8"))
+    if gate2.get("deployable") is None:
+        raise SystemExit(
+            "gate2_winner.json records no deployable model — no servable architecture "
+            f"qualified under Gate 1 ({gate2.get('gate1')}); nothing may be exported. "
+            f"Reason recorded: {gate2.get('deployable_reason')!r}"
+        )
+    if gate2.get("deployable") != "logistic_tuned":
+        raise SystemExit(
+            f"gate2_winner.json deployable={gate2.get('deployable')!r} but this exporter "
+            "produces logistic only — reconcile the deployment selection (train_models.py) "
+            "or build a serving path for that architecture before exporting."
+        )
+    # The selection must have been computed on THIS dataset content — the digest
+    # hashes the loaded features+labels, so a regenerated OR hand-edited
+    # train_features.parquet (even with an unchanged row count and stale sidecar
+    # metadata) cannot be paired with an obsolete selection.
+    current_digest = dataset_digest(df, feature_names)
+    if gate2.get("dataset_digest") != current_digest:
+        raise SystemExit(
+            "gate2_winner.json was produced for different dataset content "
+            f"(digest {gate2.get('dataset_digest')!r} vs current {current_digest!r}) — "
+            "rerun evaluate_matchers.py and train_models.py on the current "
+            "train_features.parquet first."
+        )
 
     X = df[feature_names].to_numpy(dtype=float)
     y = df["label_top1"].map({c: i for i, c in enumerate(careers)}).to_numpy()
@@ -64,6 +112,33 @@ def main() -> None:
     best_c = max(scores, key=scores.get)
     print("C grid top-2:", scores, "-> chosen C =", best_c)
 
+    # Gate-1 qualification was measured on the Phase-2 default configuration and
+    # does NOT transfer across hyperparameters: calibration and stability depend
+    # on C. Revalidate the EXACT configuration being exported, same protocol and
+    # thresholds, and refuse to ship one the gate would reject.
+    from evaluate_matchers import (  # noqa: E402  (sibling script, sys.path[0])
+        GATE1_MAX_ECE, GATE1_MIN_TOP2_STABILITY, cv_oof_and_stability, rank_metrics,
+    )
+
+    def exported_config():
+        return make_pipeline(
+            StandardScaler(),
+            LogisticRegression(C=best_c, max_iter=5000, class_weight="balanced", random_state=SEED),
+        )
+
+    oof, config_stability = cv_oof_and_stability(X, y, exported_config, len(careers))
+    config_ece = rank_metrics(oof, y, oof, len(careers))["ece"]
+    if config_ece > GATE1_MAX_ECE or config_stability < GATE1_MIN_TOP2_STABILITY:
+        raise SystemExit(
+            f"exported configuration C={best_c} violates the Gate-1 thresholds "
+            f"(ECE {config_ece:.3f} vs <= {GATE1_MAX_ECE}, top-2 stability "
+            f"{config_stability:.3f} vs >= {GATE1_MIN_TOP2_STABILITY}) — Gate-1 "
+            "qualification does not transfer between configurations; adjust the C "
+            "grid or revisit the gate before exporting."
+        )
+    print(f"exported config C={best_c}: ECE {config_ece:.3f}, "
+          f"top-2 stability {config_stability:.3f} — Gate-1 thresholds satisfied")
+
     pipe = make_pipeline(
         StandardScaler(),
         LogisticRegression(C=best_c, max_iter=5000, class_weight="balanced", random_state=SEED),
@@ -82,10 +157,27 @@ def main() -> None:
         "coef": clf.coef_.tolist(),
         "intercept": clf.intercept_.tolist(),
         "temperature": 1.0,  # Gate 2: raw probabilities were best-calibrated
-        "label_source": "synthetic_llm",
+        "label_source": "synthetic_llm (bank-consistent silver labels; see caveats)",
+        "caveats": build_caveats(df, careers),
+        "selection": {
+            "gate2_winner": gate2["winner"],
+            "deployable": gate2["deployable"],
+            "reason": gate2["deployable_reason"],
+            "gate1": gate2.get("gate1"),
+            # Gate-1 metrics recomputed for the exact exported configuration —
+            # not inherited from the Phase-2 default config.
+            "exported_config_gate1": {
+                "C": best_c,
+                "ece": round(config_ece, 4),
+                "top2_stability": round(config_stability, 4),
+                "thresholds": {"max_ece": GATE1_MAX_ECE,
+                               "min_top2_stability": GATE1_MIN_TOP2_STABILITY},
+            },
+        },
         "training": {
             "n_rows": len(df),
-            "rows_by_label": df["label_top1"].value_counts().to_dict(),
+            "dataset_digest": current_digest,
+            "rows_by_label": {k: int(v) for k, v in df["label_top1"].value_counts().to_dict().items()},
             "C": best_c,
             "cv_top2_by_C": scores,
             "class_weight": "balanced",

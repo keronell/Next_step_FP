@@ -32,8 +32,15 @@ def submit(
     recommendations = match_remote(submission.answers)  # 503 when matching is down
     logger.info("Submission %s: returning %d recommendations", request_id, len(recommendations))
 
+    # Surface the artifact's training-data caveats at response level as well.
+    # matching-service embeds them per recommendation (empty for the formula
+    # path, including its model-error fallback), so this service derives the
+    # field from the payload — it has no model object of its own to consult.
+    model_caveats = recommendations[0].get("model_caveats", []) if recommendations else []
+
     # created_at minted HERE (see monolith questionnaire.py rationale: marker
     # time bounds compare against it, a late background mint would skew them).
+    # Best-effort persistence after the response is sent (never blocks the user).
     background_tasks.add_task(
         save_submission,
         request_id,
@@ -44,7 +51,9 @@ def submit(
         datetime.now(timezone.utc).isoformat(),
     )
 
-    return RecommendationsResponse(request_id=request_id, recommendations=recommendations)
+    return RecommendationsResponse(
+        request_id=request_id, recommendations=recommendations, model_caveats=model_caveats
+    )
 
 
 @router.post("/select")

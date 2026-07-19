@@ -32,6 +32,15 @@ class MatcherModel:
         self.intercept: list[float] = artifact["intercept"]      # (n_careers,)
         self.version: str = artifact.get("model_version", "unknown")
         self.label_source: str = artifact.get("label_source", "unknown")
+        # Training-data provenance warnings; surfaced on every response the model
+        # scores (the artifact's label_source says "see caveats" — this is where
+        # consumers actually receive them). Validated here so a malformed value
+        # fails at LOAD time (formula fallback engages) rather than surviving until
+        # response serialization rejects it mid-request.
+        caveats = artifact.get("caveats", [])
+        if not isinstance(caveats, list) or not all(isinstance(c, str) for c in caveats):
+            raise MatcherModelError("artifact caveats must be a list of strings")
+        self.caveats: list[str] = caveats
 
         n_f, n_c = len(self.feature_names), len(self.careers)
         if artifact.get("feature_version") != FEATURE_VERSION:

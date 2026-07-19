@@ -39,6 +39,19 @@ function Results({ phase, results, notice, onRetry, onSelectCareer, selectedCare
               Showing an offline estimate — the recommendation service is currently unavailable.
             </p>
           )}
+          {/* Caveats travel on each rec (so saved history keeps them); shown once. */}
+          {results?.[0]?.model_caveats?.length > 0 && (
+            <details className="mt-4 max-w-xl mx-auto text-center font-body text-small text-navy/55">
+              <summary className="cursor-pointer select-none">
+                These matches come from an experimental model — tap for what that means
+              </summary>
+              <ul className="mt-3 text-left list-disc pl-5 space-y-2">
+                {results[0].model_caveats.map((caveat) => (
+                  <li key={caveat}>{caveat}</li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
 
         {isEmpty ? (

@@ -49,6 +49,23 @@ def test_shape_mismatch_raises():
         MatcherModel(tiny_artifact(intercept=[0.0]))
 
 
+def test_caveats_default_to_empty_list():
+    assert MatcherModel(tiny_artifact()).caveats == []
+
+
+def test_valid_caveats_are_kept():
+    model = MatcherModel(tiny_artifact(caveats=["warning one", "warning two"]))
+    assert model.caveats == ["warning one", "warning two"]
+
+
+@pytest.mark.parametrize("bad", ["a bare string", ["ok", 42], {"not": "a list"}, 7])
+def test_malformed_caveats_fail_at_load(bad):
+    # Must fail HERE (load time -> formula fallback engages), never mid-request
+    # when response serialization rejects a non-string entry.
+    with pytest.raises(MatcherModelError):
+        MatcherModel(tiny_artifact(caveats=bad))
+
+
 def test_predict_proba_sums_to_one_and_ranks_fit():
     model = MatcherModel(tiny_artifact())
     vec = [0.0] * len(NAMES)
