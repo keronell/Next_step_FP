@@ -1690,6 +1690,15 @@
       "qualifiers": [
         "logistic"
       ]
+    },
+    "exported_config_gate1": {
+      "C": 1.0,
+      "ece": 0.0341,
+      "top2_stability": 0.6375,
+      "thresholds": {
+        "max_ece": 0.1,
+        "min_top2_stability": 0.6
+      }
     }
   },
   "training": {
@@ -1734,6 +1743,6 @@
     "silver_prompt_versions": [
       "panel-v2.1.0"
     ],
-    "trained_at": "2026-07-19T16:03:57.282831+00:00"
+    "trained_at": "2026-07-19T16:36:39.315105+00:00"
   }
 }

@@ -341,7 +341,10 @@ def main() -> None:
             "evaluate_matchers.py (Phase 2) on the current train_features.parquet first."
         )
     # Gate-1 qualifier names are the Phase-2 default-config scorers; "logistic"
-    # is the qualifier corresponding to the servable logistic_tuned architecture.
+    # qualifying makes the logistic ARCHITECTURE a deployment candidate. The
+    # exact hyperparameter configuration that ships is revalidated against the
+    # Gate-1 thresholds by export_model.py — qualification does not transfer
+    # across configurations unchecked.
     logistic_qualified = "logistic" in gate1.get("qualifiers", [])
     n_classes = len(careers)
     outer = StratifiedKFold(N_FOLDS, shuffle=True, random_state=SEED)

@@ -112,6 +112,33 @@ def main() -> None:
     best_c = max(scores, key=scores.get)
     print("C grid top-2:", scores, "-> chosen C =", best_c)
 
+    # Gate-1 qualification was measured on the Phase-2 default configuration and
+    # does NOT transfer across hyperparameters: calibration and stability depend
+    # on C. Revalidate the EXACT configuration being exported, same protocol and
+    # thresholds, and refuse to ship one the gate would reject.
+    from evaluate_matchers import (  # noqa: E402  (sibling script, sys.path[0])
+        GATE1_MAX_ECE, GATE1_MIN_TOP2_STABILITY, cv_oof_and_stability, rank_metrics,
+    )
+
+    def exported_config():
+        return make_pipeline(
+            StandardScaler(),
+            LogisticRegression(C=best_c, max_iter=5000, class_weight="balanced", random_state=SEED),
+        )
+
+    oof, config_stability = cv_oof_and_stability(X, y, exported_config, len(careers))
+    config_ece = rank_metrics(oof, y, oof, len(careers))["ece"]
+    if config_ece > GATE1_MAX_ECE or config_stability < GATE1_MIN_TOP2_STABILITY:
+        raise SystemExit(
+            f"exported configuration C={best_c} violates the Gate-1 thresholds "
+            f"(ECE {config_ece:.3f} vs <= {GATE1_MAX_ECE}, top-2 stability "
+            f"{config_stability:.3f} vs >= {GATE1_MIN_TOP2_STABILITY}) — Gate-1 "
+            "qualification does not transfer between configurations; adjust the C "
+            "grid or revisit the gate before exporting."
+        )
+    print(f"exported config C={best_c}: ECE {config_ece:.3f}, "
+          f"top-2 stability {config_stability:.3f} — Gate-1 thresholds satisfied")
+
     pipe = make_pipeline(
         StandardScaler(),
         LogisticRegression(C=best_c, max_iter=5000, class_weight="balanced", random_state=SEED),
@@ -137,6 +164,15 @@ def main() -> None:
             "deployable": gate2["deployable"],
             "reason": gate2["deployable_reason"],
             "gate1": gate2.get("gate1"),
+            # Gate-1 metrics recomputed for the exact exported configuration —
+            # not inherited from the Phase-2 default config.
+            "exported_config_gate1": {
+                "C": best_c,
+                "ece": round(config_ece, 4),
+                "top2_stability": round(config_stability, 4),
+                "thresholds": {"max_ece": GATE1_MAX_ECE,
+                               "min_top2_stability": GATE1_MIN_TOP2_STABILITY},
+            },
         },
         "training": {
             "n_rows": len(df),

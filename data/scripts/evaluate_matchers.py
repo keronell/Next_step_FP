@@ -146,6 +146,36 @@ def rank_metrics(scores: np.ndarray, y_idx: np.ndarray, probs: np.ndarray, n_cla
             "balanced_top1": balanced, "ece": float(ece), "per_class": per_class}
 
 
+INNER_SPLITS = 3  # stability sub-splits; floor class has ~4 members per outer training partition
+
+
+def cv_oof_and_stability(X, y, estimator_factory, n_classes):
+    """Pooled OOF probabilities + leakage-free top-2 stability for ONE trained
+    scorer configuration. Stability sub-models train on inner resamples of each
+    outer training partition and are compared only on that fold's test rows.
+    Shared with export_model.py, which revalidates the EXACT exported
+    hyperparameter configuration against the Gate-1 thresholds — qualification
+    never transfers between configurations unchecked."""
+    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
+    oof = np.zeros((len(y), n_classes))
+    pair_scores: list[float] = []
+    for tr_idx, te_idx in skf.split(X, y):
+        oof[te_idx] = estimator_factory().fit(X[tr_idx], y[tr_idx]).predict_proba(X[te_idx])
+        inner = StratifiedKFold(n_splits=INNER_SPLITS, shuffle=True, random_state=SEED)
+        sub_top2 = []
+        for sub_tr, _ in inner.split(X[tr_idx], y[tr_idx]):
+            idx = tr_idx[sub_tr]
+            sub = estimator_factory().fit(X[idx], y[idx])
+            sub_top2.append(np.argsort(-sub.predict_proba(X[te_idx]), axis=1)[:, :2])
+        for i in range(len(sub_top2)):
+            for j in range(i + 1, len(sub_top2)):
+                a, b = sub_top2[i], sub_top2[j]
+                inter = np.array([len(set(a[r]) & set(b[r])) for r in range(len(a))], dtype=float)
+                union = np.array([len(set(a[r]) | set(b[r])) for r in range(len(a))], dtype=float)
+                pair_scores.append(float((inter / union).mean()))
+    return oof, float(np.mean(pair_scores))
+
+
 def make_logistic():
     return make_pipeline(
         StandardScaler(),
@@ -196,46 +226,14 @@ def main() -> None:
         "archetype_nn": archetype_scores(df, careers),
     }
 
-    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
-    # Out-of-fold predictions pooled across folds, one array per scorer.
-    oof_scores = {name: np.zeros((len(df), n_classes)) for name in
-                  ["formula", "archetype_nn", "logistic", "lightgbm"]}
-    # Stability sub-model top-2 sets, collected per outer fold on that fold's TEST
-    # rows only: sub-models are trained on inner resamples of the outer training
-    # partition, so the rows they're compared on are unseen by every sub-model —
-    # predicting over all rows would let shared training rows inflate agreement.
-    INNER_SPLITS = 3  # floor class has ~4 members inside an outer training partition
-    stability_pairs = {"logistic": [], "lightgbm": []}
-
-    for tr_idx, te_idx in skf.split(X, y):
-        for name, s in static_scores.items():
-            oof_scores[name][te_idx] = s[te_idx]
-
-        logit = make_logistic().fit(X[tr_idx], y[tr_idx])
-        oof_scores["logistic"][te_idx] = logit.predict_proba(X[te_idx])
-
-        gbm = make_lightgbm().fit(X[tr_idx], y[tr_idx])
-        oof_scores["lightgbm"][te_idx] = gbm.predict_proba(X[te_idx])
-
-        inner = StratifiedKFold(n_splits=INNER_SPLITS, shuffle=True, random_state=SEED)
-        sub_top2 = {"logistic": [], "lightgbm": []}
-        for sub_tr, _ in inner.split(X[tr_idx], y[tr_idx]):
-            idx = tr_idx[sub_tr]
-            sub_logit = make_logistic().fit(X[idx], y[idx])
-            sub_top2["logistic"].append(np.argsort(-sub_logit.predict_proba(X[te_idx]), axis=1)[:, :2])
-            sub_gbm = make_lightgbm().fit(X[idx], y[idx])
-            sub_top2["lightgbm"].append(np.argsort(-sub_gbm.predict_proba(X[te_idx]), axis=1)[:, :2])
-        for name, preds in sub_top2.items():
-            for i in range(len(preds)):
-                for j in range(i + 1, len(preds)):
-                    a, b = preds[i], preds[j]
-                    inter = np.array([len(set(a[r]) & set(b[r])) for r in range(len(a))], dtype=float)
-                    union = np.array([len(set(a[r]) | set(b[r])) for r in range(len(a))], dtype=float)
-                    stability_pairs[name].append(float((inter / union).mean()))
-
-    # Mean pairwise Jaccard of top-2 sets across inner sub-models, evaluated only on
-    # rows unseen by all of them, averaged over outer folds.
-    stability = {name: float(np.mean(vals)) for name, vals in stability_pairs.items()}
+    # Static scorers are training-free: their full score matrices ARE the
+    # out-of-fold predictions. Trained scorers go through the shared CV helper
+    # (identical folds via the fixed seed), which also measures leakage-free
+    # top-2 stability.
+    oof_scores = {name: s.copy() for name, s in static_scores.items()}
+    stability = {}
+    oof_scores["logistic"], stability["logistic"] = cv_oof_and_stability(X, y, make_logistic, n_classes)
+    oof_scores["lightgbm"], stability["lightgbm"] = cv_oof_and_stability(X, y, make_lightgbm, n_classes)
 
     results = {}
     for name, s in oof_scores.items():
