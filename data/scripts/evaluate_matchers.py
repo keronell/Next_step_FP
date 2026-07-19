@@ -163,6 +163,28 @@ def make_lightgbm():
 
 def main() -> None:
     df, feature_names, careers, meta = load_data()
+
+    # Prerequisite FIRST — silver labels must describe the SAME population the
+    # metrics will be computed on. If Phase 0 regenerated silver_labels.parquet
+    # without a Phase-1 rebuild, fail here, before the full CV workload runs.
+    silver = pd.read_parquet(TRAINING_DIR / "silver_labels.parquet")
+    aligned = df[["profile_id", "label_top1"]].merge(
+        silver[["profile_id", "label_top1", "heuristic_fit_top1"]],
+        on="profile_id", how="left", suffixes=("", "_silver"),
+    )
+    if aligned["label_top1_silver"].isna().any() or \
+            (aligned["label_top1"] != aligned["label_top1_silver"]).any():
+        raise SystemExit(
+            "train_features.parquet does not match silver_labels.parquet (profile "
+            "ids or labels diverge) — Phase 0 was regenerated without rebuilding "
+            "Phase 1; run build_training_set.py first."
+        )
+    # heuristic_fit_top1 is the questionnaire-only answer-key winner (no semantic/
+    # skill signals) — distinct from the production formula. Prompt versions come
+    # from the evaluated table itself, not the silver file.
+    heuristic_agree = float((aligned["label_top1"] == aligned["heuristic_fit_top1"]).mean())
+    prompt_versions = sorted(df["prompt_version"].unique().tolist())
+
     X = df[feature_names].to_numpy(dtype=float)
     label_to_idx = {c: i for i, c in enumerate(careers)}
     y = df["label_top1"].map(label_to_idx).to_numpy()
@@ -238,29 +260,8 @@ def main() -> None:
         name: {careers[c]: float((np.argsort(-s, axis=1)[:, 0] == c).mean()) for c in range(n_classes)}
         for name, s in oof_scores.items()
     }
-    # Silver labels are only used for the heuristic-agreement caveat — but they
-    # must describe the SAME population the metrics were computed on. If Phase 0
-    # regenerated silver_labels.parquet without a Phase-1 rebuild, refuse rather
-    # than report provenance for rows that were never evaluated.
-    silver = pd.read_parquet(TRAINING_DIR / "silver_labels.parquet")
-    aligned = df[["profile_id", "label_top1"]].merge(
-        silver[["profile_id", "label_top1", "heuristic_fit_top1"]],
-        on="profile_id", how="left", suffixes=("", "_silver"),
-    )
-    if aligned["label_top1_silver"].isna().any() or \
-            (aligned["label_top1"] != aligned["label_top1_silver"]).any():
-        raise SystemExit(
-            "train_features.parquet does not match silver_labels.parquet (profile "
-            "ids or labels diverge) — Phase 0 was regenerated without rebuilding "
-            "Phase 1; run build_training_set.py first."
-        )
-    # heuristic_fit_top1 is the questionnaire-only answer-key winner (no semantic/
-    # skill signals) — distinct from the production formula, whose agreement is
-    # results["formula"]["top1"]. Label both precisely; conflating them overstated
-    # "formula agreement" in earlier reports.
-    heuristic_agree = float((aligned["label_top1"] == aligned["heuristic_fit_top1"]).mean())
-    # Prompt versions come from the evaluated table itself, not the silver file.
-    prompt_versions = sorted(df["prompt_version"].unique().tolist())
+    # (silver alignment, heuristic_agree, and prompt_versions are computed up
+    # front, right after load_data — stale inputs fail before the CV workload.)
 
     # Gate 1 (reframed): calibration + top-2 recommendation stability. The gate is
     # existential — it passes if ANY learned model clears both thresholds; the

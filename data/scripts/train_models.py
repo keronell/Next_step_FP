@@ -327,6 +327,22 @@ def train_two_tower_fold(Xtr, ytr, Xte, arch_mat, n_classes):
 # ---------------------------------------------------------------- main
 def main() -> None:
     df, X, y, soft, careers, arch_mat, meta = load_data()
+
+    # Prerequisites FIRST — a stale or out-of-order pipeline run must fail here,
+    # not after nested CV and the neural challengers have burned minutes of work.
+    digest = dataset_digest(df, meta["feature_names"])
+    gate1_path = TRAINING_DIR / "gate1_verdict.json"
+    if not gate1_path.exists():
+        raise SystemExit(f"{gate1_path} not found — run evaluate_matchers.py (Phase 2) first.")
+    gate1 = json.loads(gate1_path.read_text(encoding="utf-8"))
+    if gate1.get("dataset_digest") != digest:
+        raise SystemExit(
+            "gate1_verdict.json was computed on a different dataset build — rerun "
+            "evaluate_matchers.py (Phase 2) on the current train_features.parquet first."
+        )
+    # Gate-1 qualifier names are the Phase-2 default-config scorers; "logistic"
+    # is the qualifier corresponding to the servable logistic_tuned architecture.
+    logistic_qualified = "logistic" in gate1.get("qualifiers", [])
     n_classes = len(careers)
     outer = StratifiedKFold(N_FOLDS, shuffle=True, random_state=SEED)
 
@@ -368,22 +384,10 @@ def main() -> None:
 
     # Deployment selection, explicit: the serving path (matcher_model.py) is
     # dependency-free LINEAR inference with exact attribution, so only logistic is
-    # deployable — and only if it QUALIFIED under Gate 1 (calibration + stability).
-    # A model the gate rejected must never become deployable just because the
-    # Gate-2 winner has no serving path; export refuses when deployable is null.
-    digest = dataset_digest(df, meta["feature_names"])
-    gate1_path = TRAINING_DIR / "gate1_verdict.json"
-    if not gate1_path.exists():
-        raise SystemExit(f"{gate1_path} not found — run evaluate_matchers.py (Phase 2) first.")
-    gate1 = json.loads(gate1_path.read_text(encoding="utf-8"))
-    if gate1.get("dataset_digest") != digest:
-        raise SystemExit(
-            "gate1_verdict.json was computed on a different dataset build — rerun "
-            "evaluate_matchers.py (Phase 2) on the current train_features.parquet first."
-        )
-    # Gate-1 qualifier names are the Phase-2 default-config scorers; "logistic"
-    # is the qualifier corresponding to the servable logistic_tuned architecture.
-    logistic_qualified = "logistic" in gate1.get("qualifiers", [])
+    # deployable — and only if it QUALIFIED under Gate 1 (calibration + stability;
+    # verified up front, right after load_data). A model the gate rejected must
+    # never become deployable just because the Gate-2 winner has no serving path;
+    # export refuses when deployable is null.
     if winner == "logistic_tuned" and logistic_qualified:
         deployable = "logistic_tuned"
         deployable_reason = "gate2 winner is servable and Gate-1-qualified"
