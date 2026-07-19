@@ -1,32 +1,31 @@
 <#
 .SYNOPSIS
-    Dev launcher (Windows): starts the FastAPI backend (:8000) and the Vite
-    frontend (:3000) in two new PowerShell windows, then opens the browser.
-    Close those two windows to stop the servers.
+    Dev launcher (Windows): starts the microservices stack (docker compose,
+    gateway on :8000) and the Vite frontend (:3000) in a new PowerShell window,
+    then opens the browser. Close the frontend window and run
+    `docker compose stop` to stop everything.
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File dev.ps1
 #>
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# ── Python: prefer backend venv, fall back to system ─────────────────────────
-$VenvPython = Join-Path $Root "backend\venv\Scripts\python.exe"
-if (Test-Path $VenvPython) {
-    $Python = $VenvPython
-    Write-Host "Python  : venv ($VenvPython)" -ForegroundColor DarkGray
-} else {
-    $PythonCmd = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $PythonCmd) {
-        Write-Host ""
-        Write-Host "ERROR: Python not found in PATH." -ForegroundColor Red
-        Write-Host "Either add Python to PATH, or create a venv first:" -ForegroundColor Yellow
-        Write-Host "  cd backend" -ForegroundColor Yellow
-        Write-Host "  python -m venv venv" -ForegroundColor Yellow
-        Write-Host "  venv\Scripts\pip install -r requirements.txt" -ForegroundColor Yellow
-        exit 1
-    }
-    $Python = $PythonCmd.Source
-    Write-Host "Python  : system ($Python)" -ForegroundColor DarkGray
+# ── Docker: the backend is the compose stack now ─────────────────────────────
+docker info *> $null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Docker is not running - start Docker Desktop first." -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path (Join-Path $Root ".env"))) {
+    Write-Host "ERROR: missing repo-root .env (compose secrets). Create it first:" -ForegroundColor Red
+    Write-Host "  copy .env.example .env   # then set APP_API_TOKEN" -ForegroundColor Yellow
+    exit 1
+}
+
+if (-not (Test-Path (Join-Path $Root "data\jobs\chroma"))) {
+    Write-Host "WARNING: data\jobs\chroma missing - matching will serve 503s (SPA uses offline estimates)." -ForegroundColor Yellow
+    Write-Host "Build it with: backend\venv\Scripts\python data\scripts\build_rag.py" -ForegroundColor Yellow
 }
 
 # ── Frontend deps: install once if node_modules is missing ───────────────────
@@ -43,21 +42,21 @@ if (-not (Test-Path $NodeModules)) {
     }
 }
 
-# ── Launch backend and frontend each in their own window ─────────────────────
-$BackendDir  = Join-Path $Root "backend"
+# ── Backend: bring up the whole stack ────────────────────────────────────────
+Push-Location $Root
+docker compose up -d --build
+$composeExit = $LASTEXITCODE
+Pop-Location
+if ($composeExit -ne 0) {
+    Write-Host "ERROR: docker compose up failed (exit $composeExit)." -ForegroundColor Red
+    exit 1
+}
+
+# ── Frontend in its own window ───────────────────────────────────────────────
 $FrontendDir = Join-Path $Root "frontend"
-
-$BackendCmd = "Set-Location '$BackendDir'; " +
-              "Write-Host '--- Backend  http://localhost:8000 ---' -ForegroundColor Cyan; " +
-              "& '$Python' -m uvicorn app.main:app --port 8000 --reload"
-
 $FrontendCmd = "Set-Location '$FrontendDir'; " +
                "Write-Host '--- Frontend http://localhost:3000 ---' -ForegroundColor Cyan; " +
                "npm run dev"
-
-$BackendProc  = Start-Process powershell `
-    -ArgumentList "-NoExit", "-Command", $BackendCmd `
-    -PassThru
 
 $FrontendProc = Start-Process powershell `
     -ArgumentList "-NoExit", "-Command", $FrontendCmd `
@@ -65,10 +64,10 @@ $FrontendProc = Start-Process powershell `
 
 # ── Print URLs and open the browser after Vite has had time to boot ──────────
 Write-Host ""
-Write-Host "  Backend  ->  http://localhost:8000  (PID $($BackendProc.Id))" -ForegroundColor Green
+Write-Host "  Backend  ->  http://localhost:8000  (gateway; 'docker compose ps' for services)" -ForegroundColor Green
 Write-Host "  Frontend ->  http://localhost:3000  (PID $($FrontendProc.Id))" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Opening browser in 4 s. Close the two new windows to stop the servers." -ForegroundColor DarkGray
+Write-Host "  Opening browser in 4 s. Close the frontend window and run 'docker compose stop' to shut down." -ForegroundColor DarkGray
 Write-Host ""
 
 Start-Sleep -Seconds 4

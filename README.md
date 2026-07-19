@@ -1,69 +1,84 @@
 # NextStep Career Matcher
 
-A prototype career matching system that helps users discover their ideal tech career path through a personalized assessment and generates custom learning roadmaps.
+A career-discovery platform: a personalized assessment matches users to one of
+**16 tech careers** with explainable, job-market-backed recommendations, then
+generates a personal learning roadmap enriched with the skills employers
+actually ask for.
 
----
-
-## Local API (FastAPI + ChromaDB RAG matching)
-
-> The backend for the live React SPA. It connects the questionnaire to the ChromaDB
-> job-ad vector store (plus an optional Supabase/PostgreSQL layer) and returns
-> explainable career recommendations.
-
-### What it does
+The backend is **five microservices glued by [Dapr](https://dapr.io)** (service
+invocation, pub/sub, state store) behind an nginx API gateway; the frontend is a
+single-page React app that works even when the backend is down (offline
+fallback). Full architecture: [`docs/architecture.md`](docs/architecture.md) ·
+Dapr building blocks & state schema: [`docs/dapr.md`](docs/dapr.md).
 
 ```
-React questionnaire  →  POST /api/questionnaire/submit  →  FastAPI
-  → build a natural-language profile from the answers
-  → query the existing ChromaDB `job_ads` store (per career field)
-  → blend semantic similarity + questionnaire fit + skill overlap into a score
-  → return top-3 sorted, explainable recommendations  →  rendered in the SPA
+React SPA (:3000)
+   │
+   ▼
+nginx gateway (:8000)
+   ├── questionnaire ── Dapr invoke ──▶ matching   (ChromaDB job-ad RAG + scoring)
+   │        └── Dapr pub/sub (Redis) ──▶ history   (submissions in the Dapr state store)
+   ├── roadmap  ── invoke ─▶ matching (market skills)  +  OpenAI (optional)
+   └── auth     (Supabase GoTrue + usernames; other services verify via invoke)
+
+infra: redis (state + broker) · consul (sidecar discovery) · 5 daprd sidecars
 ```
 
-The 6 careers (frontend, backend, data-science, devops, product-manager,
-ux-designer) and their roadmaps are unchanged; each is enriched with RAG signals.
+How a submission flows:
 
-### Prerequisites
+```
+questionnaire answers → POST /api/questionnaire/submit
+  → matching-service builds a natural-language profile from the answers
+  → queries the ChromaDB `job_ads` store (~1575 scraped ads, per career field)
+  → blends semantic similarity + questionnaire fit + skill overlap into a score
+  → top-3 explainable recommendations return to the SPA
+  → the submission is published to Redis and persisted by history-service
+```
 
-- Python 3.12 (a venv already exists at `backend/venv`)
-- Node 18+ for the frontend
-- The ChromaDB store built from the scraped job ads (step 2 below)
+## Quick start
 
-### 1. Install backend dependencies
+Prerequisites: **Docker Desktop**, **Node 18+**, **Python 3.12**
+(a venv at `backend/venv`, rebuildable from `backend/requirements.txt`).
 
 ```bash
-backend/venv/bin/python -m pip install -r backend/requirements.txt
-```
-
-### 2. Build the ChromaDB store (one-time, uses the existing ingestion pipeline)
-
-```bash
+# 0. one-time: build the job-ad vector store (~1575 ads, all-MiniLM-L6-v2)
 backend/venv/bin/python data/scripts/build_rag.py
+
+# 1. secrets
+cp .env.example .env            # set APP_API_TOKEN (openssl rand -hex 16)
+cp backend/.env.example backend/.env   # optional: SUPABASE_* (auth), OPENAI_API_KEY (LLM roadmaps)
+
+# 2. everything at once (compose stack + Vite + browser):
+./dev.sh                        # Windows: powershell -ExecutionPolicy Bypass -File dev.ps1
+
+# — or manually —
+docker compose up -d --build    # 13 containers; gateway on :8000
+cd frontend && npm install && npm run dev   # SPA on :3000
 ```
 
-This embeds ~1575 job ads with `all-MiniLM-L6-v2` into `data/jobs/chroma/`
-(collection `job_ads`, cosine space). It is the existing pipeline — not re-written.
+All external services are optional: without Supabase, auth routes return 503
+(the questionnaire still works anonymously); without OpenAI, roadmaps fall back
+to curated static data; without the ChromaDB store, matching returns a safe 503
+and the SPA shows its offline estimate.
 
-### 3. Run the API
+Sidecars share their app's network namespace — restart pairs together:
+`docker compose restart matching matching-dapr`.
 
-```bash
-cd backend
-venv/bin/python -m uvicorn app.main:app --port 8000
-# (optional) copy backend/.env.example -> backend/.env to override defaults
-```
+## Public API (through the gateway)
 
-Startup logs report the loaded collection size. If the store is missing the API
-still starts and serves `/api/health`; `/submit` then returns a safe 503 and the
-frontend falls back to an offline estimate.
+| Route | Service | Purpose |
+|---|---|---|
+| `GET /api/questions` | questionnaire | adaptive question bank |
+| `POST /api/questionnaire/submit` | questionnaire | answers → recommendations |
+| `POST /api/questionnaire/select` | questionnaire | record the chosen career |
+| `GET /api/health` | matching | RAG store status (`rag_doc_count`) |
+| `GET/POST /api/roadmap/{id}` | roadmap | static / personalized roadmap + in-demand market skills |
+| `GET/POST /api/roadmap/{id}/progress` | roadmap | per-user completed nodes (auth) |
+| `POST /api/auth/register\|login\|logout`, `GET /api/auth/me` | auth | Supabase GoTrue + usernames |
+| `POST /api/auth/claim-sessions`, `GET /api/auth/my-submissions` | history | link anonymous submissions, submission history (auth) |
 
-### 4. Run the frontend against it
-
-```bash
-cd frontend
-cp .env.example .env   # VITE_API_BASE_URL=http://localhost:8000
-npm install            # first time only
-npm run dev            # http://localhost:3000
-```
+`/internal/*` (service-to-service), `/events/*` and `/dapr/*` (sidecar surface)
+are deliberately not routed by the gateway.
 
 ### Example request / response
 
@@ -86,7 +101,8 @@ curl -s -X POST http://localhost:8000/api/questionnaire/submit \
       "reasons": ["Strong alignment with your interests and work style",
                   "Builds on in-demand skills like Python, Statistics, Machine Learning"],
       "matched_skills": ["Python","Statistics","Machine Learning","SQL"],
-      "missing_skills": ["R","Data Visualization","Excel","Hadoop"]
+      "missing_skills": ["R","Data Visualization","Excel","Hadoop"],
+      "model_version": "formula-v1"
     }
   ]
 }
@@ -98,95 +114,73 @@ curl -s -X POST http://localhost:8000/api/questionnaire/submit \
 final = 0.40 * questionnaire_fit + 0.40 * semantic_similarity + 0.20 * skill_overlap
 ```
 
-- `questionnaire_fit` — ported WEIGHTS+BONUSES from `frontend/src/data.js`, normalized
-  relative to the strongest-fitting career.
+- `questionnaire_fit` — per-career answer weights + bonuses, normalized against
+  the strongest-fitting career.
 - `semantic_similarity` — ChromaDB cosine distance converted to `1 - distance`.
-- `skill_overlap` — share of a career's key skills present in the retrieved job ads.
+- `skill_overlap` — share of a career's key skills present in the retrieved ads.
 
-Weights live in one place (`backend/app/services/matching_service.py`) and are
-asserted to sum to 1. Missing data never earns a component. See that file for the
-full documented assumptions.
+Weights live in `services/matching/app/services/matching_service.py`, asserted
+to sum to 1. An optional learned (logistic-regression) matcher can replace the
+formula via `MATCHER_MODEL_PATH` — training pipeline under `data/scripts/`.
 
-### Run tests
+## Tests
+
+Each service has an isolated suite (161 tests total) — external calls are faked
+at seams, so no Docker, sidecar, or database is needed:
 
 ```bash
-cd backend
-venv/bin/python -m pytest app/tests -q
+cd services/<questionnaire|matching|roadmap|auth|history>
+../../backend/venv/bin/python -m pytest tests -q
 ```
 
-The tests mock the vector store via a fake repository, so they run without
-ChromaDB or the embedding model.
+## Environment variables
 
-### Environment variables
+Two scopes (they do not overlap):
 
-| Variable | Where | Default | Purpose |
-|----------|-------|---------|---------|
-| `CHROMA_PATH` | backend | `data/jobs/chroma` | ChromaDB persistence path |
-| `CHROMA_COLLECTION` | backend | `job_ads` | Collection name |
-| `EMBED_MODEL` | backend | `all-MiniLM-L6-v2` | Must match the store's model |
-| `RAG_TOP_K` | backend | `8` | Job ads retrieved per career field |
-| `CORS_ORIGINS` | backend | `http://localhost:3000` | Allowed frontend origins |
-| `API_PORT` / `LOG_LEVEL` | backend | `8000` / `INFO` | Server config |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` | backend | _(empty)_ | Enable Postgres persistence + `job_postings` reads (server-only service_role key) |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` | backend | _(empty)_ / `gpt-4o-mini` | Enable LLM roadmap generation (falls back to static when unset) |
-| `VITE_API_BASE_URL` | frontend | `http://localhost:8000` | Backend base URL |
+| Scope | File | Keys |
+|---|---|---|
+| docker-compose interpolation | repo-root `.env` | `APP_API_TOKEN` — **required**; gates history-service's event-ingestion endpoints |
+| services (via `env_file`) + data pipeline | `backend/.env` | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` (auth + job_postings; service-role key, server-only), `OPENAI_API_KEY` / `OPENAI_MODEL` (LLM roadmaps), `CHROMA_*`, `RAG_TOP_K`, `REQUIREMENTS_*` (market-skill thresholds), `MATCHER_MODEL_PATH` |
+| frontend | `frontend/.env` | `VITE_API_BASE_URL` (default `http://localhost:8000` — the gateway) |
 
-### Persistence & roadmap generation (optional)
-
-All external services are optional — with an empty `.env` the app runs on ChromaDB-only
-matching and static roadmaps.
-
-- **Submissions** (`request_id`, answers, recommendations, `session_id`, `selected_career`) are
-  saved to the Supabase `submissions` table as a best-effort background task. The frontend mints
-  an anonymous `session_id` (localStorage) and `POST /api/questionnaire/select` records the chosen
-  career. No-op when `SUPABASE_*` is unset.
-- **Job postings** scraped into `data/jobs/raw/*.json` are upserted into the Supabase
-  `job_postings` table by `data/scripts/build_rag.py` (flow: scrape → JSON → Postgres → ChromaDB);
-  their skills reinforce the matcher's skill-overlap signal.
-- **Roadmaps:** `GET /api/roadmap/{id}` returns the curated static roadmap; `POST /api/roadmap/{id}`
-  generates a personalized one via OpenAI (when `OPENAI_API_KEY` is set) and **falls back to the
-  static data on any failure**.
-
-### Deployment
-
-Terminate TLS at a reverse proxy (nginx / Caddy / cloud load balancer) — the FastAPI app runs
-plain HTTP behind it and needs no TLS config. Point `CORS_ORIGINS` and `VITE_API_BASE_URL` at the
-public HTTPS origins, and run uvicorn with `--proxy-headers`.
-
----
+Container-specific values (`CHROMA_PATH=/store/chroma`, `DAPR_ENABLED`,
+`CORS_ORIGINS`) are pinned per service in `docker-compose.yml`.
 
 ## Tech stack
 
-**Backend:** FastAPI, ChromaDB (vector store), sentence-transformers (`all-MiniLM-L6-v2`),
-Supabase/PostgreSQL (persistence + job postings), OpenAI (roadmap generation), pytest.
+**Services:** FastAPI, Dapr 1.17 (invocation · pub/sub · state store, etag CAS),
+Redis, Consul, nginx, ChromaDB + sentence-transformers (`all-MiniLM-L6-v2`),
+Supabase (GoTrue auth + Postgres `job_postings`), OpenAI (optional roadmaps),
+pytest, Docker Compose.
 
 **Frontend:** React 18, Vite, Tailwind CSS, framer-motion, lucide-react.
 
-**Data pipeline:** `data/scripts/` — job-ad scrapers (httpx / RSS / jobspy), skill extraction, RAG builder.
+**Data pipeline:** `data/scripts/` — job-ad scrapers (httpx / RSS / jobspy),
+skill extraction, RAG builder, matcher-training scripts.
 
 ## Project structure
 
 ```
 Next_step_FP/
-├── backend/
-│   ├── app/                     # live FastAPI app (the one the SPA calls)
-│   │   ├── api/routes/          # health, questionnaire, roadmap
-│   │   ├── services/            # profile, rag_service, matching_service, roadmap_service,
-│   │   │                        #   job_postings_service, supabase_client, persistence
-│   │   ├── repositories/        # career_repository (catalog + RAG + Postgres skills)
-│   │   ├── models/  data/  tests/
-│   │   └── main.py
-│   ├── migrations/              # SQL (job_postings)
-│   └── requirements.txt
-├── frontend/
-│   └── src/                     # App.jsx (single-page SPA), api.js, data.js, pages/, components/
+├── services/
+│   ├── common/            # shared wire contracts: models, topics, config, Dapr client, auth dep, data JSONs
+│   ├── questionnaire/     # questions + submit/select (publishes to Redis)
+│   ├── matching/          # ChromaDB RAG + scoring (+ /internal/match, /internal/field-skills)
+│   ├── roadmap/           # static/LLM roadmaps + market requirements + progress
+│   ├── auth/              # Supabase GoTrue + usernames (+ /internal/verify)
+│   ├── history/           # submissions in the Dapr state store (subscribers + history routes)
+│   ├── gateway/nginx.conf # path routing on :8000
+│   └── dapr/              # sidecar components (Redis) + config (Consul resolver)
+├── docker-compose.yml     # 5 app+sidecar pairs · redis · consul · gateway
+├── frontend/src/          # App.jsx (single-page SPA), api.js, data.js (offline fallback), pages/
+├── backend/               # venv (test runner) · .env (secrets) · Supabase migrations — the pre-split
+│                          #   monolith was removed at the microservices cutover
 ├── data/
-│   ├── scripts/                 # scrape_job_ads.py, extract_skills.py, build_rag.py
-│   └── jobs/                    # raw/*.json + chroma/ (gitignored)
-└── README.md
+│   ├── scripts/           # scrapers, extract_skills, build_rag, matcher training
+│   └── jobs/              # raw/*.json + chroma/ (gitignored)
+└── docs/                  # architecture.md · dapr.md · matching-rework-plan.md
 ```
 
 ## License
 
 MIT
-

@@ -23,7 +23,10 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT / "backend"))
+# The matching internals moved to services/ at the DEV-43 cutover:
+# services/ provides the `common` package, services/matching the `app` package.
+sys.path.insert(0, str(REPO_ROOT / "services"))
+sys.path.insert(0, str(REPO_ROOT / "services" / "matching"))
 
 from dataset_guards import dataset_caveats  # noqa: E402
 

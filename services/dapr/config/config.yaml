@@ -1,0 +1,16 @@
+# Shared daprd Configuration for docker-compose. mDNS (the self-hosted default
+# name resolver) does not cross container boundaries. Consul (dev mode, one
+# container) is the documented compose-friendly resolver; the SQLite alternative
+# shares one db file across sidecars and races itself on first migration.
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: appconfig
+spec:
+  nameResolution:
+    component: "consul"
+    version: "v1"
+    configuration:
+      selfRegister: true
+      client:
+        address: "consul:8500"
