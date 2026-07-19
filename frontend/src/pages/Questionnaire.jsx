@@ -22,7 +22,8 @@ function Assessment({ phase, onStart, onComplete }) {
   const [quizPhase, setQuizPhase] = useState('answering') // 'answering' | 'review'
   const [fromReview, setFromReview] = useState(false) // editing a single Q from review
   const [skipWarning, setSkipWarning] = useState(false)
-  const [pendingVal, setPendingVal] = useState(null)  // value just clicked (animation)
+  const [pendingVal, setPendingVal] = useState(null)  // selected value shown (click or pre-fill)
+  const [advancing, setAdvancing] = useState(false)   // locked during the 300ms auto-advance
 
   // Question bank: backend copy is authoritative, bundled QUESTIONS is the offline
   // fallback (same pattern as Roadmap.jsx → ROADMAPS). Server options are plain
@@ -62,7 +63,7 @@ function Assessment({ phase, onStart, onComplete }) {
     if (phase === 'idle') {
       setCurrentQ(0); setAnswers({}); setHighWater(0)
       setQuizPhase('answering'); setFromReview(false)
-      setSkipWarning(false); setPendingVal(null)
+      setSkipWarning(false); setPendingVal(null); setAdvancing(false)
     }
   }, [phase])
 
@@ -94,11 +95,15 @@ function Assessment({ phase, onStart, onComplete }) {
   }
 
   const handleSelect = (value) => {
-    if (pendingVal !== null && !fromReview) return // already selected, waiting to advance
+    if (advancing) return // just clicked, waiting to advance
     setPendingVal(value)
+    setAdvancing(true)
     const newAnswers = { ...answers, [path[currentQ].id]: value }
     setAnswers(newAnswers)
-    setTimeout(() => advanceOrReview(newAnswers), 300)
+    setTimeout(() => {
+      setAdvancing(false)
+      advanceOrReview(newAnswers)
+    }, 300)
   }
 
   const handleBack = () => {
@@ -168,6 +173,7 @@ function Assessment({ phase, onStart, onComplete }) {
               answers={answers}
               highWater={highWater}
               pendingVal={pendingVal}
+              advancing={advancing}
               fromReview={fromReview}
               onSelect={handleSelect}
               onBack={handleBack}
@@ -245,10 +251,10 @@ function AssessmentStart({ onStart }) {
 
 // ─── Quiz card ─────────────────────────────────────────────────────────────────
 
-function QuizCard({ path, currentQ, answers, highWater, pendingVal, fromReview, onSelect, onBack, onSkip, onDotJump }) {
+function QuizCard({ path, currentQ, answers, highWater, pendingVal, advancing, fromReview, onSelect, onBack, onSkip, onDotJump }) {
   const question = path[currentQ]
   const progressPct = ((currentQ) / path.length) * 100
-  const isWaiting = pendingVal !== null && !fromReview && isAnswered(pendingVal)
+  const isWaiting = advancing
 
   return (
     <div className="bg-white rounded-card border border-navy/[0.08] shadow-lg overflow-hidden">
