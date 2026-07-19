@@ -1681,6 +1681,11 @@
     "Floor-level class representation for game-dev (5 labels) \u2014 at or below the 5-label stratified-CV minimum; treat their predictions and metrics as low-confidence.",
     "Over-represented classes: frontend (47/232 rows, 20%) (more than 2x the uniform share). class_weight='balanced' prevents amplification during training, but the label skew remains in the data."
   ],
+  "selection": {
+    "gate2_winner": "gbt_tuned",
+    "deployable": "logistic_tuned",
+    "reason": "gate2 winner 'gbt_tuned' has no serving path (matcher_model.py is linear-only with exact attribution \u2014 the Phase-4 explainability requirement); logistic is the deployable selection"
+  },
   "training": {
     "n_rows": 232,
     "rows_by_label": {
@@ -1722,6 +1727,6 @@
     "silver_prompt_versions": [
       "panel-v2.1.0"
     ],
-    "trained_at": "2026-07-18T17:28:29.629190+00:00"
+    "trained_at": "2026-07-19T04:11:54.956237+00:00"
   }
 }

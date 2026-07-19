@@ -59,6 +59,20 @@ def main() -> None:
     if meta["feature_version"] != FEATURE_VERSION:
         raise SystemExit("dataset feature_version != code FEATURE_VERSION — rebuild the dataset")
 
+    # This exporter produces logistic-regression artifacts only (the serving path
+    # is linear). Require Phase 3's explicit deployment selection to agree, so the
+    # published artifact can never silently diverge from the selection report.
+    gate2_path = TRAINING_DIR / "gate2_winner.json"
+    if not gate2_path.exists():
+        raise SystemExit(f"{gate2_path} not found — run train_models.py (Phase 3) first.")
+    gate2 = json.loads(gate2_path.read_text(encoding="utf-8"))
+    if gate2.get("deployable") != "logistic_tuned":
+        raise SystemExit(
+            f"gate2_winner.json deployable={gate2.get('deployable')!r} but this exporter "
+            "produces logistic only — reconcile the deployment selection (train_models.py) "
+            "or build a serving path for that architecture before exporting."
+        )
+
     X = df[feature_names].to_numpy(dtype=float)
     y = df["label_top1"].map({c: i for i, c in enumerate(careers)}).to_numpy()
 
@@ -97,6 +111,11 @@ def main() -> None:
         "temperature": 1.0,  # Gate 2: raw probabilities were best-calibrated
         "label_source": "synthetic_llm (bank-consistent silver labels; see caveats)",
         "caveats": build_caveats(df, careers),
+        "selection": {
+            "gate2_winner": gate2["winner"],
+            "deployable": gate2["deployable"],
+            "reason": gate2["deployable_reason"],
+        },
         "training": {
             "n_rows": len(df),
             "rows_by_label": {k: int(v) for k, v in df["label_top1"].value_counts().to_dict().items()},

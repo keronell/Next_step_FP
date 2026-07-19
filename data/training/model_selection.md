@@ -5,7 +5,7 @@
 > out-of-fold predictions — prototype-grade; redo on gold labels before trusting
 > displayed percentages.
 
-Generated: 2026-07-18T17:28:29Z
+Generated: 2026-07-19T04:11:43Z
 Dataset: 232 rows, feature `features-v4`, seed 42,
 outer 5-fold stratified CV (same folds as Phase 2).
 Phase 2 reference (recomputed on THIS dataset, not hardcoded from a previous run):
@@ -113,6 +113,12 @@ Chosen hyperparameters per outer fold:
 **Winner: `gbt_tuned`** — top-2 0.892, ECE after temperature
 scaling 0.047 (T=1.65).
 Selection rule: highest top-2; ties within 0.01 broken by scaled ECE.
+
+## Deployment selection
+
+**Deployable winner: `logistic_tuned`** — gate2 winner 'gbt_tuned' has no serving path (matcher_model.py is linear-only with exact attribution — the Phase-4 explainability requirement); logistic is the deployable selection.
+export_model.py refuses to export unless this matches the architecture it produces,
+so the served artifact and this report cannot silently disagree.
 
 Notes:
 - The soft-target NN consumes the panel vote distribution (top1=1.0, top2=0.4);

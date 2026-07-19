@@ -366,6 +366,20 @@ def main() -> None:
     contenders = [n for n, r in results.items() if best_top2 - r["top2"] <= 0.01]
     winner = min(contenders, key=lambda n: results[n]["ece_scaled"])
 
+    # Deployment selection, explicit: the serving path (matcher_model.py) is
+    # dependency-free LINEAR inference with exact attribution, so only logistic is
+    # deployable. When the raw Gate-2 winner is not servable, the deployable winner
+    # is logistic — recorded here (and embedded in the exported artifact) so
+    # production and the selection report can never silently disagree.
+    SERVABLE = {"logistic_tuned"}
+    deployable = winner if winner in SERVABLE else "logistic_tuned"
+    deployable_reason = (
+        "gate2 winner is servable" if winner in SERVABLE else
+        f"gate2 winner '{winner}' has no serving path (matcher_model.py is linear-only "
+        "with exact attribution — the Phase-4 explainability requirement); logistic is "
+        "the deployable selection"
+    )
+
     # Phase-2 reference recomputed on THIS dataset (a hardcoded copy of a previous
     # run's numbers silently went stale when the dataset was regenerated).
     from evaluate_matchers import formula_scores
@@ -419,6 +433,12 @@ Chosen hyperparameters per outer fold:
 scaling {results[winner]["ece_scaled"]:.3f} (T={results[winner]["temperature"]:.2f}).
 Selection rule: highest top-2; ties within 0.01 broken by scaled ECE.
 
+## Deployment selection
+
+**Deployable winner: `{deployable}`** — {deployable_reason}.
+export_model.py refuses to export unless this matches the architecture it produces,
+so the served artifact and this report cannot silently disagree.
+
 Notes:
 - The soft-target NN consumes the panel vote distribution (top1=1.0, top2={TOP2_VOTE_WEIGHT});
   the other models train on hard consensus labels with class weights.
@@ -428,6 +448,8 @@ Notes:
     OUT_MD.write_text(report, encoding="utf-8")
     OUT_WINNER.write_text(json.dumps({
         "winner": winner,
+        "deployable": deployable,
+        "deployable_reason": deployable_reason,
         "metrics": {k: v for k, v in results[winner].items() if k != "per_class"},
         "gbt_params_per_fold": gbt_params,
         "logistic_C_per_fold": log_params,
