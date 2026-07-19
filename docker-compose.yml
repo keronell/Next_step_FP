@@ -45,12 +45,16 @@ services:
       DAPR_ENABLED: "true"
       CHROMA_PATH: /store/chroma
       CORS_ORIGINS: http://localhost:3000,http://localhost:5173
-      MATCHER_MODEL_PATH: ""
+      # Compose scope: set in the repo-root .env with a CONTAINER path, e.g.
+      # /store/models/matcher_logistic_v2.json (blank = formula). backend/.env's
+      # value is a host path for the `dapr run` flow — deliberately not passed.
+      MATCHER_MODEL_PATH: ${MATCHER_MODEL_PATH:-}
     volumes:
       # Writable: chromadb.PersistentClient runs migrations + WAL writes on open,
       # a :ro mount fails with "attempt to write a readonly database". Local dev
       # (uvicorn) already opens this same host dir read-write — same trust level.
       - ./data/jobs/chroma:/store/chroma
+      - ./data/models:/store/models:ro
     depends_on:
       redis: { condition: service_healthy }
 
