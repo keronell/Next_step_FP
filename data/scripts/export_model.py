@@ -28,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "services"))
 sys.path.insert(0, str(REPO_ROOT / "services" / "matching"))
 
-from dataset_guards import dataset_caveats  # noqa: E402
+from dataset_guards import dataset_caveats, dataset_digest  # noqa: E402
 
 from app.services.feature_builder import FEATURE_VERSION  # noqa: E402
 
@@ -69,22 +69,29 @@ def main() -> None:
     if not gate2_path.exists():
         raise SystemExit(f"{gate2_path} not found — run train_models.py (Phase 3) first.")
     gate2 = json.loads(gate2_path.read_text(encoding="utf-8"))
+    if gate2.get("deployable") is None:
+        raise SystemExit(
+            "gate2_winner.json records no deployable model — no servable architecture "
+            f"qualified under Gate 1 ({gate2.get('gate1')}); nothing may be exported. "
+            f"Reason recorded: {gate2.get('deployable_reason')!r}"
+        )
     if gate2.get("deployable") != "logistic_tuned":
         raise SystemExit(
             f"gate2_winner.json deployable={gate2.get('deployable')!r} but this exporter "
             "produces logistic only — reconcile the deployment selection (train_models.py) "
             "or build a serving path for that architecture before exporting."
         )
-    # The selection must have been computed on THIS dataset build — a stale
-    # gate2_winner.json paired with regenerated features would embed an obsolete
-    # winner and rationale in the artifact.
-    fingerprint = gate2.get("dataset_fingerprint", {})
-    current = {"created_at": meta["created_at"], "n_rows": len(df)}
-    if fingerprint != current:
+    # The selection must have been computed on THIS dataset content — the digest
+    # hashes the loaded features+labels, so a regenerated OR hand-edited
+    # train_features.parquet (even with an unchanged row count and stale sidecar
+    # metadata) cannot be paired with an obsolete selection.
+    current_digest = dataset_digest(df, feature_names)
+    if gate2.get("dataset_digest") != current_digest:
         raise SystemExit(
-            f"gate2_winner.json was produced for a different dataset build "
-            f"({fingerprint or 'no fingerprint recorded'} vs current {current}) — "
-            "rerun train_models.py (Phase 3) on the current train_features.parquet first."
+            "gate2_winner.json was produced for different dataset content "
+            f"(digest {gate2.get('dataset_digest')!r} vs current {current_digest!r}) — "
+            "rerun evaluate_matchers.py and train_models.py on the current "
+            "train_features.parquet first."
         )
 
     X = df[feature_names].to_numpy(dtype=float)
@@ -129,9 +136,11 @@ def main() -> None:
             "gate2_winner": gate2["winner"],
             "deployable": gate2["deployable"],
             "reason": gate2["deployable_reason"],
+            "gate1": gate2.get("gate1"),
         },
         "training": {
             "n_rows": len(df),
+            "dataset_digest": current_digest,
             "rows_by_label": {k: int(v) for k, v in df["label_top1"].value_counts().to_dict().items()},
             "C": best_c,
             "cv_top2_by_C": scores,

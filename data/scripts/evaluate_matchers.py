@@ -38,7 +38,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from dataset_guards import assert_min_class_coverage, dataset_caveats
+from dataset_guards import assert_min_class_coverage, dataset_caveats, dataset_digest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -46,6 +46,7 @@ FEATURES_PARQUET = TRAINING_DIR / "train_features.parquet"
 METADATA_JSON = TRAINING_DIR / "dataset_metadata.json"
 ARCHETYPES_PARQUET = TRAINING_DIR / "archetypes_synthetic.parquet"
 OUT_MD = TRAINING_DIR / "baseline_evaluation.md"
+OUT_GATE1 = TRAINING_DIR / "gate1_verdict.json"
 
 SEED = 42
 N_FOLDS = 5
@@ -237,13 +238,29 @@ def main() -> None:
         name: {careers[c]: float((np.argsort(-s, axis=1)[:, 0] == c).mean()) for c in range(n_classes)}
         for name, s in oof_scores.items()
     }
+    # Silver labels are only used for the heuristic-agreement caveat — but they
+    # must describe the SAME population the metrics were computed on. If Phase 0
+    # regenerated silver_labels.parquet without a Phase-1 rebuild, refuse rather
+    # than report provenance for rows that were never evaluated.
     silver = pd.read_parquet(TRAINING_DIR / "silver_labels.parquet")
+    aligned = df[["profile_id", "label_top1"]].merge(
+        silver[["profile_id", "label_top1", "heuristic_fit_top1"]],
+        on="profile_id", how="left", suffixes=("", "_silver"),
+    )
+    if aligned["label_top1_silver"].isna().any() or \
+            (aligned["label_top1"] != aligned["label_top1_silver"]).any():
+        raise SystemExit(
+            "train_features.parquet does not match silver_labels.parquet (profile "
+            "ids or labels diverge) — Phase 0 was regenerated without rebuilding "
+            "Phase 1; run build_training_set.py first."
+        )
     # heuristic_fit_top1 is the questionnaire-only answer-key winner (no semantic/
     # skill signals) — distinct from the production formula, whose agreement is
     # results["formula"]["top1"]. Label both precisely; conflating them overstated
     # "formula agreement" in earlier reports.
-    heuristic_agree = float((silver["label_top1"] == silver["heuristic_fit_top1"]).mean())
-    prompt_versions = sorted(silver["prompt_version"].unique().tolist())
+    heuristic_agree = float((aligned["label_top1"] == aligned["heuristic_fit_top1"]).mean())
+    # Prompt versions come from the evaluated table itself, not the silver file.
+    prompt_versions = sorted(df["prompt_version"].unique().tolist())
 
     # Gate 1 (reframed): calibration + top-2 recommendation stability. The gate is
     # existential — it passes if ANY learned model clears both thresholds; the
@@ -333,6 +350,21 @@ Additional notes:
 """
     OUT_MD.write_text(report, encoding="utf-8")
     print(report)
+
+    # Machine-readable Gate-1 verdict: Phase 3 consults this to decide whether a
+    # servable model is actually deployable, and export refuses without it — the
+    # markdown report alone cannot gate anything downstream.
+    digest = dataset_digest(df, feature_names)
+    OUT_GATE1.write_text(json.dumps({
+        "passed": gate1,
+        "qualifiers": qualifiers,
+        "preferred": best_learned if gate1 else None,
+        "thresholds": {"max_ece": GATE1_MAX_ECE, "min_top2_stability": GATE1_MIN_TOP2_STABILITY},
+        "metrics": {n: {"ece": results[n]["ece"], "top2_stability": stability[n]} for n in learned},
+        "dataset_digest": digest,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }, indent=2), encoding="utf-8")
+    print(f"Wrote {OUT_GATE1} (passed={gate1}, qualifiers={qualifiers})")
 
 
 if __name__ == "__main__":

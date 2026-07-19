@@ -11,7 +11,7 @@
 > - Floor-level class representation for game-dev (5 labels) — at or below the 5-label stratified-CV minimum; treat their predictions and metrics as low-confidence.
 > - Over-represented classes: frontend (47/232 rows, 20%) (more than 2x the uniform share). class_weight='balanced' prevents amplification during training, but the label skew remains in the data.
 
-Generated: 2026-07-18T17:26:21Z
+Generated: 2026-07-19T15:58:54Z
 Dataset: 232 rows ({'synthetic': 225, 'real': 7}), feature version `features-v4`,
 labels `panel-v2.1.0`, Chroma snapshot 1853 docs.
 Protocol: stratified 5-fold CV (seed 42); metrics on pooled out-of-fold

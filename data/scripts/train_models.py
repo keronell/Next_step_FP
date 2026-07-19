@@ -34,7 +34,7 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from dataset_guards import assert_min_class_coverage
+from dataset_guards import assert_min_class_coverage, dataset_digest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -368,17 +368,39 @@ def main() -> None:
 
     # Deployment selection, explicit: the serving path (matcher_model.py) is
     # dependency-free LINEAR inference with exact attribution, so only logistic is
-    # deployable. When the raw Gate-2 winner is not servable, the deployable winner
-    # is logistic — recorded here (and embedded in the exported artifact) so
-    # production and the selection report can never silently disagree.
-    SERVABLE = {"logistic_tuned"}
-    deployable = winner if winner in SERVABLE else "logistic_tuned"
-    deployable_reason = (
-        "gate2 winner is servable" if winner in SERVABLE else
-        f"gate2 winner '{winner}' has no serving path (matcher_model.py is linear-only "
-        "with exact attribution — the Phase-4 explainability requirement); logistic is "
-        "the deployable selection"
-    )
+    # deployable — and only if it QUALIFIED under Gate 1 (calibration + stability).
+    # A model the gate rejected must never become deployable just because the
+    # Gate-2 winner has no serving path; export refuses when deployable is null.
+    digest = dataset_digest(df, meta["feature_names"])
+    gate1_path = TRAINING_DIR / "gate1_verdict.json"
+    if not gate1_path.exists():
+        raise SystemExit(f"{gate1_path} not found — run evaluate_matchers.py (Phase 2) first.")
+    gate1 = json.loads(gate1_path.read_text(encoding="utf-8"))
+    if gate1.get("dataset_digest") != digest:
+        raise SystemExit(
+            "gate1_verdict.json was computed on a different dataset build — rerun "
+            "evaluate_matchers.py (Phase 2) on the current train_features.parquet first."
+        )
+    # Gate-1 qualifier names are the Phase-2 default-config scorers; "logistic"
+    # is the qualifier corresponding to the servable logistic_tuned architecture.
+    logistic_qualified = "logistic" in gate1.get("qualifiers", [])
+    if winner == "logistic_tuned" and logistic_qualified:
+        deployable = "logistic_tuned"
+        deployable_reason = "gate2 winner is servable and Gate-1-qualified"
+    elif logistic_qualified:
+        deployable = "logistic_tuned"
+        deployable_reason = (
+            f"gate2 winner '{winner}' has no serving path (matcher_model.py is linear-only "
+            "with exact attribution — the Phase-4 explainability requirement); logistic is "
+            "the Gate-1-qualified deployable selection"
+        )
+    else:
+        deployable = None
+        deployable_reason = (
+            "no servable model qualified under Gate 1 "
+            f"(qualifiers={gate1.get('qualifiers', [])}, servable=logistic only) — "
+            "nothing is deployable; export_model.py will refuse"
+        )
 
     # Phase-2 reference recomputed on THIS dataset (a hardcoded copy of a previous
     # run's numbers silently went stale when the dataset was regenerated).
@@ -435,9 +457,10 @@ Selection rule: highest top-2; ties within 0.01 broken by scaled ECE.
 
 ## Deployment selection
 
-**Deployable winner: `{deployable}`** — {deployable_reason}.
-export_model.py refuses to export unless this matches the architecture it produces,
-so the served artifact and this report cannot silently disagree.
+**Deployable winner: `{deployable or "NONE"}`** — {deployable_reason}.
+export_model.py refuses to export unless this names the architecture it produces
+(and refuses outright when it is NONE), so the served artifact and this report
+cannot silently disagree — and a Gate-1-rejected model can never ship.
 
 Notes:
 - The soft-target NN consumes the panel vote distribution (top1=1.0, top2={TOP2_VOTE_WEIGHT});
@@ -451,9 +474,13 @@ Notes:
         "deployable": deployable,
         "deployable_reason": deployable_reason,
         # Which dataset build this selection was computed on; export_model.py
-        # refuses to export against a different build so a regenerated
-        # train_features.parquet can't be paired with a stale selection.
+        # refuses to export against a different build so a regenerated (or
+        # hand-edited) train_features.parquet can't be paired with a stale
+        # selection. The digest hashes the actual features+labels content —
+        # sidecar metadata alone can't detect a replaced table.
+        "dataset_digest": digest,
         "dataset_fingerprint": {"created_at": meta["created_at"], "n_rows": len(df)},
+        "gate1": {"passed": gate1["passed"], "qualifiers": gate1.get("qualifiers", [])},
         "metrics": {k: v for k, v in results[winner].items() if k != "per_class"},
         "gbt_params_per_fold": gbt_params,
         "logistic_C_per_fold": log_params,

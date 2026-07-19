@@ -1684,10 +1684,17 @@
   "selection": {
     "gate2_winner": "gbt_tuned",
     "deployable": "logistic_tuned",
-    "reason": "gate2 winner 'gbt_tuned' has no serving path (matcher_model.py is linear-only with exact attribution \u2014 the Phase-4 explainability requirement); logistic is the deployable selection"
+    "reason": "gate2 winner 'gbt_tuned' has no serving path (matcher_model.py is linear-only with exact attribution \u2014 the Phase-4 explainability requirement); logistic is the Gate-1-qualified deployable selection",
+    "gate1": {
+      "passed": true,
+      "qualifiers": [
+        "logistic"
+      ]
+    }
   },
   "training": {
     "n_rows": 232,
+    "dataset_digest": "2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27",
     "rows_by_label": {
       "frontend": 47,
       "devops": 18,
@@ -1727,6 +1734,6 @@
     "silver_prompt_versions": [
       "panel-v2.1.0"
     ],
-    "trained_at": "2026-07-19T14:35:10.365213+00:00"
+    "trained_at": "2026-07-19T16:03:57.282831+00:00"
   }
 }

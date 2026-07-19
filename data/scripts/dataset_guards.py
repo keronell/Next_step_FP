@@ -36,6 +36,25 @@ def assert_min_class_coverage(labels, career_ids, minimum: int = MIN_LABELS_PER_
         )
 
 
+def dataset_digest(df, feature_names) -> str:
+    """Order-independent sha256 digest of the evaluated content (features + labels
+    + profile ids). Provenance files (gate1_verdict.json, gate2_winner.json) store
+    it and downstream phases verify it against the data they actually loaded —
+    sidecar metadata (created_at / n_rows) cannot detect a replaced or edited
+    feature table whose row count happens to match."""
+    import hashlib
+
+    import pandas as pd
+
+    cols = (
+        df[[*feature_names, "label_top1", "profile_id"]]
+        .sort_values("profile_id")
+        .reset_index(drop=True)
+    )
+    row_hashes = pd.util.hash_pandas_object(cols, index=False).to_numpy()
+    return hashlib.sha256(row_hashes.tobytes()).hexdigest()
+
+
 def dataset_caveats(labels, career_ids, minimum: int = MIN_LABELS_PER_CAREER) -> list[str]:
     """Class-balance caveats derived from the labels themselves, shared by the
     evaluation report and the exported artifact so both always describe the

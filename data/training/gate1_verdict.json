@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "qualifiers": [
+    "logistic"
+  ],
+  "preferred": "logistic",
+  "thresholds": {
+    "max_ece": 0.1,
+    "min_top2_stability": 0.6
+  },
+  "metrics": {
+    "logistic": {
+      "ece": 0.034099440082920096,
+      "top2_stability": 0.637516702641587
+    },
+    "lightgbm": {
+      "ece": 0.128155228434309,
+      "top2_stability": 0.5566450817144618
+    }
+  },
+  "dataset_digest": "2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27",
+  "created_at": "2026-07-19T15:58:54.951616+00:00"
+}
