@@ -195,18 +195,33 @@ def main() -> None:
     df, feature_names, careers, meta = load_data()
 
     # Prerequisite FIRST — silver labels must describe the SAME population the
-    # metrics will be computed on. If Phase 0 regenerated silver_labels.parquet
-    # without a Phase-1 rebuild, fail here, before the full CV workload runs.
+    # metrics will be computed on. If Phase 0 changed the labeled pool without a
+    # Phase-1 rebuild, fail here, before the full CV workload runs. The id-set
+    # comparison is bidirectional: a left join alone validates every feature row
+    # but never observes silver-only profiles (e.g. a Phase-0 top-up that added
+    # rows while preserving existing ids and labels).
     silver = pd.read_parquet(TRAINING_DIR / "silver_labels.parquet")
+    feat_ids = set(df["profile_id"])
+    silver_ids = set(silver["profile_id"])
+    if feat_ids != silver_ids:
+        silver_only = sorted(silver_ids - feat_ids)
+        feat_only = sorted(feat_ids - silver_ids)
+        raise SystemExit(
+            "train_features.parquet and silver_labels.parquet contain different "
+            f"profile populations ({len(feat_ids)} vs {len(silver_ids)} ids; "
+            f"silver-only: {len(silver_only)} e.g. {silver_only[:3]}, "
+            f"features-only: {len(feat_only)} e.g. {feat_only[:3]}) — Phase 0 "
+            "changed the labeled pool without a Phase-1 rebuild; run "
+            "build_training_set.py first."
+        )
     aligned = df[["profile_id", "label_top1"]].merge(
         silver[["profile_id", "label_top1", "heuristic_fit_top1"]],
         on="profile_id", how="left", suffixes=("", "_silver"),
     )
-    if aligned["label_top1_silver"].isna().any() or \
-            (aligned["label_top1"] != aligned["label_top1_silver"]).any():
+    if (aligned["label_top1"] != aligned["label_top1_silver"]).any():
         raise SystemExit(
-            "train_features.parquet does not match silver_labels.parquet (profile "
-            "ids or labels diverge) — Phase 0 was regenerated without rebuilding "
+            "train_features.parquet labels diverge from silver_labels.parquet for "
+            "the same profile ids — Phase 0 was regenerated without rebuilding "
             "Phase 1; run build_training_set.py first."
         )
     # heuristic_fit_top1 is the questionnaire-only answer-key winner (no semantic/
