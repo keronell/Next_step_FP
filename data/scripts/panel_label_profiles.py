@@ -65,8 +65,8 @@ N_SYNTHETIC_PROFILES = 200
 RANDOM_SEED = 42
 CONSENSUS_MIN_VOTES = 2  # of the 3 personas
 
-QUESTIONS_JSON = Path("backend/app/data/questions.json")
-CAREERS_JSON = Path("backend/app/data/careers.json")
+QUESTIONS_JSON = Path("services/common/data/questions.json")
+CAREERS_JSON = Path("services/common/data/careers.json")
 
 # Single source of truth for the question set — derived from the bank, never
 # hardcoded, so new questions (e.g. q11+) flow into synthetic profiles and

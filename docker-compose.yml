@@ -1,0 +1,184 @@
+# DEV-43 microservices topology. Each app container pairs with a daprd sidecar
+# sharing its network namespace (apps all bind :8000 internally — separate
+# namespaces, no collisions; sidecars all bind :3500 likewise).
+#
+# East-west traffic: Dapr service invocation (sidecar<->sidecar via the SQLite
+# name-resolution registry on the shared dapr-nr volume). North-south: nginx
+# gateway on host :8000 (the frontend's default VITE_API_BASE_URL — zero
+# frontend changes). Secrets come from backend/.env when present (same file the
+# monolith uses); container-specific values are overridden per service.
+#
+# Phase 3 runs redis + matching + questionnaire + gateway; auth/history
+# (Phase 4) and roadmap (Phase 5) slot in without touching what's here.
+
+x-dapr-sidecar: &dapr-sidecar
+  image: daprio/daprd:1.17.5
+  volumes:
+    - ./services/dapr/components:/components:ro
+    - ./services/dapr/config:/config:ro
+
+services:
+  redis:
+    image: redis:7-alpine
+    # Authoritative store post-cutover (submissions, roadmap progress, pub/sub
+    # streams) — AOF + named volume so container recreation can't erase it.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Service-invocation name resolution for the sidecars (see dapr/config).
+  consul:
+    image: hashicorp/consul:1.20
+    command: ["agent", "-dev", "-client=0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  matching:
+    build: { context: ./services, dockerfile: matching/Dockerfile }
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      DAPR_ENABLED: "true"
+      CHROMA_PATH: /store/chroma
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      # Compose scope: set in the repo-root .env with a CONTAINER path, e.g.
+      # /store/models/matcher_logistic_v2.json (blank = formula). backend/.env's
+      # value is a host path for the `dapr run` flow — deliberately not passed.
+      MATCHER_MODEL_PATH: ${MATCHER_MODEL_PATH:-}
+    volumes:
+      # Writable: chromadb.PersistentClient runs migrations + WAL writes on open,
+      # a :ro mount fails with "attempt to write a readonly database". Local dev
+      # (uvicorn) already opens this same host dir read-write — same trust level.
+      - ./data/jobs/chroma:/store/chroma
+      - ./data/models:/store/models:ro
+    depends_on:
+      redis: { condition: service_healthy }
+
+  matching-dapr:
+    <<: *dapr-sidecar
+    network_mode: "service:matching"
+    command:
+      ["./daprd", "--app-id", "matching", "--app-port", "8000",
+       "--dapr-http-port", "3500", "--resources-path", "/components", "--dapr-internal-grpc-port", "50002",
+       "--config", "/config/config.yaml"]
+    depends_on:
+      matching: { condition: service_started }
+      redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
+
+  questionnaire:
+    build: { context: ./services, dockerfile: questionnaire/Dockerfile }
+    environment:
+      DAPR_ENABLED: "true"
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+    depends_on:
+      redis: { condition: service_healthy }
+
+  questionnaire-dapr:
+    <<: *dapr-sidecar
+    network_mode: "service:questionnaire"
+    command:
+      ["./daprd", "--app-id", "questionnaire", "--app-port", "8000",
+       "--dapr-http-port", "3500", "--resources-path", "/components", "--dapr-internal-grpc-port", "50002",
+       "--config", "/config/config.yaml"]
+    depends_on:
+      questionnaire: { condition: service_started }
+      redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
+
+  auth:
+    build: { context: ./services, dockerfile: auth/Dockerfile }
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      # auth-service itself never calls the sidecar (GoTrue is direct);
+      # its sidecar exists so other services can invoke /internal/verify.
+      DAPR_ENABLED: "false"
+    depends_on:
+      redis: { condition: service_healthy }
+
+  auth-dapr:
+    <<: *dapr-sidecar
+    network_mode: "service:auth"
+    command:
+      ["./daprd", "--app-id", "auth", "--app-port", "8000",
+       "--dapr-http-port", "3500", "--resources-path", "/components", "--dapr-internal-grpc-port", "50002",
+       "--config", "/config/config.yaml"]
+    depends_on:
+      auth: { condition: service_started }
+      redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
+
+  history:
+    build: { context: ./services, dockerfile: history/Dockerfile }
+    environment:
+      DAPR_ENABLED: "true"
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      # Subscriber endpoints mutate identity-bearing state and this container
+      # binds 0.0.0.0 — the sidecar must prove itself on every delivery.
+      # Interpolated from the repo-root .env (compose's only file scope —
+      # backend/.env is NOT read here). Required: no default, a public fallback
+      # token would be equivalent to no gate.
+      APP_API_TOKEN: ${APP_API_TOKEN:?set APP_API_TOKEN in the repo-root .env (openssl rand -hex 16)}
+    depends_on:
+      redis: { condition: service_healthy }
+
+  history-dapr:
+    <<: *dapr-sidecar
+    network_mode: "service:history"
+    environment:
+      APP_API_TOKEN: ${APP_API_TOKEN:?set APP_API_TOKEN in the repo-root .env (openssl rand -hex 16)}
+    command:
+      ["./daprd", "--app-id", "history", "--app-port", "8000",
+       "--dapr-http-port", "3500", "--resources-path", "/components", "--dapr-internal-grpc-port", "50002",
+       "--config", "/config/config.yaml"]
+    depends_on:
+      history: { condition: service_started }
+      redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
+
+  roadmap:
+    build: { context: ./services, dockerfile: roadmap/Dockerfile }
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      DAPR_ENABLED: "true"
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+    depends_on:
+      redis: { condition: service_healthy }
+
+  roadmap-dapr:
+    <<: *dapr-sidecar
+    network_mode: "service:roadmap"
+    command:
+      ["./daprd", "--app-id", "roadmap", "--app-port", "8000",
+       "--dapr-http-port", "3500", "--resources-path", "/components", "--dapr-internal-grpc-port", "50002",
+       "--config", "/config/config.yaml"]
+    depends_on:
+      roadmap: { condition: service_started }
+      redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
+
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - ./services/gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [questionnaire, matching]
+
+volumes:
+  redis-data:
+

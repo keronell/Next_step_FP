@@ -1,0 +1,18 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+spec:
+  type: state.redis
+  version: v1
+  metadata:
+    - name: redisHost
+      value: "localhost:6379"
+    - name: redisPassword
+      value: ""
+    # No app-id prefix on keys: DEV-43 splits the monolith's app-id into
+    # `questionnaire`/`history`/`roadmap` — the default `appid` prefix would
+    # orphan every key written before the split. Our own sub:/idx:/progress:
+    # prefixes prevent collisions instead.
+    - name: keyPrefix
+      value: "none"
