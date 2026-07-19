@@ -32,6 +32,8 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from dataset_guards import assert_min_class_coverage
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
 FEATURES_PARQUET = TRAINING_DIR / "train_features.parquet"
@@ -54,6 +56,10 @@ def load_data():
     meta = json.loads(METADATA_JSON.read_text(encoding="utf-8"))
     feature_names = meta["feature_names"]
     careers = [n[: -len("_fit")] for n in feature_names if n.endswith("_fit")]
+    # Guard even though Phase 1 also checks: this script may be pointed at an
+    # older/hand-built parquet, and stratified 5-fold CV silently degrades below
+    # 5 labels per class.
+    assert_min_class_coverage(df["label_top1"], careers, context="train_features.parquet")
     return df, feature_names, careers, meta
 
 

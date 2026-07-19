@@ -146,6 +146,69 @@ export const QUESTIONS = [
       { label: 'That it ran for months without breaking once', value: 3 },
     ],
   },
+  {
+    id: 'q14',
+    category: 'interests',
+    // Adaptive: visual-family follow-up (q2 = 0). showIf may reference earlier questions only.
+    showIf: { q: 'q2', in: [0] },
+    text: 'You get a free weekend to build something fun. What would you make?',
+    options: [
+      { label: 'A website anyone can open in their browser', value: 0 },
+      { label: 'An app for phones that people carry everywhere', value: 1 },
+      { label: 'A small video game with characters and levels', value: 2 },
+      { label: 'Drawings of how an app should look — someone else can build it', value: 3 },
+    ],
+  },
+  {
+    id: 'q15',
+    category: 'workstyle',
+    // Adaptive: builder-family follow-up (q2 = 1).
+    showIf: { q: 'q2', in: [1] },
+    text: 'On a team building an app, which role sounds most like you?',
+    options: [
+      { label: 'Building whole features end to end, from the screen to the data behind it', value: 0 },
+      { label: 'Drawing the big blueprint that everyone else builds on', value: 1 },
+      { label: 'Trying to break the app on purpose to find problems before users do', value: 2 },
+      { label: 'Building the hidden engine that quietly makes everything work', value: 3 },
+    ],
+  },
+  {
+    id: 'q16',
+    category: 'interests',
+    // Adaptive: data-family follow-up (q2 = 2).
+    showIf: { q: 'q2', in: [2] },
+    text: 'Which of these sounds most satisfying?',
+    options: [
+      { label: 'Making clear charts and reports that show what happened', value: 0 },
+      { label: 'Digging into messy numbers to figure out why something happened', value: 1 },
+      { label: 'Teaching the computer to predict what will happen next', value: 2 },
+      { label: 'Building an app around a smart AI assistant or chatbot', value: 3 },
+    ],
+  },
+  {
+    id: 'q17',
+    category: 'workstyle',
+    // Adaptive: systems-family follow-up (q2 = 3).
+    showIf: { q: 'q2', in: [3] },
+    text: 'A website crashes in the middle of the night. Which job would you enjoy most?',
+    options: [
+      { label: 'Getting it back up fast and making sure it never happens again', value: 0 },
+      { label: 'Checking whether someone broke in, and locking the doors better', value: 1 },
+      { label: "Redesigning the setup so one failure can't take everything down", value: 2 },
+      { label: 'Writing the checks that would have caught the problem before launch', value: 3 },
+    ],
+  },
+  {
+    id: 'q18',
+    category: 'personality',
+    text: "You've finished something you're proud of. Which finishing touch sounds most fun?",
+    options: [
+      { label: 'Writing a simple guide so anyone can use it', value: 0 },
+      { label: "Showing it to people and hearing what they'd improve", value: 1 },
+      { label: 'Making it look and feel perfect', value: 2 },
+      { label: "Tidying up the inside so it's easy to build on later", value: 3 },
+    ],
+  },
 ]
 
 // Adaptive path: the in-order subset of questions to ask given answers so far.
@@ -385,7 +448,7 @@ export const CAREERS = [
 ]
 
 // Weights: for each career, how much each question answer contributes (0-3).
-// Score = sum of (answerValue × weight). q11-q13 are pure discriminators
+// Score = sum of (answerValue × weight). q11-q18 are pure discriminators
 // (zero weight everywhere); their signal comes from BONUSES only.
 const WEIGHTS = {
   "frontend": {
@@ -401,7 +464,12 @@ const WEIGHTS = {
     "q10": 1,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "backend": {
     "q1": 3,
@@ -413,10 +481,15 @@ const WEIGHTS = {
     "q7": 2,
     "q8": 2,
     "q9": 0,
-    "q10": 3,
+    "q10": 2,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "data-science": {
     "q1": 1,
@@ -431,7 +504,12 @@ const WEIGHTS = {
     "q10": 2,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "devops": {
     "q1": 2,
@@ -443,10 +521,15 @@ const WEIGHTS = {
     "q7": 2,
     "q8": 2,
     "q9": 0,
-    "q10": 3,
+    "q10": 2,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "product-manager": {
     "q1": 0,
@@ -461,7 +544,12 @@ const WEIGHTS = {
     "q10": 1,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "ux-designer": {
     "q1": 1,
@@ -476,7 +564,12 @@ const WEIGHTS = {
     "q10": 1,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "fullstack": {
     "q1": 3,
@@ -491,7 +584,12 @@ const WEIGHTS = {
     "q10": 2,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "mobile": {
     "q1": 3,
@@ -506,7 +604,12 @@ const WEIGHTS = {
     "q10": 1,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "data-analyst": {
     "q1": 1,
@@ -521,7 +624,12 @@ const WEIGHTS = {
     "q10": 2,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "machine-learning": {
     "q1": 3,
@@ -536,7 +644,12 @@ const WEIGHTS = {
     "q10": 2,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "ai-engineer": {
     "q1": 3,
@@ -551,13 +664,18 @@ const WEIGHTS = {
     "q10": 2,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "cyber-security": {
     "q1": 2,
     "q2": 2,
     "q3": 1,
-    "q4": 3,
+    "q4": 2,
     "q5": 2,
     "q6": 2,
     "q7": 2,
@@ -566,7 +684,12 @@ const WEIGHTS = {
     "q10": 3,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "qa-engineer": {
     "q1": 2,
@@ -581,7 +704,12 @@ const WEIGHTS = {
     "q10": 2,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "game-dev": {
     "q1": 3,
@@ -596,13 +724,18 @@ const WEIGHTS = {
     "q10": 1,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "technical-writer": {
     "q1": 1,
     "q2": 0,
     "q3": 1,
-    "q4": 2,
+    "q4": 3,
     "q5": 1,
     "q6": 1,
     "q7": 0,
@@ -611,22 +744,32 @@ const WEIGHTS = {
     "q10": 1,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   },
   "software-architect": {
-    "q1": 3,
+    "q1": 2,
     "q2": 2,
     "q3": 1,
-    "q4": 3,
+    "q4": 2,
     "q5": 3,
-    "q6": 3,
+    "q6": 2,
     "q7": 2,
     "q8": 2,
     "q9": 0,
-    "q10": 3,
+    "q10": 2,
     "q11": 0,
     "q12": 0,
-    "q13": 0
+    "q13": 0,
+    "q14": 0,
+    "q15": 0,
+    "q16": 0,
+    "q17": 0,
+    "q18": 0
   }
 }
 
@@ -676,6 +819,18 @@ const BONUSES = [
     "bonus": 2
   },
   {
+    "qId": "q14",
+    "answerValue": 0,
+    "careerId": "frontend",
+    "bonus": 3
+  },
+  {
+    "qId": "q18",
+    "answerValue": 2,
+    "careerId": "frontend",
+    "bonus": 1
+  },
+  {
     "qId": "q4",
     "answerValue": 1,
     "careerId": "backend",
@@ -718,6 +873,18 @@ const BONUSES = [
     "bonus": 1
   },
   {
+    "qId": "q15",
+    "answerValue": 3,
+    "careerId": "backend",
+    "bonus": 3
+  },
+  {
+    "qId": "q18",
+    "answerValue": 3,
+    "careerId": "backend",
+    "bonus": 1
+  },
+  {
     "qId": "q11",
     "answerValue": 2,
     "careerId": "data-science",
@@ -743,6 +910,18 @@ const BONUSES = [
   },
   {
     "qId": "q7",
+    "answerValue": 2,
+    "careerId": "data-science",
+    "bonus": 2
+  },
+  {
+    "qId": "q16",
+    "answerValue": 1,
+    "careerId": "data-science",
+    "bonus": 3
+  },
+  {
+    "qId": "q2",
     "answerValue": 2,
     "careerId": "data-science",
     "bonus": 2
@@ -782,6 +961,12 @@ const BONUSES = [
     "answerValue": 3,
     "careerId": "devops",
     "bonus": 2
+  },
+  {
+    "qId": "q17",
+    "answerValue": 0,
+    "careerId": "devops",
+    "bonus": 3
   },
   {
     "qId": "q5",
@@ -820,6 +1005,12 @@ const BONUSES = [
     "bonus": 1
   },
   {
+    "qId": "q18",
+    "answerValue": 1,
+    "careerId": "product-manager",
+    "bonus": 3
+  },
+  {
     "qId": "q2",
     "answerValue": 0,
     "careerId": "ux-designer",
@@ -856,6 +1047,18 @@ const BONUSES = [
     "bonus": 2
   },
   {
+    "qId": "q14",
+    "answerValue": 3,
+    "careerId": "ux-designer",
+    "bonus": 3
+  },
+  {
+    "qId": "q18",
+    "answerValue": 2,
+    "careerId": "ux-designer",
+    "bonus": 1
+  },
+  {
     "qId": "q4",
     "answerValue": 0,
     "careerId": "fullstack",
@@ -884,6 +1087,12 @@ const BONUSES = [
     "answerValue": 1,
     "careerId": "fullstack",
     "bonus": 2
+  },
+  {
+    "qId": "q15",
+    "answerValue": 0,
+    "careerId": "fullstack",
+    "bonus": 3
   },
   {
     "qId": "q2",
@@ -928,6 +1137,12 @@ const BONUSES = [
     "bonus": 1
   },
   {
+    "qId": "q14",
+    "answerValue": 1,
+    "careerId": "mobile",
+    "bonus": 3
+  },
+  {
     "qId": "q1",
     "answerValue": 1,
     "careerId": "data-analyst",
@@ -964,6 +1179,12 @@ const BONUSES = [
     "bonus": 2
   },
   {
+    "qId": "q16",
+    "answerValue": 0,
+    "careerId": "data-analyst",
+    "bonus": 3
+  },
+  {
     "qId": "q1",
     "answerValue": 3,
     "careerId": "machine-learning",
@@ -998,6 +1219,12 @@ const BONUSES = [
     "answerValue": 1,
     "careerId": "machine-learning",
     "bonus": 2
+  },
+  {
+    "qId": "q16",
+    "answerValue": 2,
+    "careerId": "machine-learning",
+    "bonus": 3
   },
   {
     "qId": "q3",
@@ -1036,6 +1263,12 @@ const BONUSES = [
     "bonus": 1
   },
   {
+    "qId": "q16",
+    "answerValue": 3,
+    "careerId": "ai-engineer",
+    "bonus": 3
+  },
+  {
     "qId": "q2",
     "answerValue": 3,
     "careerId": "cyber-security",
@@ -1064,6 +1297,12 @@ const BONUSES = [
     "answerValue": 3,
     "careerId": "cyber-security",
     "bonus": 2
+  },
+  {
+    "qId": "q17",
+    "answerValue": 1,
+    "careerId": "cyber-security",
+    "bonus": 3
   },
   {
     "qId": "q4",
@@ -1097,6 +1336,18 @@ const BONUSES = [
   },
   {
     "qId": "q13",
+    "answerValue": 3,
+    "careerId": "qa-engineer",
+    "bonus": 2
+  },
+  {
+    "qId": "q15",
+    "answerValue": 2,
+    "careerId": "qa-engineer",
+    "bonus": 3
+  },
+  {
+    "qId": "q17",
     "answerValue": 3,
     "careerId": "qa-engineer",
     "bonus": 2
@@ -1138,6 +1389,12 @@ const BONUSES = [
     "bonus": 2
   },
   {
+    "qId": "q14",
+    "answerValue": 2,
+    "careerId": "game-dev",
+    "bonus": 3
+  },
+  {
     "qId": "q1",
     "answerValue": 1,
     "careerId": "technical-writer",
@@ -1160,6 +1417,12 @@ const BONUSES = [
     "answerValue": 0,
     "careerId": "technical-writer",
     "bonus": 2
+  },
+  {
+    "qId": "q18",
+    "answerValue": 0,
+    "careerId": "technical-writer",
+    "bonus": 3
   },
   {
     "qId": "q4",
@@ -1196,6 +1459,24 @@ const BONUSES = [
     "answerValue": 1,
     "careerId": "software-architect",
     "bonus": 2
+  },
+  {
+    "qId": "q15",
+    "answerValue": 1,
+    "careerId": "software-architect",
+    "bonus": 3
+  },
+  {
+    "qId": "q17",
+    "answerValue": 2,
+    "careerId": "software-architect",
+    "bonus": 2
+  },
+  {
+    "qId": "q18",
+    "answerValue": 3,
+    "careerId": "software-architect",
+    "bonus": 1
   }
 ]
 
