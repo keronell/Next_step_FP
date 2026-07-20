@@ -123,6 +123,17 @@ function Footer({ onReset }) {
             © 2026 The Next Step · Career Discovery Platform
           </p>
 
+          {/* Served from public/ as a static file — the app is a single-page phase
+              machine with no router, and a same-tab nav would drop the user's
+              assessment state, hence target="_blank". */}
+          <a
+            href="/LICENSE.txt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="focus-ring font-body text-eyebrow uppercase tracking-wider text-cream/55 hover:text-gold transition-colors duration-fast rounded-sm"
+          >
+            MIT License
+          </a>
         </div>
       </motion.div>
     </footer>
