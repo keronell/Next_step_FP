@@ -63,7 +63,7 @@ def build_reasons(
         val = answers[qid]
         if not q or not (0 <= val < len(q["options"])):
             continue
-        reasons.append(f"You chose “{q['options'][val]}” — {QUESTION_PHRASES[qid]}")
+        reasons.append(f"You chose “{q['options'][val]}” - {QUESTION_PHRASES[qid]}")
 
     if not reasons:
         reasons.append("A direction worth exploring based on your responses")

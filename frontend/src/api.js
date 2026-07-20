@@ -4,7 +4,7 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
-// Stable anonymous id per browser — correlates submission with career selection.
+// Stable anonymous id per browser - correlates submission with career selection.
 export function getSessionId() {
   let id = localStorage.getItem('nextstep_session_id')
   if (!id) {
@@ -44,7 +44,7 @@ async function _request(url, options = {}) {
 
 // ── Questionnaire ────────────────────────────────────────────────────────────
 
-// Question bank — the backend copy is authoritative; callers fall back to the
+// Question bank - the backend copy is authoritative; callers fall back to the
 // bundled QUESTIONS in data.js when this fails (see Questionnaire.jsx).
 export async function fetchQuestions() {
   return _request(`${BASE_URL}/api/questions`)
@@ -75,7 +75,7 @@ export async function fetchRoadmap(careerId, missingSkills = []) {
   })
 }
 
-// Roadmap node completion — only for logged-in users (auth required by the API).
+// Roadmap node completion - only for logged-in users (auth required by the API).
 // Anonymous users keep progress in localStorage instead (see Roadmap.jsx).
 export async function fetchRoadmapProgress(careerId) {
   return _request(`${BASE_URL}/api/roadmap/${careerId}/progress`)
@@ -104,7 +104,7 @@ export async function signIn(email, password) {
   })
 }
 
-// signOut is best-effort from the caller's side — AuthContext clears tokens
+// signOut is best-effort from the caller's side - AuthContext clears tokens
 // regardless of whether this call succeeds.
 export async function signOut() {
   return _request(`${BASE_URL}/api/auth/logout`, { method: 'POST' })

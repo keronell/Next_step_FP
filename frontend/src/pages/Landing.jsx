@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { Sparkles, ArrowDown, Lock } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Button from '../components/ui/Button.jsx'
-import Badge from '../components/ui/Badge.jsx'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -56,7 +55,7 @@ function Hero({ onStart }) {
     const resize = () => {
       const w = canvas.offsetWidth
       const h = canvas.offsetHeight
-      if (w === 0 || h === 0) return // not laid out yet — wait for the observer
+      if (w === 0 || h === 0) return // not laid out yet - wait for the observer
       canvas.width = w
       canvas.height = h
       seed(w, h)
@@ -123,13 +122,6 @@ function Hero({ onStart }) {
         animate="show"
         className="relative z-10 flex flex-col items-center text-center max-w-4xl"
       >
-        {/* Eyebrow badge */}
-        <motion.div variants={item}>
-          <Badge tone="gold" icon={Sparkles} className="mb-8 border-gold/40">
-            Career Discovery Platform
-          </Badge>
-        </motion.div>
-
         {/* Headline */}
         <motion.h1
           variants={item}
@@ -153,7 +145,7 @@ function Hero({ onStart }) {
           variants={item}
           className="font-body text-body text-navy/65 max-w-[52ch] leading-snug mb-10"
         >
-          Answer 10 thoughtful questions and get matched with your ideal tech career — plus a clear, personalized learning roadmap to get there.
+          Up to 15 questions · 3-5 minutes. Get matched with your ideal tech career - plus a personalized roadmap to get there.
         </motion.p>
 
         {/* CTA */}

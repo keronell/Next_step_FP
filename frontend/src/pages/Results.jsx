@@ -36,7 +36,7 @@ function Results({ phase, results, notice, onRetry, onSelectCareer, selectedCare
           />
           {notice === 'offline' && (
             <p className="mt-4 text-center font-body text-small text-navy/55">
-              Showing an offline estimate — the recommendation service is currently unavailable.
+              Showing an offline estimate - the recommendation service is currently unavailable.
             </p>
           )}
           {/* Caveats travel on each rec (so saved history keeps them); shown once. */}
@@ -137,7 +137,7 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
         />
       )}
 
-      {/* Top accent bar — gold gradient on rank-1, soft neutral on others */}
+      {/* Top accent bar - gold gradient on rank-1, soft neutral on others */}
       <div
         className="relative z-10 h-1 w-full"
         style={{
@@ -200,7 +200,7 @@ function CareerCard({ career, rank, isSelected, onSelect }) {
           ))}
         </div>
 
-        {/* Why this match — present only when the backend supplies reasons */}
+        {/* Why this match - present only when the backend supplies reasons */}
         {career.reasons?.length > 0 && (
           <ul className="mb-6 space-y-1.5">
             {career.reasons.slice(0, 3).map((reason) => (

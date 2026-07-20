@@ -5,7 +5,7 @@ export const QUESTIONS = [
     text: 'How comfortable are you writing code from scratch?',
     options: [
       { label: 'Never tried it', value: 0 },
-      { label: 'A little — copy-paste territory', value: 1 },
+      { label: 'A little - copy-paste territory', value: 1 },
       { label: 'Comfortable with guidance', value: 2 },
       { label: 'Very comfortable, do it daily', value: 3 },
     ],
@@ -28,10 +28,10 @@ export const QUESTIONS = [
     showIf: { q: 'q2', in: [1, 2] },
     text: 'When you encounter a dataset, you feel…',
     options: [
-      { label: 'Overwhelmed — numbers aren\'t my thing', value: 0 },
-      { label: 'Indifferent — just give me the answer', value: 1 },
+      { label: 'Overwhelmed - numbers aren\'t my thing', value: 0 },
+      { label: 'Indifferent - just give me the answer', value: 1 },
       { label: 'Interested if it helps my project', value: 2 },
-      { label: 'Curious — what story is hiding here?', value: 3 },
+      { label: 'Curious - what story is hiding here?', value: 3 },
     ],
   },
   {
@@ -97,7 +97,7 @@ export const QUESTIONS = [
     text: 'How drawn are you to visual design?',
     options: [
       { label: 'Not at all my area', value: 0 },
-      { label: 'Functional is fine — polish is bonus', value: 1 },
+      { label: 'Functional is fine - polish is bonus', value: 1 },
       { label: 'I appreciate it but don\'t lead it', value: 2 },
       { label: 'It\'s my happy place', value: 3 },
     ],
@@ -156,7 +156,7 @@ export const QUESTIONS = [
       { label: 'A website anyone can open in their browser', value: 0 },
       { label: 'An app for phones that people carry everywhere', value: 1 },
       { label: 'A small video game with characters and levels', value: 2 },
-      { label: 'Drawings of how an app should look — someone else can build it', value: 3 },
+      { label: 'Drawings of how an app should look - someone else can build it', value: 3 },
     ],
   },
   {
@@ -219,7 +219,7 @@ export const visibleQuestions = (answers, questions = QUESTIONS) =>
   questions.filter((q) => !q.showIf || q.showIf.in.includes(answers[q.showIf.q]))
 
 // Mirror of backend/app/data/careers.json (frontend-facing fields only).
-// Keep in exact sync with the backend catalog — see CLAUDE.md.
+// Keep in exact sync with the backend catalog - see CLAUDE.md.
 export const CAREERS = [
   {
     "id": "frontend",
@@ -1518,7 +1518,7 @@ export function computeResults(answers) {
   }))
 }
 
-// Mirror of backend/app/data/roadmaps.json — offline fallback for Roadmap.jsx.
+// Mirror of backend/app/data/roadmaps.json - offline fallback for Roadmap.jsx.
 export const ROADMAPS = {
   "frontend": {
     "sections": [
@@ -1531,14 +1531,14 @@ export const ROADMAPS = {
             "label": "How the Web Works",
             "level": "beginner",
             "type": "required",
-            "description": "HTTP, DNS, domains, and hosting — what actually happens when you type a URL and hit enter.",
+            "description": "HTTP, DNS, domains, and hosting - what actually happens when you type a URL and hit enter.",
             "resources": [
               {
-                "title": "MDN — How the Web works",
+                "title": "MDN - How the Web works",
                 "url": "https://developer.mozilla.org/en-US/docs/Learn/Getting_started_with_the_web/How_the_Web_works"
               },
               {
-                "title": "roadmap.sh — Frontend",
+                "title": "roadmap.sh - Frontend",
                 "url": "https://roadmap.sh/frontend"
               }
             ]
@@ -1551,7 +1551,7 @@ export const ROADMAPS = {
             "description": "Semantic HTML5: document structure, forms, media, and markup that search engines and screen readers understand.",
             "resources": [
               {
-                "title": "MDN Web Docs — HTML",
+                "title": "MDN Web Docs - HTML",
                 "url": "https://developer.mozilla.org/en-US/docs/Web/HTML"
               }
             ]
@@ -1564,11 +1564,11 @@ export const ROADMAPS = {
             "description": "Modern CSS: the box model, flexbox, grid, custom properties, and responsive layouts that work on any screen.",
             "resources": [
               {
-                "title": "MDN Web Docs — CSS",
+                "title": "MDN Web Docs - CSS",
                 "url": "https://developer.mozilla.org/en-US/docs/Web/CSS"
               },
               {
-                "title": "web.dev — Learn CSS",
+                "title": "web.dev - Learn CSS",
                 "url": "https://web.dev/learn/css"
               }
             ]
@@ -1591,10 +1591,10 @@ export const ROADMAPS = {
             "label": "Accessibility",
             "level": "beginner",
             "type": "required",
-            "description": "WCAG basics, semantic markup, keyboard navigation, and ARIA — building interfaces everyone can use.",
+            "description": "WCAG basics, semantic markup, keyboard navigation, and ARIA - building interfaces everyone can use.",
             "resources": [
               {
-                "title": "MDN — Accessibility",
+                "title": "MDN - Accessibility",
                 "url": "https://developer.mozilla.org/en-US/docs/Web/Accessibility"
               }
             ]
@@ -1730,7 +1730,7 @@ export const ROADMAPS = {
             "label": "Testing",
             "level": "intermediate",
             "type": "required",
-            "description": "Unit and component tests with Vitest and React Testing Library — testing behavior, not implementation.",
+            "description": "Unit and component tests with Vitest and React Testing Library - testing behavior, not implementation.",
             "resources": [
               {
                 "title": "Vitest Docs",
@@ -1760,7 +1760,7 @@ export const ROADMAPS = {
             "label": "Web Security Basics",
             "level": "intermediate",
             "type": "required",
-            "description": "XSS, CSRF, CORS, and Content Security Policy — the attacks every frontend must defend against.",
+            "description": "XSS, CSRF, CORS, and Content Security Policy - the attacks every frontend must defend against.",
             "resources": [
               {
                 "title": "OWASP Top 10",
@@ -1776,7 +1776,7 @@ export const ROADMAPS = {
             "description": "Core Web Vitals, code splitting, lazy loading, image optimization, and bundle analysis.",
             "resources": [
               {
-                "title": "web.dev — Performance",
+                "title": "web.dev - Performance",
                 "url": "https://web.dev/performance/"
               }
             ]
@@ -1821,7 +1821,7 @@ export const ROADMAPS = {
             "description": "Service workers, caching strategies, and installable progressive web apps.",
             "resources": [
               {
-                "title": "web.dev — Learn PWA",
+                "title": "web.dev - Learn PWA",
                 "url": "https://web.dev/learn/pwa"
               }
             ]
@@ -1834,7 +1834,7 @@ export const ROADMAPS = {
             "description": "Query-language APIs: schemas, queries, mutations, and client caching.",
             "resources": [
               {
-                "title": "GraphQL — Learn",
+                "title": "GraphQL - Learn",
                 "url": "https://graphql.org/learn/"
               }
             ]
@@ -1854,14 +1854,14 @@ export const ROADMAPS = {
             "label": "Node.js & JavaScript",
             "level": "beginner",
             "type": "required",
-            "description": "Pick a backend language and go deep — Node.js with Express or Fastify is a strong default for web APIs.",
+            "description": "Pick a backend language and go deep - Node.js with Express or Fastify is a strong default for web APIs.",
             "resources": [
               {
-                "title": "Node.js — Learn",
+                "title": "Node.js - Learn",
                 "url": "https://nodejs.org/en/learn"
               },
               {
-                "title": "roadmap.sh — Backend",
+                "title": "roadmap.sh - Backend",
                 "url": "https://roadmap.sh/backend"
               }
             ]
@@ -1874,7 +1874,7 @@ export const ROADMAPS = {
             "description": "HTTP request/response, DNS, TLS, and what a web server actually does.",
             "resources": [
               {
-                "title": "MDN — HTTP",
+                "title": "MDN - HTTP",
                 "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP"
               }
             ]
@@ -1897,7 +1897,7 @@ export const ROADMAPS = {
             "label": "Linux & Terminal",
             "level": "beginner",
             "type": "required",
-            "description": "Shell basics, processes, permissions, and SSH — backends live on Linux servers.",
+            "description": "Shell basics, processes, permissions, and SSH - backends live on Linux servers.",
             "resources": [
               {
                 "title": "Linux Journey",
@@ -1932,7 +1932,7 @@ export const ROADMAPS = {
             "description": "Fluent querying: SELECT, JOIN, GROUP BY, subqueries, and reading query plans for indexing.",
             "resources": [
               {
-                "title": "SQLBolt — Interactive SQL",
+                "title": "SQLBolt - Interactive SQL",
                 "url": "https://sqlbolt.com"
               }
             ]
@@ -1955,7 +1955,7 @@ export const ROADMAPS = {
             "label": "ORMs & Query Builders",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "Prisma, Drizzle, or SQLAlchemy: productivity layers over SQL — and when to drop to raw queries.",
+            "description": "Prisma, Drizzle, or SQLAlchemy: productivity layers over SQL - and when to drop to raw queries.",
             "resources": [
               {
                 "title": "Prisma Docs",
@@ -1987,7 +1987,7 @@ export const ROADMAPS = {
             "label": "Authentication & Security",
             "level": "intermediate",
             "type": "required",
-            "description": "Sessions, JWTs, OAuth 2.0, and password hashing — who is calling and what may they do.",
+            "description": "Sessions, JWTs, OAuth 2.0, and password hashing - who is calling and what may they do.",
             "resources": [
               {
                 "title": "JWT Introduction",
@@ -2007,7 +2007,7 @@ export const ROADMAPS = {
             "description": "Pushing data to clients: WebSockets, server-sent events, and pub/sub patterns.",
             "resources": [
               {
-                "title": "MDN — WebSockets API",
+                "title": "MDN - WebSockets API",
                 "url": "https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API"
               }
             ]
@@ -2020,7 +2020,7 @@ export const ROADMAPS = {
             "description": "Schema-first APIs with resolvers, dataloaders, and the N+1 problem.",
             "resources": [
               {
-                "title": "GraphQL — Learn",
+                "title": "GraphQL - Learn",
                 "url": "https://graphql.org/learn/"
               }
             ]
@@ -2049,7 +2049,7 @@ export const ROADMAPS = {
             "label": "Caching",
             "level": "advanced",
             "type": "required",
-            "description": "Redis, HTTP caching, and CDNs — plus cache invalidation, the famously hard part.",
+            "description": "Redis, HTTP caching, and CDNs - plus cache invalidation, the famously hard part.",
             "resources": [
               {
                 "title": "Redis Docs",
@@ -2062,7 +2062,7 @@ export const ROADMAPS = {
             "label": "Web Security",
             "level": "advanced",
             "type": "required",
-            "description": "OWASP Top 10: injection, broken auth, SSRF — plus rate limiting and secrets handling.",
+            "description": "OWASP Top 10: injection, broken auth, SSRF - plus rate limiting and secrets handling.",
             "resources": [
               {
                 "title": "OWASP Top 10",
@@ -2078,7 +2078,7 @@ export const ROADMAPS = {
             "description": "Structured logs, metrics, and traces so you can debug production without guessing.",
             "resources": [
               {
-                "title": "The Twelve-Factor App — Logs",
+                "title": "The Twelve-Factor App - Logs",
                 "url": "https://12factor.net/logs"
               }
             ]
@@ -2094,7 +2094,7 @@ export const ROADMAPS = {
             "label": "System Design",
             "level": "advanced",
             "type": "required",
-            "description": "Load balancing, replication, sharding, and CAP trade-offs — designing beyond one server.",
+            "description": "Load balancing, replication, sharding, and CAP trade-offs - designing beyond one server.",
             "resources": [
               {
                 "title": "System Design Primer",
@@ -2169,14 +2169,14 @@ export const ROADMAPS = {
             "label": "Statistics & Probability",
             "level": "beginner",
             "type": "required",
-            "description": "Distributions, expectation, sampling, and hypothesis testing — the language of uncertainty.",
+            "description": "Distributions, expectation, sampling, and hypothesis testing - the language of uncertainty.",
             "resources": [
               {
-                "title": "Khan Academy — Statistics & Probability",
+                "title": "Khan Academy - Statistics & Probability",
                 "url": "https://www.khanacademy.org/math/statistics-probability"
               },
               {
-                "title": "roadmap.sh — AI & Data Scientist",
+                "title": "roadmap.sh - AI & Data Scientist",
                 "url": "https://roadmap.sh/ai-data-scientist"
               }
             ]
@@ -2186,10 +2186,10 @@ export const ROADMAPS = {
             "label": "Linear Algebra",
             "level": "beginner",
             "type": "required",
-            "description": "Vectors, matrices, and transformations — what models are actually made of.",
+            "description": "Vectors, matrices, and transformations - what models are actually made of.",
             "resources": [
               {
-                "title": "3Blue1Brown — Essence of Linear Algebra",
+                "title": "3Blue1Brown - Essence of Linear Algebra",
                 "url": "https://www.3blue1brown.com/topics/linear-algebra"
               }
             ]
@@ -2202,7 +2202,7 @@ export const ROADMAPS = {
             "description": "Fluent Python: functions, comprehensions, environments, and writing code someone else can run.",
             "resources": [
               {
-                "title": "Python Docs — Tutorial",
+                "title": "Python Docs - Tutorial",
                 "url": "https://docs.python.org/3/tutorial/"
               }
             ]
@@ -2218,14 +2218,14 @@ export const ROADMAPS = {
             "label": "Pandas & NumPy",
             "level": "intermediate",
             "type": "required",
-            "description": "Arrays, DataFrames, joins, and vectorized thinking — the daily toolkit.",
+            "description": "Arrays, DataFrames, joins, and vectorized thinking - the daily toolkit.",
             "resources": [
               {
                 "title": "pandas Docs",
                 "url": "https://pandas.pydata.org/docs/"
               },
               {
-                "title": "NumPy — Learn",
+                "title": "NumPy - Learn",
                 "url": "https://numpy.org/learn/"
               }
             ]
@@ -2251,7 +2251,7 @@ export const ROADMAPS = {
             "description": "Profiling distributions, spotting outliers and leakage, and forming hypotheses before modeling.",
             "resources": [
               {
-                "title": "pandas — 10 Minutes to pandas",
+                "title": "pandas - 10 Minutes to pandas",
                 "url": "https://pandas.pydata.org/docs/user_guide/10min.html"
               }
             ]
@@ -2287,7 +2287,7 @@ export const ROADMAPS = {
             "description": "Supervised vs unsupervised, train/test splits, overfitting, and the bias-variance trade-off.",
             "resources": [
               {
-                "title": "scikit-learn — User Guide",
+                "title": "scikit-learn - User Guide",
                 "url": "https://scikit-learn.org/stable/user_guide.html"
               }
             ]
@@ -2297,10 +2297,10 @@ export const ROADMAPS = {
             "label": "Classification & Regression",
             "level": "intermediate",
             "type": "required",
-            "description": "Linear/logistic regression, trees, and gradient boosting — the workhorses of tabular data.",
+            "description": "Linear/logistic regression, trees, and gradient boosting - the workhorses of tabular data.",
             "resources": [
               {
-                "title": "scikit-learn — Supervised Learning",
+                "title": "scikit-learn - Supervised Learning",
                 "url": "https://scikit-learn.org/stable/supervised_learning.html"
               }
             ]
@@ -2313,7 +2313,7 @@ export const ROADMAPS = {
             "description": "k-means, hierarchical clustering, and PCA for structure-finding and compression.",
             "resources": [
               {
-                "title": "scikit-learn — Unsupervised Learning",
+                "title": "scikit-learn - Unsupervised Learning",
                 "url": "https://scikit-learn.org/stable/unsupervised_learning.html"
               }
             ]
@@ -2323,10 +2323,10 @@ export const ROADMAPS = {
             "label": "Model Evaluation",
             "level": "intermediate",
             "type": "required",
-            "description": "Precision/recall, ROC-AUC, cross-validation, and calibration — proving a model is actually good.",
+            "description": "Precision/recall, ROC-AUC, cross-validation, and calibration - proving a model is actually good.",
             "resources": [
               {
-                "title": "scikit-learn — Model Evaluation",
+                "title": "scikit-learn - Model Evaluation",
                 "url": "https://scikit-learn.org/stable/modules/model_evaluation.html"
               }
             ]
@@ -2355,7 +2355,7 @@ export const ROADMAPS = {
             "label": "PyTorch / TensorFlow",
             "level": "advanced",
             "type": "good-to-know",
-            "description": "Building and training networks in a modern framework — tensors, autograd, and GPUs.",
+            "description": "Building and training networks in a modern framework - tensors, autograd, and GPUs.",
             "resources": [
               {
                 "title": "PyTorch Tutorials",
@@ -2371,7 +2371,7 @@ export const ROADMAPS = {
             "description": "Text as data: tokenization, embeddings, and transformer models at a practical level.",
             "resources": [
               {
-                "title": "Hugging Face — Learn",
+                "title": "Hugging Face - Learn",
                 "url": "https://huggingface.co/learn"
               }
             ]
@@ -2384,7 +2384,7 @@ export const ROADMAPS = {
             "description": "Where LLMs fit in a data scientist's toolbox: prompting, evaluation, and augmenting analyses.",
             "resources": [
               {
-                "title": "OpenAI — Docs",
+                "title": "OpenAI - Docs",
                 "url": "https://platform.openai.com/docs"
               }
             ]
@@ -2403,7 +2403,7 @@ export const ROADMAPS = {
             "description": "Designing experiments that isolate cause: power, randomization, and common pitfalls.",
             "resources": [
               {
-                "title": "Khan Academy — Study Design",
+                "title": "Khan Academy - Study Design",
                 "url": "https://www.khanacademy.org/math/statistics-probability/designing-studies"
               }
             ]
@@ -2439,7 +2439,7 @@ export const ROADMAPS = {
             "label": "Projects & Kaggle",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "End-to-end projects on real datasets — the fastest way to learn and the best interview evidence.",
+            "description": "End-to-end projects on real datasets - the fastest way to learn and the best interview evidence.",
             "resources": [
               {
                 "title": "Kaggle Learn",
@@ -2462,14 +2462,14 @@ export const ROADMAPS = {
             "label": "Linux & Terminal",
             "level": "beginner",
             "type": "required",
-            "description": "Shell scripting, processes, permissions, systemd, and networking tools — DevOps lives in the terminal.",
+            "description": "Shell scripting, processes, permissions, systemd, and networking tools - DevOps lives in the terminal.",
             "resources": [
               {
                 "title": "Linux Journey",
                 "url": "https://linuxjourney.com"
               },
               {
-                "title": "roadmap.sh — DevOps",
+                "title": "roadmap.sh - DevOps",
                 "url": "https://roadmap.sh/devops"
               }
             ]
@@ -2479,10 +2479,10 @@ export const ROADMAPS = {
             "label": "A Programming Language",
             "level": "beginner",
             "type": "required",
-            "description": "Python or Go for automation, tooling, and glue — DevOps is software engineering for infrastructure.",
+            "description": "Python or Go for automation, tooling, and glue - DevOps is software engineering for infrastructure.",
             "resources": [
               {
-                "title": "Go — Tour",
+                "title": "Go - Tour",
                 "url": "https://go.dev/tour/"
               }
             ]
@@ -2492,10 +2492,10 @@ export const ROADMAPS = {
             "label": "Networking & Protocols",
             "level": "beginner",
             "type": "required",
-            "description": "DNS, HTTP/HTTPS, TCP/IP, load balancing, and TLS — the plumbing you'll spend nights debugging.",
+            "description": "DNS, HTTP/HTTPS, TCP/IP, load balancing, and TLS - the plumbing you'll spend nights debugging.",
             "resources": [
               {
-                "title": "Cloudflare — Learning Center",
+                "title": "Cloudflare - Learning Center",
                 "url": "https://www.cloudflare.com/learning/"
               }
             ]
@@ -2524,7 +2524,7 @@ export const ROADMAPS = {
             "label": "Docker",
             "level": "intermediate",
             "type": "required",
-            "description": "Images, layers, registries, and Compose — packaging apps so they run anywhere identically.",
+            "description": "Images, layers, registries, and Compose - packaging apps so they run anywhere identically.",
             "resources": [
               {
                 "title": "Docker Docs",
@@ -2537,7 +2537,7 @@ export const ROADMAPS = {
             "label": "Kubernetes",
             "level": "advanced",
             "type": "required",
-            "description": "Pods, deployments, services, ingress, and autoscaling — orchestrating containers at scale.",
+            "description": "Pods, deployments, services, ingress, and autoscaling - orchestrating containers at scale.",
             "resources": [
               {
                 "title": "Kubernetes Docs",
@@ -2550,10 +2550,10 @@ export const ROADMAPS = {
             "label": "Container Security",
             "level": "advanced",
             "type": "good-to-know",
-            "description": "Image scanning, least-privilege, and secrets — hardening the container supply chain.",
+            "description": "Image scanning, least-privilege, and secrets - hardening the container supply chain.",
             "resources": [
               {
-                "title": "Kubernetes — Security",
+                "title": "Kubernetes - Security",
                 "url": "https://kubernetes.io/docs/concepts/security/"
               }
             ]
@@ -2640,7 +2640,7 @@ export const ROADMAPS = {
             "label": "CI/CD Pipelines",
             "level": "intermediate",
             "type": "required",
-            "description": "Build, test, and deploy automatically with GitHub Actions or GitLab CI — the DevOps heartbeat.",
+            "description": "Build, test, and deploy automatically with GitHub Actions or GitLab CI - the DevOps heartbeat.",
             "resources": [
               {
                 "title": "GitHub Actions Docs",
@@ -2669,7 +2669,7 @@ export const ROADMAPS = {
             "description": "Registries and artifact repositories for versioned, promotable build outputs.",
             "resources": [
               {
-                "title": "OCI — Registry Spec",
+                "title": "OCI - Registry Spec",
                 "url": "https://github.com/opencontainers/distribution-spec"
               }
             ]
@@ -2718,7 +2718,7 @@ export const ROADMAPS = {
             "description": "SLOs, error budgets, incident response, and blameless postmortems.",
             "resources": [
               {
-                "title": "Google — SRE Book",
+                "title": "Google - SRE Book",
                 "url": "https://sre.google/books/"
               }
             ]
@@ -2731,7 +2731,7 @@ export const ROADMAPS = {
             "description": "Retries, circuit breakers, and graceful degradation for systems that fail well.",
             "resources": [
               {
-                "title": "Azure — Cloud Design Patterns",
+                "title": "Azure - Cloud Design Patterns",
                 "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/"
               }
             ]
@@ -2754,11 +2754,11 @@ export const ROADMAPS = {
             "description": "What a PM owns (the why and what, not the how) and how it differs from project and program management.",
             "resources": [
               {
-                "title": "SVPG — Articles",
+                "title": "SVPG - Articles",
                 "url": "https://www.svpg.com/articles/"
               },
               {
-                "title": "roadmap.sh — Product Manager",
+                "title": "roadmap.sh - Product Manager",
                 "url": "https://roadmap.sh/product-manager"
               }
             ]
@@ -2768,10 +2768,10 @@ export const ROADMAPS = {
             "label": "User Research",
             "level": "beginner",
             "type": "required",
-            "description": "Interviews, surveys, and jobs-to-be-done — understanding problems before proposing solutions.",
+            "description": "Interviews, surveys, and jobs-to-be-done - understanding problems before proposing solutions.",
             "resources": [
               {
-                "title": "NN/g — UX Research Methods",
+                "title": "NN/g - UX Research Methods",
                 "url": "https://www.nngroup.com/articles/which-ux-research-methods/"
               }
             ]
@@ -2803,7 +2803,7 @@ export const ROADMAPS = {
             "description": "A clear vision, strategy, and value proposition that align the team on where you're going and why.",
             "resources": [
               {
-                "title": "SVPG — Product Vision",
+                "title": "SVPG - Product Vision",
                 "url": "https://www.svpg.com/product-vision/"
               }
             ]
@@ -2813,10 +2813,10 @@ export const ROADMAPS = {
             "label": "Prioritization",
             "level": "intermediate",
             "type": "required",
-            "description": "RICE, value vs effort, and opportunity scoring — saying no to good ideas to ship great ones.",
+            "description": "RICE, value vs effort, and opportunity scoring - saying no to good ideas to ship great ones.",
             "resources": [
               {
-                "title": "Intercom — RICE",
+                "title": "Intercom - RICE",
                 "url": "https://www.intercom.com/blog/rice-simple-prioritization-for-product-managers/"
               }
             ]
@@ -2829,7 +2829,7 @@ export const ROADMAPS = {
             "description": "Outcome-based roadmaps that communicate direction without over-promising dates.",
             "resources": [
               {
-                "title": "SVPG — Product Roadmaps",
+                "title": "SVPG - Product Roadmaps",
                 "url": "https://www.svpg.com/product-roadmaps/"
               }
             ]
@@ -2842,7 +2842,7 @@ export const ROADMAPS = {
             "description": "Setting measurable objectives and key results that tie daily work to strategy.",
             "resources": [
               {
-                "title": "What Matters — OKRs",
+                "title": "What Matters - OKRs",
                 "url": "https://www.whatmatters.com/get-started"
               }
             ]
@@ -2861,7 +2861,7 @@ export const ROADMAPS = {
             "description": "User stories, acceptance criteria, and crisp PRDs so engineering builds the right thing.",
             "resources": [
               {
-                "title": "Atlassian — Product Requirements",
+                "title": "Atlassian - Product Requirements",
                 "url": "https://www.atlassian.com/agile/product-management/requirements"
               }
             ]
@@ -2871,10 +2871,10 @@ export const ROADMAPS = {
             "label": "Agile & Scrum",
             "level": "intermediate",
             "type": "required",
-            "description": "Backlogs, sprints, and ceremonies — working effectively inside an agile engineering team.",
+            "description": "Backlogs, sprints, and ceremonies - working effectively inside an agile engineering team.",
             "resources": [
               {
-                "title": "Atlassian — Agile Coach",
+                "title": "Atlassian - Agile Coach",
                 "url": "https://www.atlassian.com/agile"
               }
             ]
@@ -2887,7 +2887,7 @@ export const ROADMAPS = {
             "description": "The product trio: shared discovery, trade-off conversations, and healthy dev collaboration.",
             "resources": [
               {
-                "title": "SVPG — Product Discovery",
+                "title": "SVPG - Product Discovery",
                 "url": "https://www.svpg.com/product-discovery/"
               }
             ]
@@ -2916,10 +2916,10 @@ export const ROADMAPS = {
             "label": "Product Metrics",
             "level": "advanced",
             "type": "required",
-            "description": "North-star metrics, activation, retention, and the AARRR funnel — knowing if you're winning.",
+            "description": "North-star metrics, activation, retention, and the AARRR funnel - knowing if you're winning.",
             "resources": [
               {
-                "title": "Amplitude — Product Metrics",
+                "title": "Amplitude - Product Metrics",
                 "url": "https://amplitude.com/blog/product-metrics"
               }
             ]
@@ -2932,7 +2932,7 @@ export const ROADMAPS = {
             "description": "Hypotheses, experiment design, and reading results without fooling yourself.",
             "resources": [
               {
-                "title": "Optimizely — A/B Testing",
+                "title": "Optimizely - A/B Testing",
                 "url": "https://www.optimizely.com/optimization-glossary/ab-testing/"
               }
             ]
@@ -2942,10 +2942,10 @@ export const ROADMAPS = {
             "label": "Analytics Tools",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "SQL basics plus Amplitude/Mixpanel — answering your own product questions.",
+            "description": "SQL basics plus Amplitude/Mixpanel - answering your own product questions.",
             "resources": [
               {
-                "title": "Mode — SQL Tutorial",
+                "title": "Mode - SQL Tutorial",
                 "url": "https://mode.com/sql-tutorial"
               }
             ]
@@ -2974,10 +2974,10 @@ export const ROADMAPS = {
             "label": "Stakeholder Management",
             "level": "advanced",
             "type": "required",
-            "description": "Aligning execs, engineering, and go-to-market teams — influence without authority.",
+            "description": "Aligning execs, engineering, and go-to-market teams - influence without authority.",
             "resources": [
               {
-                "title": "SVPG — Stakeholder Management",
+                "title": "SVPG - Stakeholder Management",
                 "url": "https://www.svpg.com/beyond-lip-service/"
               }
             ]
@@ -2990,7 +2990,7 @@ export const ROADMAPS = {
             "description": "Writing crisply, presenting decisions, and telling the story that gets a roadmap funded.",
             "resources": [
               {
-                "title": "Amazon — Working Backwards",
+                "title": "Amazon - Working Backwards",
                 "url": "https://www.aboutamazon.com/news/workplace/an-insider-look-at-amazons-culture-and-processes"
               }
             ]
@@ -3003,7 +3003,7 @@ export const ROADMAPS = {
             "description": "Leading through vision and trust, managing up, and growing from PM to product leader.",
             "resources": [
               {
-                "title": "SVPG — Articles",
+                "title": "SVPG - Articles",
                 "url": "https://www.svpg.com/articles/"
               }
             ]
@@ -3023,14 +3023,14 @@ export const ROADMAPS = {
             "label": "Design Principles",
             "level": "beginner",
             "type": "required",
-            "description": "Hierarchy, contrast, balance, alignment, and Gestalt — the grammar behind every good layout.",
+            "description": "Hierarchy, contrast, balance, alignment, and Gestalt - the grammar behind every good layout.",
             "resources": [
               {
                 "title": "Refactoring UI",
                 "url": "https://www.refactoringui.com"
               },
               {
-                "title": "roadmap.sh — UX Design",
+                "title": "roadmap.sh - UX Design",
                 "url": "https://roadmap.sh/ux-design"
               }
             ]
@@ -3043,7 +3043,7 @@ export const ROADMAPS = {
             "description": "Type scales, readable text, color systems, and contrast that meets accessibility standards.",
             "resources": [
               {
-                "title": "Material — Typography",
+                "title": "Material - Typography",
                 "url": "https://m3.material.io/styles/typography/overview"
               }
             ]
@@ -3053,10 +3053,10 @@ export const ROADMAPS = {
             "label": "UX vs UI",
             "level": "beginner",
             "type": "required",
-            "description": "The difference between how it works and how it looks — and why both roles collaborate closely.",
+            "description": "The difference between how it works and how it looks - and why both roles collaborate closely.",
             "resources": [
               {
-                "title": "NN/g — UX vs UI",
+                "title": "NN/g - UX vs UI",
                 "url": "https://www.nngroup.com/articles/definition-user-experience/"
               }
             ]
@@ -3085,10 +3085,10 @@ export const ROADMAPS = {
             "label": "User Research",
             "level": "intermediate",
             "type": "required",
-            "description": "Interviews, surveys, and contextual inquiry — designing from evidence, not assumptions.",
+            "description": "Interviews, surveys, and contextual inquiry - designing from evidence, not assumptions.",
             "resources": [
               {
-                "title": "NN/g — UX Research Methods",
+                "title": "NN/g - UX Research Methods",
                 "url": "https://www.nngroup.com/articles/which-ux-research-methods/"
               }
             ]
@@ -3101,7 +3101,7 @@ export const ROADMAPS = {
             "description": "Synthesizing research into personas, empathy maps, and journey maps the whole team rallies around.",
             "resources": [
               {
-                "title": "NN/g — Personas",
+                "title": "NN/g - Personas",
                 "url": "https://www.nngroup.com/articles/persona/"
               }
             ]
@@ -3114,7 +3114,7 @@ export const ROADMAPS = {
             "description": "Card sorting, navigation, and content structure so users always know where they are.",
             "resources": [
               {
-                "title": "NN/g — Information Architecture",
+                "title": "NN/g - Information Architecture",
                 "url": "https://www.nngroup.com/topic/information-architecture/"
               }
             ]
@@ -3127,7 +3127,7 @@ export const ROADMAPS = {
             "description": "Studying competitors and conventions so your product feels familiar where it should.",
             "resources": [
               {
-                "title": "NN/g — Competitive Usability",
+                "title": "NN/g - Competitive Usability",
                 "url": "https://www.nngroup.com/articles/competitive-usability-evaluations/"
               }
             ]
@@ -3146,7 +3146,7 @@ export const ROADMAPS = {
             "description": "Low-fidelity structure first: layout and flow before color and polish.",
             "resources": [
               {
-                "title": "Balsamiq — Wireframing Guide",
+                "title": "Balsamiq - Wireframing Guide",
                 "url": "https://balsamiq.com/learn/"
               }
             ]
@@ -3159,7 +3159,7 @@ export const ROADMAPS = {
             "description": "The industry-standard tool: frames, auto-layout, components, and real-time collaboration.",
             "resources": [
               {
-                "title": "Figma — Learn",
+                "title": "Figma - Learn",
                 "url": "https://help.figma.com/hc/en-us/categories/360002051613-Get-started"
               }
             ]
@@ -3172,7 +3172,7 @@ export const ROADMAPS = {
             "description": "Interactive prototypes to test flows and hand off intent before engineers build.",
             "resources": [
               {
-                "title": "Figma — Prototyping",
+                "title": "Figma - Prototyping",
                 "url": "https://help.figma.com/hc/en-us/articles/360040314193-Guide-to-prototyping-in-Figma"
               }
             ]
@@ -3185,7 +3185,7 @@ export const ROADMAPS = {
             "description": "Micro-interactions, transitions, and feedback that make interfaces feel responsive and alive.",
             "resources": [
               {
-                "title": "NN/g — Microinteractions",
+                "title": "NN/g - Microinteractions",
                 "url": "https://www.nngroup.com/articles/microinteractions/"
               }
             ]
@@ -3204,7 +3204,7 @@ export const ROADMAPS = {
             "description": "Reusable components, tokens, and guidelines that keep a product consistent at scale.",
             "resources": [
               {
-                "title": "Design Systems — Repo & Examples",
+                "title": "Design Systems - Repo & Examples",
                 "url": "https://www.designsystems.com"
               }
             ]
@@ -3214,10 +3214,10 @@ export const ROADMAPS = {
             "label": "Accessibility",
             "level": "advanced",
             "type": "required",
-            "description": "WCAG, color contrast, focus order, and inclusive patterns — designing for every user.",
+            "description": "WCAG, color contrast, focus order, and inclusive patterns - designing for every user.",
             "resources": [
               {
-                "title": "W3C — WCAG Overview",
+                "title": "W3C - WCAG Overview",
                 "url": "https://www.w3.org/WAI/standards-guidelines/wcag/"
               }
             ]
@@ -3227,10 +3227,10 @@ export const ROADMAPS = {
             "label": "Usability Testing",
             "level": "advanced",
             "type": "required",
-            "description": "Moderated and unmoderated tests to find where real users struggle — then fixing it.",
+            "description": "Moderated and unmoderated tests to find where real users struggle - then fixing it.",
             "resources": [
               {
-                "title": "NN/g — Usability Testing 101",
+                "title": "NN/g - Usability Testing 101",
                 "url": "https://www.nngroup.com/articles/usability-testing-101/"
               }
             ]
@@ -3249,7 +3249,7 @@ export const ROADMAPS = {
             "description": "Specs, redlines, and collaborating with engineers so the built product matches the design.",
             "resources": [
               {
-                "title": "Figma — Dev Mode",
+                "title": "Figma - Dev Mode",
                 "url": "https://help.figma.com/hc/en-us/articles/15023124644247-Guide-to-Dev-Mode"
               }
             ]
@@ -3262,7 +3262,7 @@ export const ROADMAPS = {
             "description": "Success metrics, A/B testing, and analytics to prove design decisions worked.",
             "resources": [
               {
-                "title": "NN/g — UX Metrics",
+                "title": "NN/g - UX Metrics",
                 "url": "https://www.nngroup.com/articles/ux-metrics/"
               }
             ]
@@ -3275,7 +3275,7 @@ export const ROADMAPS = {
             "description": "Case studies that show your process and reasoning, not just polished final screens.",
             "resources": [
               {
-                "title": "NN/g — UX Portfolios",
+                "title": "NN/g - UX Portfolios",
                 "url": "https://www.nngroup.com/articles/ux-portfolios/"
               }
             ]
@@ -3295,14 +3295,14 @@ export const ROADMAPS = {
             "label": "HTML & CSS",
             "level": "beginner",
             "type": "required",
-            "description": "Semantic markup, flexbox, grid, and responsive design — the visible half of every feature.",
+            "description": "Semantic markup, flexbox, grid, and responsive design - the visible half of every feature.",
             "resources": [
               {
-                "title": "MDN — HTML & CSS",
+                "title": "MDN - HTML & CSS",
                 "url": "https://developer.mozilla.org/en-US/docs/Learn"
               },
               {
-                "title": "roadmap.sh — Full Stack",
+                "title": "roadmap.sh - Full Stack",
                 "url": "https://roadmap.sh/full-stack"
               }
             ]
@@ -3325,7 +3325,7 @@ export const ROADMAPS = {
             "label": "React",
             "level": "intermediate",
             "type": "required",
-            "description": "Components, hooks, and client-side routing — your default UI layer.",
+            "description": "Components, hooks, and client-side routing - your default UI layer.",
             "resources": [
               {
                 "title": "React Docs",
@@ -3360,7 +3360,7 @@ export const ROADMAPS = {
             "description": "Building HTTP servers, middleware, routing, and environment-based config.",
             "resources": [
               {
-                "title": "Node.js — Learn",
+                "title": "Node.js - Learn",
                 "url": "https://nodejs.org/en/learn"
               }
             ]
@@ -3390,7 +3390,7 @@ export const ROADMAPS = {
                 "url": "https://www.postgresql.org/docs/"
               },
               {
-                "title": "SQLBolt — Interactive SQL",
+                "title": "SQLBolt - Interactive SQL",
                 "url": "https://sqlbolt.com"
               }
             ]
@@ -3400,7 +3400,7 @@ export const ROADMAPS = {
             "label": "MongoDB",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "Document storage for flexible schemas — and knowing when relational is the better call.",
+            "description": "Document storage for flexible schemas - and knowing when relational is the better call.",
             "resources": [
               {
                 "title": "MongoDB Docs",
@@ -3435,7 +3435,7 @@ export const ROADMAPS = {
             "description": "fetch, error handling, loading states, CORS, and keeping client and server contracts in sync.",
             "resources": [
               {
-                "title": "MDN — Fetch API",
+                "title": "MDN - Fetch API",
                 "url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API"
               }
             ]
@@ -3477,7 +3477,7 @@ export const ROADMAPS = {
             "label": "Git & GitHub",
             "level": "beginner",
             "type": "required",
-            "description": "Branch, commit, review, merge — the collaboration loop for every feature you ship.",
+            "description": "Branch, commit, review, merge - the collaboration loop for every feature you ship.",
             "resources": [
               {
                 "title": "Pro Git (free book)",
@@ -3614,7 +3614,7 @@ export const ROADMAPS = {
             "label": "Swift & Kotlin",
             "level": "beginner",
             "type": "required",
-            "description": "Learn a native platform language deeply — Swift for iOS, Kotlin for Android — including optionals, generics, and value types.",
+            "description": "Learn a native platform language deeply - Swift for iOS, Kotlin for Android - including optionals, generics, and value types.",
             "resources": [
               {
                 "title": "Swift Documentation",
@@ -3644,7 +3644,7 @@ export const ROADMAPS = {
             "label": "Git & Version Control",
             "level": "beginner",
             "type": "required",
-            "description": "Branching and pull-request flow — table stakes on any app team.",
+            "description": "Branching and pull-request flow - table stakes on any app team.",
             "resources": [
               {
                 "title": "Pro Git (free book)",
@@ -3709,7 +3709,7 @@ export const ROADMAPS = {
             "description": "MVVM and unidirectional data flow: keeping view code thin and logic testable.",
             "resources": [
               {
-                "title": "Android — Guide to App Architecture",
+                "title": "Android - Guide to App Architecture",
                 "url": "https://developer.android.com/topic/architecture"
               }
             ]
@@ -3722,7 +3722,7 @@ export const ROADMAPS = {
             "description": "Persisting data on device: Core Data / SwiftData, Room, and key-value stores.",
             "resources": [
               {
-                "title": "Android — Data & Storage",
+                "title": "Android - Data & Storage",
                 "url": "https://developer.android.com/training/data-storage"
               }
             ]
@@ -3738,7 +3738,7 @@ export const ROADMAPS = {
             "label": "React Native",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "One JavaScript codebase for both stores — components, native modules, and the bridge.",
+            "description": "One JavaScript codebase for both stores - components, native modules, and the bridge.",
             "resources": [
               {
                 "title": "React Native Docs",
@@ -3767,7 +3767,7 @@ export const ROADMAPS = {
             "description": "Dropping down to native APIs from a cross-platform app when a feature demands it.",
             "resources": [
               {
-                "title": "React Native — Native Modules",
+                "title": "React Native - Native Modules",
                 "url": "https://reactnative.dev/docs/native-platform"
               }
             ]
@@ -3786,7 +3786,7 @@ export const ROADMAPS = {
             "description": "Consuming JSON APIs, handling flaky connections, retries, and error states gracefully.",
             "resources": [
               {
-                "title": "MDN — HTTP Overview",
+                "title": "MDN - HTTP Overview",
                 "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview"
               }
             ]
@@ -3825,7 +3825,7 @@ export const ROADMAPS = {
             "description": "Caching, sync, and conflict resolution so the app works on the subway.",
             "resources": [
               {
-                "title": "Android — Offline-First",
+                "title": "Android - Offline-First",
                 "url": "https://developer.android.com/topic/architecture/data-layer/offline-first"
               }
             ]
@@ -3841,7 +3841,7 @@ export const ROADMAPS = {
             "label": "Testing",
             "level": "advanced",
             "type": "required",
-            "description": "Unit tests plus UI tests with XCTest and Espresso — catching regressions before users do.",
+            "description": "Unit tests plus UI tests with XCTest and Espresso - catching regressions before users do.",
             "resources": [
               {
                 "title": "Android Testing",
@@ -3883,7 +3883,7 @@ export const ROADMAPS = {
             "description": "Release management: TestFlight, staged rollouts, review guidelines, and store listings.",
             "resources": [
               {
-                "title": "Play Console — Launch",
+                "title": "Play Console - Launch",
                 "url": "https://developer.android.com/distribute"
               }
             ]
@@ -3916,10 +3916,10 @@ export const ROADMAPS = {
             "label": "Types of Analytics",
             "level": "beginner",
             "type": "required",
-            "description": "Descriptive, diagnostic, predictive, prescriptive — what question each answers and where analysts spend their time.",
+            "description": "Descriptive, diagnostic, predictive, prescriptive - what question each answers and where analysts spend their time.",
             "resources": [
               {
-                "title": "roadmap.sh — Data Analyst",
+                "title": "roadmap.sh - Data Analyst",
                 "url": "https://roadmap.sh/data-analyst"
               }
             ]
@@ -3932,7 +3932,7 @@ export const ROADMAPS = {
             "description": "Still the analyst's Swiss army knife: formulas, VLOOKUP/XLOOKUP, pivot tables, and charts.",
             "resources": [
               {
-                "title": "Microsoft — Excel Help & Learning",
+                "title": "Microsoft - Excel Help & Learning",
                 "url": "https://support.microsoft.com/en-us/excel"
               }
             ]
@@ -3942,10 +3942,10 @@ export const ROADMAPS = {
             "label": "Statistics Fundamentals",
             "level": "beginner",
             "type": "required",
-            "description": "Central tendency, dispersion, distributions, and sampling — the math behind every honest chart.",
+            "description": "Central tendency, dispersion, distributions, and sampling - the math behind every honest chart.",
             "resources": [
               {
-                "title": "Khan Academy — Statistics & Probability",
+                "title": "Khan Academy - Statistics & Probability",
                 "url": "https://www.khanacademy.org/math/statistics-probability"
               }
             ]
@@ -3964,7 +3964,7 @@ export const ROADMAPS = {
             "description": "The analyst's core language: SELECT, JOIN, GROUP BY, window functions, and CTEs.",
             "resources": [
               {
-                "title": "SQLBolt — Interactive SQL",
+                "title": "SQLBolt - Interactive SQL",
                 "url": "https://sqlbolt.com"
               },
               {
@@ -3994,7 +3994,7 @@ export const ROADMAPS = {
             "description": "Pulling data from APIs, CSVs, exports, and light web scraping when the table you need doesn't exist.",
             "resources": [
               {
-                "title": "pandas — IO Tools",
+                "title": "pandas - IO Tools",
                 "url": "https://pandas.pydata.org/docs/user_guide/io.html"
               }
             ]
@@ -4010,7 +4010,7 @@ export const ROADMAPS = {
             "label": "Python & Pandas",
             "level": "intermediate",
             "type": "required",
-            "description": "DataFrames, groupby, merges, and reshaping — analysis that's reproducible instead of click-driven.",
+            "description": "DataFrames, groupby, merges, and reshaping - analysis that's reproducible instead of click-driven.",
             "resources": [
               {
                 "title": "pandas Docs",
@@ -4023,10 +4023,10 @@ export const ROADMAPS = {
             "label": "Data Cleaning",
             "level": "intermediate",
             "type": "required",
-            "description": "Missing values, duplicates, outliers, and type fixes — 80% of the job, done systematically.",
+            "description": "Missing values, duplicates, outliers, and type fixes - 80% of the job, done systematically.",
             "resources": [
               {
-                "title": "pandas — Working with Missing Data",
+                "title": "pandas - Working with Missing Data",
                 "url": "https://pandas.pydata.org/docs/user_guide/missing_data.html"
               }
             ]
@@ -4094,10 +4094,10 @@ export const ROADMAPS = {
             "label": "Dashboard Design",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "KPIs, layout hierarchy, and refresh strategy — dashboards people check daily instead of once.",
+            "description": "KPIs, layout hierarchy, and refresh strategy - dashboards people check daily instead of once.",
             "resources": [
               {
-                "title": "NN/g — Dashboard Design",
+                "title": "NN/g - Dashboard Design",
                 "url": "https://www.nngroup.com/articles/dashboards-preattentive/"
               }
             ]
@@ -4116,7 +4116,7 @@ export const ROADMAPS = {
             "description": "Hypothesis testing, confidence intervals, correlation vs causation, and regression.",
             "resources": [
               {
-                "title": "Khan Academy — Significance Tests",
+                "title": "Khan Academy - Significance Tests",
                 "url": "https://www.khanacademy.org/math/statistics-probability/significance-tests-one-sample"
               }
             ]
@@ -4126,10 +4126,10 @@ export const ROADMAPS = {
             "label": "Machine Learning Basics",
             "level": "advanced",
             "type": "good-to-know",
-            "description": "Supervised vs unsupervised at a working level — enough to prototype with scikit-learn and talk to DS teams.",
+            "description": "Supervised vs unsupervised at a working level - enough to prototype with scikit-learn and talk to DS teams.",
             "resources": [
               {
-                "title": "scikit-learn — Getting Started",
+                "title": "scikit-learn - Getting Started",
                 "url": "https://scikit-learn.org/stable/getting_started.html"
               }
             ]
@@ -4155,7 +4155,7 @@ export const ROADMAPS = {
             "description": "Turning analysis into a recommendation: framing, narrative, and the one-slide answer.",
             "resources": [
               {
-                "title": "Storytelling with Data — Blog",
+                "title": "Storytelling with Data - Blog",
                 "url": "https://www.storytellingwithdata.com/blog"
               }
             ]
@@ -4175,14 +4175,14 @@ export const ROADMAPS = {
             "label": "Math for ML",
             "level": "beginner",
             "type": "required",
-            "description": "Linear algebra, calculus (gradients), and probability — enough to read what the optimizer is doing.",
+            "description": "Linear algebra, calculus (gradients), and probability - enough to read what the optimizer is doing.",
             "resources": [
               {
-                "title": "3Blue1Brown — Linear Algebra",
+                "title": "3Blue1Brown - Linear Algebra",
                 "url": "https://www.3blue1brown.com/topics/linear-algebra"
               },
               {
-                "title": "roadmap.sh — Machine Learning",
+                "title": "roadmap.sh - Machine Learning",
                 "url": "https://roadmap.sh/machine-learning"
               }
             ]
@@ -4195,7 +4195,7 @@ export const ROADMAPS = {
             "description": "Beyond notebooks: OOP, typing, virtual environments, and packaging code a team can maintain.",
             "resources": [
               {
-                "title": "Python Docs — Tutorial",
+                "title": "Python Docs - Tutorial",
                 "url": "https://docs.python.org/3/tutorial/"
               }
             ]
@@ -4208,7 +4208,7 @@ export const ROADMAPS = {
             "description": "Pulling training data yourself: joins, aggregations, and sampling from warehouses.",
             "resources": [
               {
-                "title": "SQLBolt — Interactive SQL",
+                "title": "SQLBolt - Interactive SQL",
                 "url": "https://sqlbolt.com"
               }
             ]
@@ -4218,10 +4218,10 @@ export const ROADMAPS = {
             "label": "Data Preprocessing",
             "level": "intermediate",
             "type": "required",
-            "description": "Cleaning, encoding, scaling, and feature engineering — where most model quality is won.",
+            "description": "Cleaning, encoding, scaling, and feature engineering - where most model quality is won.",
             "resources": [
               {
-                "title": "scikit-learn — Preprocessing",
+                "title": "scikit-learn - Preprocessing",
                 "url": "https://scikit-learn.org/stable/modules/preprocessing.html"
               }
             ]
@@ -4240,7 +4240,7 @@ export const ROADMAPS = {
             "description": "Types of learning, generalization, overfitting, and the bias-variance trade-off.",
             "resources": [
               {
-                "title": "Google — ML Crash Course",
+                "title": "Google - ML Crash Course",
                 "url": "https://developers.google.com/machine-learning/crash-course"
               }
             ]
@@ -4250,10 +4250,10 @@ export const ROADMAPS = {
             "label": "Scikit-learn",
             "level": "intermediate",
             "type": "required",
-            "description": "Pipelines, estimators, and cross-validation — the standard library of classical ML.",
+            "description": "Pipelines, estimators, and cross-validation - the standard library of classical ML.",
             "resources": [
               {
-                "title": "scikit-learn — User Guide",
+                "title": "scikit-learn - User Guide",
                 "url": "https://scikit-learn.org/stable/user_guide.html"
               }
             ]
@@ -4266,7 +4266,7 @@ export const ROADMAPS = {
             "description": "Regression, SVMs, tree ensembles, and gradient boosting (XGBoost/LightGBM) on tabular data.",
             "resources": [
               {
-                "title": "scikit-learn — Supervised Learning",
+                "title": "scikit-learn - Supervised Learning",
                 "url": "https://scikit-learn.org/stable/supervised_learning.html"
               }
             ]
@@ -4279,7 +4279,7 @@ export const ROADMAPS = {
             "description": "Clustering, PCA, and anomaly detection when labels don't exist.",
             "resources": [
               {
-                "title": "scikit-learn — Unsupervised Learning",
+                "title": "scikit-learn - Unsupervised Learning",
                 "url": "https://scikit-learn.org/stable/unsupervised_learning.html"
               }
             ]
@@ -4292,7 +4292,7 @@ export const ROADMAPS = {
             "description": "Choosing metrics that match the business problem, validation strategy, and error analysis.",
             "resources": [
               {
-                "title": "scikit-learn — Model Evaluation",
+                "title": "scikit-learn - Model Evaluation",
                 "url": "https://scikit-learn.org/stable/modules/model_evaluation.html"
               }
             ]
@@ -4321,7 +4321,7 @@ export const ROADMAPS = {
             "label": "PyTorch",
             "level": "advanced",
             "type": "required",
-            "description": "Tensors, autograd, DataLoaders, and custom training loops — the research-to-production default.",
+            "description": "Tensors, autograd, DataLoaders, and custom training loops - the research-to-production default.",
             "resources": [
               {
                 "title": "PyTorch Tutorials",
@@ -4334,7 +4334,7 @@ export const ROADMAPS = {
             "label": "TensorFlow & Keras",
             "level": "advanced",
             "type": "good-to-know",
-            "description": "The other major framework — common in production shops and on mobile/edge.",
+            "description": "The other major framework - common in production shops and on mobile/edge.",
             "resources": [
               {
                 "title": "Keras",
@@ -4350,7 +4350,7 @@ export const ROADMAPS = {
             "description": "Convolutions, transfer learning, and augmentation for image tasks.",
             "resources": [
               {
-                "title": "PyTorch — Vision Tutorials",
+                "title": "PyTorch - Vision Tutorials",
                 "url": "https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html"
               }
             ]
@@ -4363,7 +4363,7 @@ export const ROADMAPS = {
             "description": "Attention, pre-trained language models, and fine-tuning with the Hugging Face ecosystem.",
             "resources": [
               {
-                "title": "Hugging Face — Learn",
+                "title": "Hugging Face - Learn",
                 "url": "https://huggingface.co/learn"
               }
             ]
@@ -4405,7 +4405,7 @@ export const ROADMAPS = {
             "label": "Docker & Environments",
             "level": "advanced",
             "type": "required",
-            "description": "Reproducible training and inference environments — the cure for \"works on my GPU\".",
+            "description": "Reproducible training and inference environments - the cure for \"works on my GPU\".",
             "resources": [
               {
                 "title": "Docker Docs",
@@ -4418,7 +4418,7 @@ export const ROADMAPS = {
             "label": "Monitoring & Drift",
             "level": "advanced",
             "type": "good-to-know",
-            "description": "Data drift, model decay, and alerting — models degrade silently without it.",
+            "description": "Data drift, model decay, and alerting - models degrade silently without it.",
             "resources": [
               {
                 "title": "MLOps Principles",
@@ -4437,7 +4437,7 @@ export const ROADMAPS = {
             "label": "Data Engineering Basics",
             "level": "advanced",
             "type": "good-to-know",
-            "description": "Pipelines, orchestration, and Spark — feeding models reliably at scale.",
+            "description": "Pipelines, orchestration, and Spark - feeding models reliably at scale.",
             "resources": [
               {
                 "title": "Apache Spark Docs",
@@ -4453,7 +4453,7 @@ export const ROADMAPS = {
             "description": "Data and model parallelism, mixed precision, and multi-GPU training.",
             "resources": [
               {
-                "title": "PyTorch — Distributed",
+                "title": "PyTorch - Distributed",
                 "url": "https://pytorch.org/tutorials/beginner/dist_overview.html"
               }
             ]
@@ -4463,10 +4463,10 @@ export const ROADMAPS = {
             "label": "LLM Fine-Tuning",
             "level": "advanced",
             "type": "optional",
-            "description": "LoRA/PEFT, instruction tuning, and evaluation — adapting foundation models to your domain.",
+            "description": "LoRA/PEFT, instruction tuning, and evaluation - adapting foundation models to your domain.",
             "resources": [
               {
-                "title": "Hugging Face — PEFT",
+                "title": "Hugging Face - PEFT",
                 "url": "https://huggingface.co/docs/peft"
               }
             ]
@@ -4489,11 +4489,11 @@ export const ROADMAPS = {
             "description": "The lingua franca of AI tooling: async, typing, and API clients.",
             "resources": [
               {
-                "title": "Python Docs — Tutorial",
+                "title": "Python Docs - Tutorial",
                 "url": "https://docs.python.org/3/tutorial/"
               },
               {
-                "title": "roadmap.sh — AI Engineer",
+                "title": "roadmap.sh - AI Engineer",
                 "url": "https://roadmap.sh/ai-engineer"
               }
             ]
@@ -4516,10 +4516,10 @@ export const ROADMAPS = {
             "label": "NLP Fundamentals",
             "level": "beginner",
             "type": "good-to-know",
-            "description": "Tokenization, embeddings, and classic NLP tasks — the substrate under every LLM product.",
+            "description": "Tokenization, embeddings, and classic NLP tasks - the substrate under every LLM product.",
             "resources": [
               {
-                "title": "Hugging Face — NLP Course",
+                "title": "Hugging Face - NLP Course",
                 "url": "https://huggingface.co/learn"
               }
             ]
@@ -4532,7 +4532,7 @@ export const ROADMAPS = {
             "description": "System prompts, few-shot examples, structured output, and iterating on prompts like code.",
             "resources": [
               {
-                "title": "OpenAI — Prompt Engineering Guide",
+                "title": "OpenAI - Prompt Engineering Guide",
                 "url": "https://platform.openai.com/docs/guides/prompt-engineering"
               }
             ]
@@ -4551,11 +4551,11 @@ export const ROADMAPS = {
             "description": "Chat completions, streaming, tool/function calling, and multimodal inputs via OpenAI and Anthropic APIs.",
             "resources": [
               {
-                "title": "OpenAI — API Docs",
+                "title": "OpenAI - API Docs",
                 "url": "https://platform.openai.com/docs"
               },
               {
-                "title": "Anthropic — API Docs",
+                "title": "Anthropic - API Docs",
                 "url": "https://docs.anthropic.com"
               }
             ]
@@ -4582,10 +4582,10 @@ export const ROADMAPS = {
             "label": "Structured Outputs & Tool Use",
             "level": "intermediate",
             "type": "required",
-            "description": "JSON schemas, function calling, and validation — making probabilistic models emit reliable data.",
+            "description": "JSON schemas, function calling, and validation - making probabilistic models emit reliable data.",
             "resources": [
               {
-                "title": "OpenAI — Structured Outputs",
+                "title": "OpenAI - Structured Outputs",
                 "url": "https://platform.openai.com/docs/guides/structured-outputs"
               }
             ]
@@ -4598,7 +4598,7 @@ export const ROADMAPS = {
             "description": "Trading off quality, latency, and price; routing easy requests to cheap models.",
             "resources": [
               {
-                "title": "Hugging Face — Open LLM Leaderboard",
+                "title": "Hugging Face - Open LLM Leaderboard",
                 "url": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard"
               }
             ]
@@ -4617,7 +4617,7 @@ export const ROADMAPS = {
             "description": "Vector representations of meaning: similarity search, chunk embeddings, and their limits.",
             "resources": [
               {
-                "title": "OpenAI — Embeddings Guide",
+                "title": "OpenAI - Embeddings Guide",
                 "url": "https://platform.openai.com/docs/guides/embeddings"
               }
             ]
@@ -4634,7 +4634,7 @@ export const ROADMAPS = {
                 "url": "https://docs.trychroma.com"
               },
               {
-                "title": "Pinecone — Learn",
+                "title": "Pinecone - Learn",
                 "url": "https://www.pinecone.io/learn/"
               }
             ]
@@ -4644,10 +4644,10 @@ export const ROADMAPS = {
             "label": "RAG Pipelines",
             "level": "intermediate",
             "type": "required",
-            "description": "Chunking, retrieval, reranking, and grounding — answers backed by your own data instead of vibes.",
+            "description": "Chunking, retrieval, reranking, and grounding - answers backed by your own data instead of vibes.",
             "resources": [
               {
-                "title": "LangChain — RAG Tutorial",
+                "title": "LangChain - RAG Tutorial",
                 "url": "https://python.langchain.com/docs/tutorials/rag/"
               }
             ]
@@ -4657,7 +4657,7 @@ export const ROADMAPS = {
             "label": "LangChain & LlamaIndex",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "Orchestration frameworks for chains, retrievers, and integrations — and when plain code is simpler.",
+            "description": "Orchestration frameworks for chains, retrievers, and integrations - and when plain code is simpler.",
             "resources": [
               {
                 "title": "LangChain Docs",
@@ -4683,7 +4683,7 @@ export const ROADMAPS = {
             "description": "Tool-using loops: planning, memory, multi-step execution, and knowing when to keep it a single prompt.",
             "resources": [
               {
-                "title": "Anthropic — Building Effective Agents",
+                "title": "Anthropic - Building Effective Agents",
                 "url": "https://www.anthropic.com/research/building-effective-agents"
               }
             ]
@@ -4696,7 +4696,7 @@ export const ROADMAPS = {
             "description": "Vision, audio, and document understanding in one pipeline.",
             "resources": [
               {
-                "title": "OpenAI — Vision Guide",
+                "title": "OpenAI - Vision Guide",
                 "url": "https://platform.openai.com/docs/guides/vision"
               }
             ]
@@ -4709,7 +4709,7 @@ export const ROADMAPS = {
             "description": "When prompting isn't enough: LoRA, instruction tuning, and dataset curation.",
             "resources": [
               {
-                "title": "Hugging Face — PEFT",
+                "title": "Hugging Face - PEFT",
                 "url": "https://huggingface.co/docs/peft"
               }
             ]
@@ -4725,10 +4725,10 @@ export const ROADMAPS = {
             "label": "Evals & Testing",
             "level": "advanced",
             "type": "required",
-            "description": "Golden sets, LLM-as-judge, and regression evals — the unit tests of AI products.",
+            "description": "Golden sets, LLM-as-judge, and regression evals - the unit tests of AI products.",
             "resources": [
               {
-                "title": "OpenAI — Evals Guide",
+                "title": "OpenAI - Evals Guide",
                 "url": "https://platform.openai.com/docs/guides/evals"
               }
             ]
@@ -4738,10 +4738,10 @@ export const ROADMAPS = {
             "label": "Guardrails & Security",
             "level": "advanced",
             "type": "required",
-            "description": "Prompt injection, jailbreaks, PII handling, and output filtering — the OWASP Top 10 for LLM apps.",
+            "description": "Prompt injection, jailbreaks, PII handling, and output filtering - the OWASP Top 10 for LLM apps.",
             "resources": [
               {
-                "title": "OWASP — GenAI Security",
+                "title": "OWASP - GenAI Security",
                 "url": "https://genai.owasp.org"
               }
             ]
@@ -4751,7 +4751,7 @@ export const ROADMAPS = {
             "label": "Observability & Cost",
             "level": "advanced",
             "type": "good-to-know",
-            "description": "Tracing chains, token budgets, caching, and latency — keeping the product fast and affordable.",
+            "description": "Tracing chains, token budgets, caching, and latency - keeping the product fast and affordable.",
             "resources": [
               {
                 "title": "LangSmith Docs",
@@ -4764,7 +4764,7 @@ export const ROADMAPS = {
             "label": "Deploying AI Apps",
             "level": "advanced",
             "type": "required",
-            "description": "Streaming APIs, rate limits, retries, and fallbacks — production plumbing around the model.",
+            "description": "Streaming APIs, rate limits, retries, and fallbacks - production plumbing around the model.",
             "resources": [
               {
                 "title": "FastAPI",
@@ -4787,14 +4787,14 @@ export const ROADMAPS = {
             "label": "Networking",
             "level": "beginner",
             "type": "required",
-            "description": "TCP/IP, DNS, subnetting, ports, and the OSI model — you can't defend what you don't understand.",
+            "description": "TCP/IP, DNS, subnetting, ports, and the OSI model - you can't defend what you don't understand.",
             "resources": [
               {
-                "title": "Professor Messer — Network+",
+                "title": "Professor Messer - Network+",
                 "url": "https://www.professormesser.com/network-plus/n10-009/n10-009-training-course/"
               },
               {
-                "title": "roadmap.sh — Cyber Security",
+                "title": "roadmap.sh - Cyber Security",
                 "url": "https://roadmap.sh/cyber-security"
               }
             ]
@@ -4817,7 +4817,7 @@ export const ROADMAPS = {
             "label": "Linux & CLI",
             "level": "beginner",
             "type": "required",
-            "description": "Command-line fluency and Kali Linux — the workbench for both offense and defense.",
+            "description": "Command-line fluency and Kali Linux - the workbench for both offense and defense.",
             "resources": [
               {
                 "title": "Kali Linux Docs",
@@ -4833,7 +4833,7 @@ export const ROADMAPS = {
             "description": "Python and Bash to automate scans, parse logs, and build small tools.",
             "resources": [
               {
-                "title": "Python Docs — Tutorial",
+                "title": "Python Docs - Tutorial",
                 "url": "https://docs.python.org/3/tutorial/"
               }
             ]
@@ -4849,10 +4849,10 @@ export const ROADMAPS = {
             "label": "Security Concepts",
             "level": "beginner",
             "type": "required",
-            "description": "CIA triad, defense in depth, least privilege, and threat modeling — the mental models of the field.",
+            "description": "CIA triad, defense in depth, least privilege, and threat modeling - the mental models of the field.",
             "resources": [
               {
-                "title": "NIST — Cybersecurity Framework",
+                "title": "NIST - Cybersecurity Framework",
                 "url": "https://www.nist.gov/cyberframework"
               }
             ]
@@ -4862,7 +4862,7 @@ export const ROADMAPS = {
             "label": "Cryptography",
             "level": "intermediate",
             "type": "required",
-            "description": "Symmetric/asymmetric encryption, hashing, TLS, and PKI — used correctly, not reinvented.",
+            "description": "Symmetric/asymmetric encryption, hashing, TLS, and PKI - used correctly, not reinvented.",
             "resources": [
               {
                 "title": "Crypto 101",
@@ -4875,7 +4875,7 @@ export const ROADMAPS = {
             "label": "Web Security (OWASP)",
             "level": "intermediate",
             "type": "required",
-            "description": "The OWASP Top 10: injection, XSS, broken auth, SSRF — the most common real-world attacks.",
+            "description": "The OWASP Top 10: injection, XSS, broken auth, SSRF - the most common real-world attacks.",
             "resources": [
               {
                 "title": "OWASP Top 10",
@@ -4888,10 +4888,10 @@ export const ROADMAPS = {
             "label": "Identity & Access Management",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "Authentication, authorization, MFA, and SSO — most breaches start with credentials.",
+            "description": "Authentication, authorization, MFA, and SSO - most breaches start with credentials.",
             "resources": [
               {
-                "title": "NIST — Digital Identity Guidelines",
+                "title": "NIST - Digital Identity Guidelines",
                 "url": "https://pages.nist.gov/800-63-3/"
               }
             ]
@@ -4907,7 +4907,7 @@ export const ROADMAPS = {
             "label": "Penetration Testing",
             "level": "advanced",
             "type": "required",
-            "description": "Recon, exploitation, and post-exploitation — thinking like an attacker to find gaps first.",
+            "description": "Recon, exploitation, and post-exploitation - thinking like an attacker to find gaps first.",
             "resources": [
               {
                 "title": "TryHackMe",
@@ -4923,7 +4923,7 @@ export const ROADMAPS = {
             "description": "Scanning with Nmap and Nessus, CVSS scoring, and prioritizing what to fix first.",
             "resources": [
               {
-                "title": "Nmap — Reference Guide",
+                "title": "Nmap - Reference Guide",
                 "url": "https://nmap.org/book/man.html"
               }
             ]
@@ -4933,10 +4933,10 @@ export const ROADMAPS = {
             "label": "Security Tools",
             "level": "advanced",
             "type": "required",
-            "description": "Wireshark, Burp Suite, Metasploit — the analyst's daily instruments for traffic and exploits.",
+            "description": "Wireshark, Burp Suite, Metasploit - the analyst's daily instruments for traffic and exploits.",
             "resources": [
               {
-                "title": "Wireshark — User Guide",
+                "title": "Wireshark - User Guide",
                 "url": "https://www.wireshark.org/docs/wsug_html_chunked/"
               }
             ]
@@ -4972,7 +4972,7 @@ export const ROADMAPS = {
             "description": "Splunk / ELK: correlating events across systems to catch attacks in progress.",
             "resources": [
               {
-                "title": "Splunk — Free Fundamentals",
+                "title": "Splunk - Free Fundamentals",
                 "url": "https://www.splunk.com/en_us/training/free-courses/splunk-fundamentals-1.html"
               }
             ]
@@ -4982,10 +4982,10 @@ export const ROADMAPS = {
             "label": "Incident Response",
             "level": "advanced",
             "type": "required",
-            "description": "Detection, containment, eradication, and recovery — staying methodical while the pager screams.",
+            "description": "Detection, containment, eradication, and recovery - staying methodical while the pager screams.",
             "resources": [
               {
-                "title": "SANS — Incident Handler's Handbook",
+                "title": "SANS - Incident Handler's Handbook",
                 "url": "https://www.sans.org/white-papers/33901/"
               }
             ]
@@ -4998,7 +4998,7 @@ export const ROADMAPS = {
             "description": "Static and dynamic analysis in a sandbox to understand what a sample does.",
             "resources": [
               {
-                "title": "Malware Unicorn — RE101",
+                "title": "Malware Unicorn - RE101",
                 "url": "https://malwareunicorn.org/workshops/re101.html"
               }
             ]
@@ -5030,7 +5030,7 @@ export const ROADMAPS = {
             "description": "Securing AWS/Azure: IAM, network segmentation, and the shared-responsibility model.",
             "resources": [
               {
-                "title": "AWS — Security Best Practices",
+                "title": "AWS - Security Best Practices",
                 "url": "https://docs.aws.amazon.com/security/"
               }
             ]
@@ -5040,7 +5040,7 @@ export const ROADMAPS = {
             "label": "Governance & Compliance",
             "level": "advanced",
             "type": "good-to-know",
-            "description": "GDPR, SOC 2, ISO 27001, and risk frameworks — security that satisfies auditors too.",
+            "description": "GDPR, SOC 2, ISO 27001, and risk frameworks - security that satisfies auditors too.",
             "resources": [
               {
                 "title": "ISO/IEC 27001",
@@ -5053,7 +5053,7 @@ export const ROADMAPS = {
             "label": "Certifications",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "Security+, then CEH or OSCP — the credentials hiring managers screen for.",
+            "description": "Security+, then CEH or OSCP - the credentials hiring managers screen for.",
             "resources": [
               {
                 "title": "CompTIA Security+",
@@ -5083,7 +5083,7 @@ export const ROADMAPS = {
                 "url": "https://www.ministryoftesting.com"
               },
               {
-                "title": "roadmap.sh — QA",
+                "title": "roadmap.sh - QA",
                 "url": "https://roadmap.sh/qa"
               }
             ]
@@ -5093,10 +5093,10 @@ export const ROADMAPS = {
             "label": "SDLC & Agile",
             "level": "beginner",
             "type": "required",
-            "description": "Where testing fits across Waterfall, Agile, and shift-left — and working inside Scrum/Kanban.",
+            "description": "Where testing fits across Waterfall, Agile, and shift-left - and working inside Scrum/Kanban.",
             "resources": [
               {
-                "title": "Atlassian — Agile Coach",
+                "title": "Atlassian - Agile Coach",
                 "url": "https://www.atlassian.com/agile"
               }
             ]
@@ -5106,10 +5106,10 @@ export const ROADMAPS = {
             "label": "Test Design Techniques",
             "level": "beginner",
             "type": "required",
-            "description": "Boundary values, equivalence partitioning, and decision tables — finding more bugs with fewer cases.",
+            "description": "Boundary values, equivalence partitioning, and decision tables - finding more bugs with fewer cases.",
             "resources": [
               {
-                "title": "ISTQB — Foundation Syllabus",
+                "title": "ISTQB - Foundation Syllabus",
                 "url": "https://www.istqb.org/certifications/certified-tester-foundation-level"
               }
             ]
@@ -5122,7 +5122,7 @@ export const ROADMAPS = {
             "description": "Enough of the stack to read the DOM, write selectors, and understand what you're automating.",
             "resources": [
               {
-                "title": "MDN — Learn Web Development",
+                "title": "MDN - Learn Web Development",
                 "url": "https://developer.mozilla.org/en-US/docs/Learn"
               }
             ]
@@ -5141,7 +5141,7 @@ export const ROADMAPS = {
             "description": "Writing clear, repeatable cases and organizing them into suites and traceability matrices.",
             "resources": [
               {
-                "title": "Ministry of Testing — Dojo",
+                "title": "Ministry of Testing - Dojo",
                 "url": "https://www.ministryoftesting.com/dojo"
               }
             ]
@@ -5151,7 +5151,7 @@ export const ROADMAPS = {
             "label": "Functional Testing",
             "level": "beginner",
             "type": "required",
-            "description": "Smoke, sanity, regression, and UAT — verifying the product does what it promises.",
+            "description": "Smoke, sanity, regression, and UAT - verifying the product does what it promises.",
             "resources": [
               {
                 "title": "Ministry of Testing",
@@ -5164,10 +5164,10 @@ export const ROADMAPS = {
             "label": "Exploratory Testing",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "Simultaneous learning, design, and execution — finding what scripted tests miss.",
+            "description": "Simultaneous learning, design, and execution - finding what scripted tests miss.",
             "resources": [
               {
-                "title": "Satisfice — Exploratory Testing",
+                "title": "Satisfice - Exploratory Testing",
                 "url": "https://www.satisfice.com/exploratory-testing"
               }
             ]
@@ -5180,7 +5180,7 @@ export const ROADMAPS = {
             "description": "Reproducible reports, severity vs priority, and managing the defect lifecycle in JIRA.",
             "resources": [
               {
-                "title": "Atlassian — JIRA Guides",
+                "title": "Atlassian - JIRA Guides",
                 "url": "https://www.atlassian.com/software/jira/guides"
               }
             ]
@@ -5196,10 +5196,10 @@ export const ROADMAPS = {
             "label": "Programming (Python/Java)",
             "level": "intermediate",
             "type": "required",
-            "description": "A language for automation — enough Python or Java to write maintainable test code.",
+            "description": "A language for automation - enough Python or Java to write maintainable test code.",
             "resources": [
               {
-                "title": "Python Docs — Tutorial",
+                "title": "Python Docs - Tutorial",
                 "url": "https://docs.python.org/3/tutorial/"
               }
             ]
@@ -5209,7 +5209,7 @@ export const ROADMAPS = {
             "label": "Selenium",
             "level": "intermediate",
             "type": "required",
-            "description": "Browser automation and the Page Object Model — the long-standing UI automation standard.",
+            "description": "Browser automation and the Page Object Model - the long-standing UI automation standard.",
             "resources": [
               {
                 "title": "Selenium Docs",
@@ -5242,7 +5242,7 @@ export const ROADMAPS = {
             "description": "Postman and REST Assured: validating endpoints, contracts, and status codes below the UI.",
             "resources": [
               {
-                "title": "Postman — Learning Center",
+                "title": "Postman - Learning Center",
                 "url": "https://learning.postman.com"
               }
             ]
@@ -5297,10 +5297,10 @@ export const ROADMAPS = {
             "label": "Accessibility Testing",
             "level": "advanced",
             "type": "good-to-know",
-            "description": "WCAG conformance with axe and WAVE — quality includes users with disabilities.",
+            "description": "WCAG conformance with axe and WAVE - quality includes users with disabilities.",
             "resources": [
               {
-                "title": "Deque — axe",
+                "title": "Deque - axe",
                 "url": "https://www.deque.com/axe/"
               }
             ]
@@ -5329,7 +5329,7 @@ export const ROADMAPS = {
             "label": "Git & Version Control",
             "level": "beginner",
             "type": "required",
-            "description": "Managing test code alongside the app — branches, reviews, and shared ownership of quality.",
+            "description": "Managing test code alongside the app - branches, reviews, and shared ownership of quality.",
             "resources": [
               {
                 "title": "Pro Git (free book)",
@@ -5378,14 +5378,14 @@ export const ROADMAPS = {
             "label": "C# / C++",
             "level": "beginner",
             "type": "required",
-            "description": "Game languages: C# for Unity, C++ for Unreal — memory, performance, and object-oriented design.",
+            "description": "Game languages: C# for Unity, C++ for Unreal - memory, performance, and object-oriented design.",
             "resources": [
               {
-                "title": "Microsoft — C# Docs",
+                "title": "Microsoft - C# Docs",
                 "url": "https://learn.microsoft.com/en-us/dotnet/csharp/"
               },
               {
-                "title": "roadmap.sh — Game Developer",
+                "title": "roadmap.sh - Game Developer",
                 "url": "https://roadmap.sh/game-developer"
               }
             ]
@@ -5395,10 +5395,10 @@ export const ROADMAPS = {
             "label": "Game Mathematics",
             "level": "beginner",
             "type": "required",
-            "description": "Vectors, matrices, quaternions, and trigonometry — the math behind movement, cameras, and rotation.",
+            "description": "Vectors, matrices, quaternions, and trigonometry - the math behind movement, cameras, and rotation.",
             "resources": [
               {
-                "title": "Immersive Math — Linear Algebra",
+                "title": "Immersive Math - Linear Algebra",
                 "url": "https://immersivemath.com/ila/"
               }
             ]
@@ -5408,7 +5408,7 @@ export const ROADMAPS = {
             "label": "Git & Version Control",
             "level": "beginner",
             "type": "required",
-            "description": "Git with LFS for large binary assets — version control that doesn't choke on textures.",
+            "description": "Git with LFS for large binary assets - version control that doesn't choke on textures.",
             "resources": [
               {
                 "title": "Git LFS",
@@ -5443,7 +5443,7 @@ export const ROADMAPS = {
             "description": "The most popular engine: GameObjects, components, prefabs, physics, and the asset pipeline.",
             "resources": [
               {
-                "title": "Unity — Learn",
+                "title": "Unity - Learn",
                 "url": "https://learn.unity.com"
               }
             ]
@@ -5453,10 +5453,10 @@ export const ROADMAPS = {
             "label": "Unreal Engine",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "AAA-grade rendering with Blueprints and C++ — the go-to for high-fidelity 3D.",
+            "description": "AAA-grade rendering with Blueprints and C++ - the go-to for high-fidelity 3D.",
             "resources": [
               {
-                "title": "Unreal Engine — Learning",
+                "title": "Unreal Engine - Learning",
                 "url": "https://dev.epicgames.com/community/unreal-engine/learning"
               }
             ]
@@ -5466,7 +5466,7 @@ export const ROADMAPS = {
             "label": "Godot",
             "level": "intermediate",
             "type": "optional",
-            "description": "Open-source engine with GDScript — lightweight and increasingly popular for indies.",
+            "description": "Open-source engine with GDScript - lightweight and increasingly popular for indies.",
             "resources": [
               {
                 "title": "Godot Docs",
@@ -5482,7 +5482,7 @@ export const ROADMAPS = {
             "description": "Scenes, prefabs, importing models and audio, and organizing a project that scales.",
             "resources": [
               {
-                "title": "Unity — Asset Workflow",
+                "title": "Unity - Asset Workflow",
                 "url": "https://docs.unity3d.com/Manual/AssetWorkflow.html"
               }
             ]
@@ -5501,7 +5501,7 @@ export const ROADMAPS = {
             "description": "Rigid bodies, colliders, raycasts, and collision detection (AABB, broad/narrow phase).",
             "resources": [
               {
-                "title": "Unity — Physics",
+                "title": "Unity - Physics",
                 "url": "https://docs.unity3d.com/Manual/PhysicsSection.html"
               }
             ]
@@ -5514,7 +5514,7 @@ export const ROADMAPS = {
             "description": "Input handling, character controllers, camera systems, and game state management.",
             "resources": [
               {
-                "title": "Unity — Learn",
+                "title": "Unity - Learn",
                 "url": "https://learn.unity.com"
               }
             ]
@@ -5527,7 +5527,7 @@ export const ROADMAPS = {
             "description": "Pathfinding (A*), navmeshes, behavior trees, and finite state machines for NPCs.",
             "resources": [
               {
-                "title": "Red Blob Games — Pathfinding",
+                "title": "Red Blob Games - Pathfinding",
                 "url": "https://www.redblobgames.com/pathfinding/a-star/introduction.html"
               }
             ]
@@ -5537,10 +5537,10 @@ export const ROADMAPS = {
             "label": "UI & Audio",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "HUDs, menus, and adaptive audio — the polish players feel but rarely notice.",
+            "description": "HUDs, menus, and adaptive audio - the polish players feel but rarely notice.",
             "resources": [
               {
-                "title": "Unity — UI Toolkit",
+                "title": "Unity - UI Toolkit",
                 "url": "https://docs.unity3d.com/Manual/UIElements.html"
               }
             ]
@@ -5582,7 +5582,7 @@ export const ROADMAPS = {
             "label": "Graphics APIs",
             "level": "advanced",
             "type": "optional",
-            "description": "OpenGL, Vulkan, and DirectX — what engines talk to underneath.",
+            "description": "OpenGL, Vulkan, and DirectX - what engines talk to underneath.",
             "resources": [
               {
                 "title": "LearnOpenGL",
@@ -5604,7 +5604,7 @@ export const ROADMAPS = {
             "description": "Profiling frame time, draw calls, and memory to hold a steady 60fps.",
             "resources": [
               {
-                "title": "Unity — Profiler",
+                "title": "Unity - Profiler",
                 "url": "https://docs.unity3d.com/Manual/Profiler.html"
               }
             ]
@@ -5614,7 +5614,7 @@ export const ROADMAPS = {
             "label": "Game Design Basics",
             "level": "intermediate",
             "type": "good-to-know",
-            "description": "Core loops, balancing, and playtesting — the difference between a tech demo and a game.",
+            "description": "Core loops, balancing, and playtesting - the difference between a tech demo and a game.",
             "resources": [
               {
                 "title": "The Art of Game Design",
@@ -5653,11 +5653,11 @@ export const ROADMAPS = {
             "description": "Turning complex topics into clear, accurate, task-focused content different audiences can act on.",
             "resources": [
               {
-                "title": "Google — Technical Writing Courses",
+                "title": "Google - Technical Writing Courses",
                 "url": "https://developers.google.com/tech-writing"
               },
               {
-                "title": "roadmap.sh — Technical Writer",
+                "title": "roadmap.sh - Technical Writer",
                 "url": "https://roadmap.sh/technical-writer"
               }
             ]
@@ -5667,10 +5667,10 @@ export const ROADMAPS = {
             "label": "Writing Fundamentals",
             "level": "beginner",
             "type": "required",
-            "description": "Grammar, plain language, active voice, and structure — clarity is the whole job.",
+            "description": "Grammar, plain language, active voice, and structure - clarity is the whole job.",
             "resources": [
               {
-                "title": "Google — Technical Writing One",
+                "title": "Google - Technical Writing One",
                 "url": "https://developers.google.com/tech-writing/one"
               }
             ]
@@ -5680,10 +5680,10 @@ export const ROADMAPS = {
             "label": "Audience & Personas",
             "level": "beginner",
             "type": "required",
-            "description": "Writing for the reader's goals and expertise — a beginner tutorial and an API reference aren't the same.",
+            "description": "Writing for the reader's goals and expertise - a beginner tutorial and an API reference aren't the same.",
             "resources": [
               {
-                "title": "Write the Docs — Guide",
+                "title": "Write the Docs - Guide",
                 "url": "https://www.writethedocs.org/guide/"
               }
             ]
@@ -5696,7 +5696,7 @@ export const ROADMAPS = {
             "description": "Following (and building) style guides like Microsoft's or Google's for consistent voice.",
             "resources": [
               {
-                "title": "Google — Developer Documentation Style Guide",
+                "title": "Google - Developer Documentation Style Guide",
                 "url": "https://developers.google.com/style"
               }
             ]
@@ -5770,7 +5770,7 @@ export const ROADMAPS = {
             "label": "Developer Documentation",
             "level": "intermediate",
             "type": "required",
-            "description": "Tutorials, how-to guides, concepts, and reference — the four modes of the Diátaxis framework.",
+            "description": "Tutorials, how-to guides, concepts, and reference - the four modes of the Diátaxis framework.",
             "resources": [
               {
                 "title": "Diátaxis",
@@ -5786,7 +5786,7 @@ export const ROADMAPS = {
             "description": "Endpoint references, request/response examples, and OpenAPI-driven docs developers can copy-paste.",
             "resources": [
               {
-                "title": "Swagger — OpenAPI",
+                "title": "Swagger - OpenAPI",
                 "url": "https://swagger.io/docs/specification/about/"
               }
             ]
@@ -5799,7 +5799,7 @@ export const ROADMAPS = {
             "description": "Step-by-step content that gets a reader from zero to a working result without frustration.",
             "resources": [
               {
-                "title": "Write the Docs — Guide",
+                "title": "Write the Docs - Guide",
                 "url": "https://www.writethedocs.org/guide/"
               }
             ]
@@ -5831,7 +5831,7 @@ export const ROADMAPS = {
             "description": "Interviewing engineers, reading source and specs, and testing the product to document it accurately.",
             "resources": [
               {
-                "title": "Write the Docs — Guide",
+                "title": "Write the Docs - Guide",
                 "url": "https://www.writethedocs.org/guide/"
               }
             ]
@@ -5844,7 +5844,7 @@ export const ROADMAPS = {
             "description": "Organizing docs so readers find answers fast: navigation, structure, and findability.",
             "resources": [
               {
-                "title": "NN/g — Information Architecture",
+                "title": "NN/g - Information Architecture",
                 "url": "https://www.nngroup.com/topic/information-architecture/"
               }
             ]
@@ -5857,7 +5857,7 @@ export const ROADMAPS = {
             "description": "Self-editing, peer review, and docs linters (Vale) to keep quality high at volume.",
             "resources": [
               {
-                "title": "Vale — Linter",
+                "title": "Vale - Linter",
                 "url": "https://vale.sh"
               }
             ]
@@ -5876,7 +5876,7 @@ export const ROADMAPS = {
             "description": "Keywords, titles, and structure so the right docs surface in search when developers need them.",
             "resources": [
               {
-                "title": "Google — SEO Starter Guide",
+                "title": "Google - SEO Starter Guide",
                 "url": "https://developers.google.com/search/docs/fundamentals/seo-starter-guide"
               }
             ]
@@ -5889,7 +5889,7 @@ export const ROADMAPS = {
             "description": "Analytics, feedback widgets, and search logs to find gaps and measure what docs actually help.",
             "resources": [
               {
-                "title": "Write the Docs — Metrics",
+                "title": "Write the Docs - Metrics",
                 "url": "https://www.writethedocs.org/guide/measuring/"
               }
             ]
@@ -5925,7 +5925,7 @@ export const ROADMAPS = {
             "description": "Levels of architecture (application, solution, enterprise) and the architect's responsibilities.",
             "resources": [
               {
-                "title": "roadmap.sh — Software Architect",
+                "title": "roadmap.sh - Software Architect",
                 "url": "https://roadmap.sh/software-design-architecture"
               },
               {
@@ -5939,10 +5939,10 @@ export const ROADMAPS = {
             "label": "Deep Programming Experience",
             "level": "intermediate",
             "type": "required",
-            "description": "Years of hands-on coding across paradigms — you can't architect what you've never built.",
+            "description": "Years of hands-on coding across paradigms - you can't architect what you've never built.",
             "resources": [
               {
-                "title": "roadmap.sh — Backend",
+                "title": "roadmap.sh - Backend",
                 "url": "https://roadmap.sh/backend"
               }
             ]
@@ -5971,10 +5971,10 @@ export const ROADMAPS = {
             "label": "SOLID & Clean Code",
             "level": "intermediate",
             "type": "required",
-            "description": "SOLID, DRY, KISP, and separation of concerns — the principles behind maintainable systems.",
+            "description": "SOLID, DRY, KISP, and separation of concerns - the principles behind maintainable systems.",
             "resources": [
               {
-                "title": "Refactoring.Guru — Design Principles",
+                "title": "Refactoring.Guru - Design Principles",
                 "url": "https://refactoring.guru/design-patterns"
               }
             ]
@@ -5984,10 +5984,10 @@ export const ROADMAPS = {
             "label": "Design Patterns",
             "level": "intermediate",
             "type": "required",
-            "description": "Creational, structural, and behavioral patterns — and the wisdom not to over-apply them.",
+            "description": "Creational, structural, and behavioral patterns - and the wisdom not to over-apply them.",
             "resources": [
               {
-                "title": "Refactoring.Guru — Design Patterns",
+                "title": "Refactoring.Guru - Design Patterns",
                 "url": "https://refactoring.guru/design-patterns/catalog"
               }
             ]
@@ -5997,10 +5997,10 @@ export const ROADMAPS = {
             "label": "Architectural Patterns",
             "level": "advanced",
             "type": "required",
-            "description": "Layered, hexagonal, MVC, event-driven, CQRS — structuring whole systems, not just classes.",
+            "description": "Layered, hexagonal, MVC, event-driven, CQRS - structuring whole systems, not just classes.",
             "resources": [
               {
-                "title": "Microsoft — Architecture Styles",
+                "title": "Microsoft - Architecture Styles",
                 "url": "https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/"
               }
             ]
@@ -6055,7 +6055,7 @@ export const ROADMAPS = {
             "label": "Data Architecture",
             "level": "advanced",
             "type": "required",
-            "description": "SQL vs NoSQL, sharding, event sourcing, ETL, and data warehouses — where the state lives.",
+            "description": "SQL vs NoSQL, sharding, event sourcing, ETL, and data warehouses - where the state lives.",
             "resources": [
               {
                 "title": "Designing Data-Intensive Applications",
@@ -6068,10 +6068,10 @@ export const ROADMAPS = {
             "label": "APIs & Integration",
             "level": "advanced",
             "type": "required",
-            "description": "REST, gRPC, GraphQL, message brokers, and service meshes — how systems talk reliably.",
+            "description": "REST, gRPC, GraphQL, message brokers, and service meshes - how systems talk reliably.",
             "resources": [
               {
-                "title": "Microsoft — API Design",
+                "title": "Microsoft - API Design",
                 "url": "https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design"
               }
             ]
@@ -6090,7 +6090,7 @@ export const ROADMAPS = {
             "description": "AuthN/AuthZ, zero-trust, threat modeling, and secure defaults baked into the design.",
             "resources": [
               {
-                "title": "OWASP — Application Security",
+                "title": "OWASP - Application Security",
                 "url": "https://owasp.org/www-project-application-security-verification-standard/"
               }
             ]
@@ -6103,7 +6103,7 @@ export const ROADMAPS = {
             "description": "Cloud services, Kubernetes, Docker, and infrastructure-as-code as first-class design material.",
             "resources": [
               {
-                "title": "AWS — Well-Architected",
+                "title": "AWS - Well-Architected",
                 "url": "https://aws.amazon.com/architecture/well-architected/"
               },
               {
@@ -6120,7 +6120,7 @@ export const ROADMAPS = {
             "description": "Designing for failure: retries, circuit breakers, tracing, and graceful degradation.",
             "resources": [
               {
-                "title": "Azure — Reliability Patterns",
+                "title": "Azure - Reliability Patterns",
                 "url": "https://learn.microsoft.com/en-us/azure/architecture/framework/resiliency/reliability-patterns"
               }
             ]
@@ -6149,7 +6149,7 @@ export const ROADMAPS = {
             "label": "Documentation & Communication",
             "level": "advanced",
             "type": "required",
-            "description": "ADRs, C4 diagrams, and RFCs — writing decisions down so teams build the same system.",
+            "description": "ADRs, C4 diagrams, and RFCs - writing decisions down so teams build the same system.",
             "resources": [
               {
                 "title": "C4 Model",
@@ -6175,7 +6175,7 @@ export const ROADMAPS = {
             "label": "Trade-off Analysis",
             "level": "advanced",
             "type": "required",
-            "description": "Evaluating options against constraints — cost, time, risk — and defending the call with reasons.",
+            "description": "Evaluating options against constraints - cost, time, risk - and defending the call with reasons.",
             "resources": [
               {
                 "title": "Architecture Decision Records",
@@ -6191,7 +6191,7 @@ export const ROADMAPS = {
             "description": "Identifying, assessing, and mitigating technical risk before it becomes an incident.",
             "resources": [
               {
-                "title": "Microsoft — Well-Architected",
+                "title": "Microsoft - Well-Architected",
                 "url": "https://learn.microsoft.com/en-us/azure/well-architected/"
               }
             ]

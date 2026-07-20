@@ -69,7 +69,7 @@ export default function AuthModal({ open, onClose }) {
       if (typeof detail === 'string') {
         setError(detail)
       } else if (Array.isArray(detail)) {
-        // FastAPI 422 validation error — extract the first human-readable message
+        // FastAPI 422 validation error - extract the first human-readable message
         setError(detail[0]?.msg || 'Please check your email and password.')
       } else if (err.status === 503) {
         setError('Authentication is temporarily unavailable.')
@@ -88,7 +88,7 @@ export default function AuthModal({ open, onClose }) {
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop — sits above header (z-50) */}
+          {/* Backdrop - sits above header (z-50) */}
           <motion.div
             key="auth-backdrop"
             initial={{ opacity: 0 }}

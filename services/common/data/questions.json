@@ -1,6 +1,6 @@
 [
   {"id": "q1", "category": "skills", "text": "How comfortable are you writing code from scratch?",
-   "options": ["Never tried coding", "A little coding — copy-paste territory", "comfortable writing code with guidance", "very comfortable writing code daily"]},
+   "options": ["Never tried coding", "A little coding - copy-paste territory", "comfortable writing code with guidance", "very comfortable writing code daily"]},
   {"id": "q2", "category": "interests", "text": "What excites you more?",
    "options": ["making things look beautiful and visual", "solving logical puzzles", "wrangling data to find patterns", "keeping complex systems running"]},
   {"id": "q3", "category": "interests", "show_if": {"q": "q2", "in": [1, 2]}, "text": "When you encounter a dataset, you feel…",
@@ -26,7 +26,7 @@
   {"id": "q13", "category": "personality", "text": "You just finished a project you are proud of. Which part do you show off?",
    "options": ["how beautiful and smooth it looks", "the clever machinery nobody sees that makes it work", "a surprising discovery I found in the numbers", "that it ran for months without breaking once"]},
   {"id": "q14", "category": "interests", "show_if": {"q": "q2", "in": [0]}, "text": "You get a free weekend to build something fun. What would you make?",
-   "options": ["a website anyone can open in their browser", "an app for phones that people carry everywhere", "a small video game with characters and levels", "drawings of how an app should look — someone else can build it"]},
+   "options": ["a website anyone can open in their browser", "an app for phones that people carry everywhere", "a small video game with characters and levels", "drawings of how an app should look - someone else can build it"]},
   {"id": "q15", "category": "workstyle", "show_if": {"q": "q2", "in": [1]}, "text": "On a team building an app, which role sounds most like you?",
    "options": ["building whole features end to end, from the screen to the data behind it", "drawing the big blueprint that everyone else builds on", "trying to break the app on purpose to find problems before users do", "building the hidden engine that quietly makes everything work"]},
   {"id": "q16", "category": "interests", "show_if": {"q": "q2", "in": [2]}, "text": "Which of these sounds most satisfying?",

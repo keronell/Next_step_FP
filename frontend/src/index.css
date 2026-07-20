@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 :root {
-  /* Brand colors — exact existing hex */
+  /* Brand colors - exact existing hex */
   --color-cream: #FAF7F2;
   --color-navy: #0F1B2D;
   --color-navy-light: #1A2D47;
@@ -162,7 +162,7 @@ body::before {
   box-shadow: 0 12px 32px rgba(15, 27, 45, 0.10);
 }
 
-/* Focus ring — visible keyboard focus on every interactive element */
+/* Focus ring - visible keyboard focus on every interactive element */
 .focus-ring {
   outline: none;
 }
@@ -172,7 +172,7 @@ body::before {
   border-radius: inherit;
 }
 
-/* Tabular numerals — for counters, percentages, ranks */
+/* Tabular numerals - for counters, percentages, ranks */
 .tabular {
   font-variant-numeric: tabular-nums;
 }
