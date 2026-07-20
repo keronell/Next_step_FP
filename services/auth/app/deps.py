@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.services import auth_service
-from common.models.auth import UserResponse
+from common.models.auth import Role, UserResponse, has_privilege
 
 # auto_error=False so the optional variant can return None when no header is present
 # instead of raising 403.
@@ -52,3 +52,24 @@ def get_current_user_optional(
         return auth_service.get_user_from_token(credentials.credentials)
     except HTTPException:
         return None
+
+
+def require_role(required: Role):
+    """Gate an auth-service route on a minimum role (DEV-62).
+
+    Mirror of common.auth_dep.require_role for the one service that verifies
+    tokens directly against GoTrue instead of via /internal/verify. 401 if
+    unauthenticated, 403 if authenticated but under-privileged.
+    """
+
+    def _dep(
+        current_user: UserResponse = Depends(get_current_user),
+    ) -> UserResponse:
+        if not has_privilege(current_user.role, required):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions.",
+            )
+        return current_user
+
+    return _dep

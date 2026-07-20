@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Clock, LogOut, Menu, Sparkles, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from './ui/Button.jsx'
+import RequireRole from './RequireRole.jsx'
 import { useAuth } from '../contexts/AuthContext'
 
 function Header({ phase, onReset, onOpenAuth }) {
@@ -159,7 +160,15 @@ function Header({ phase, onReset, onOpenAuth }) {
                       >
                         <div className="px-4 py-2 border-b border-navy/[0.06]">
                           <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold">Signed in as</p>
-                          <p className="font-body text-small text-navy font-medium truncate mt-0.5">{user.username || user.email}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="font-body text-small text-navy font-medium truncate">{user.username || user.email}</p>
+                            {/* Role-gated UI (DEV-62): only admins see the badge. */}
+                            <RequireRole role="admin">
+                              <span className="shrink-0 rounded-full bg-gold/15 px-2 py-0.5 font-body text-eyebrow font-semibold uppercase tracking-wide text-gold ring-1 ring-inset ring-gold/30">
+                                Admin
+                              </span>
+                            </RequireRole>
+                          </div>
                         </div>
                         <button
                           onClick={() => scrollToSection('history')}
@@ -246,8 +255,13 @@ function Header({ phase, onReset, onOpenAuth }) {
 
               {!authLoading && user && (
                 <div className="mt-2 pt-3 border-t border-navy/[0.06] flex flex-col gap-1">
-                  <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold px-0.5 mb-1">
-                    {user.username || user.email}
+                  <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold px-0.5 mb-1 flex items-center gap-2">
+                    <span className="truncate">{user.username || user.email}</span>
+                    <RequireRole role="admin">
+                      <span className="shrink-0 rounded-full bg-gold/15 px-2 py-0.5 text-gold ring-1 ring-inset ring-gold/30">
+                        Admin
+                      </span>
+                    </RequireRole>
                   </p>
                   <button
                     onClick={() => scrollToSection('history')}

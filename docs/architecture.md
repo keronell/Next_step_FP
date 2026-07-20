@@ -34,7 +34,7 @@ it talks to the gateway on `:8000`, the same base URL it always used.
 | **questionnaire** | question bank, submission intake | `GET /api/questions`, `POST /api/questionnaire/submit`, `POST /api/questionnaire/select` | publishes `submissions`/`selections` |
 | **matching** | ChromaDB store, embedding model, matching math, learned matcher, job_postings reads | `GET /api/health` | `POST /internal/match`, `GET /internal/field-skills?field=` |
 | **roadmap** | static+LLM roadmaps, DEV-59 market requirements, roadmap progress | `GET/POST /api/roadmap/{id}`, `GET/POST /api/roadmap/{id}/progress` | invokes matching + auth |
-| **auth** | identity: Supabase GoTrue + `user_profiles` | `POST /api/auth/register\|login\|logout`, `GET /api/auth/me` | `GET /internal/verify` |
+| **auth** | identity + authorization roles (DEV-62): Supabase GoTrue + `user_profiles` | `POST /api/auth/register\|login\|logout`, `GET /api/auth/me`, `GET /api/auth/admin/check` | `GET /internal/verify` (returns `role`) |
 | **history** | submission records in the state store | `GET /api/auth/my-submissions`, `POST /api/auth/claim-sessions` | subscribes to both topics (`/events/*`, `/dapr/subscribe`) |
 
 Key data shapes (state store, Redis — `:`-separated, `keyPrefix: none`):

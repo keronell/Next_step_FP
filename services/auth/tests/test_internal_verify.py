@@ -40,4 +40,7 @@ def test_verify_valid_token_returns_user(client, monkeypatch):
         "user_id": "user-uuid-123",
         "email": "user@example.com",
         "username": "testuser",
+        # role defaults to student when unset — carried east-west so other
+        # services can gate on it via common.auth_dep.require_role (DEV-62).
+        "role": "student",
     }

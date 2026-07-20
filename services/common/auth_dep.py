@@ -12,7 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from common import dapr
 from common.logging import get_logger
-from common.models.auth import UserResponse
+from common.models.auth import Role, UserResponse, has_privilege
 
 logger = get_logger(__name__)
 
@@ -73,3 +73,25 @@ def get_current_user_optional(
         return _verify(credentials.credentials)
     except HTTPException:
         return None
+
+
+def require_role(required: Role):
+    """Dependency factory gating a route on a minimum role (DEV-62).
+
+    Authorization stays centralized: the role rides in on the UserResponse that
+    auth-service returns from /internal/verify, so this never re-derives identity
+    — it only compares privilege. 401 if unauthenticated, 403 if authenticated
+    but under-privileged. Use as: `Depends(require_role("admin"))`.
+    """
+
+    def _dep(
+        current_user: UserResponse = Depends(get_current_user),
+    ) -> UserResponse:
+        if not has_privilege(current_user.role, required):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions.",
+            )
+        return current_user
+
+    return _dep

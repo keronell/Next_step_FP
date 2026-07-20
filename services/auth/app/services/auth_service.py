@@ -6,7 +6,13 @@ HTTPException on failure so the caller gets a proper error response.
 from fastapi import HTTPException, status
 
 from common.logging import get_logger
-from common.models.auth import AuthTokenResponse, UserResponse
+from common.models.auth import (
+    DEFAULT_ROLE,
+    AuthTokenResponse,
+    Role,
+    UserResponse,
+    normalize_role,
+)
 from common.supabase_client import get_auth_client, get_supabase_client
 
 logger = get_logger(__name__)
@@ -47,6 +53,20 @@ def _get_admin_client():
     with "Session from session_id claim in JWT does not exist".
     """
     return _require(get_supabase_client())
+
+
+def _role_from_user(user) -> Role:
+    """Read the authorization role off a GoTrue user's app_metadata (DEV-62).
+
+    app_metadata is server-controlled — a user cannot edit it, which is what
+    makes it safe for authz (unlike user_metadata). A missing/unknown value
+    resolves to the least-privileged DEFAULT_ROLE via normalize_role.
+    """
+    app_metadata = getattr(user, "app_metadata", None) or {}
+    try:
+        return normalize_role(app_metadata.get("role"))
+    except AttributeError:  # app_metadata wasn't a mapping
+        return DEFAULT_ROLE
 
 
 def _fetch_username(user_id: str) -> str:
@@ -91,10 +111,19 @@ def register(email: str, password: str, username: str) -> AuthTokenResponse:
             detail="Registration failed. Please try again.",
         )
 
-    # Create GoTrue user (admin client → always service-role, never a user session)
+    # Create GoTrue user (admin client → always service-role, never a user session).
+    # Stamp the default role into app_metadata at creation so every account has an
+    # explicit, server-controlled role from day one (DEV-62). Admins are promoted
+    # out-of-band (see backend/migrations/005_user_roles.sql) — signup never grants
+    # elevation regardless of what the client sends.
     try:
         resp = _get_admin_client().auth.admin.create_user(
-            {"email": email, "password": password, "email_confirm": True}
+            {
+                "email": email,
+                "password": password,
+                "email_confirm": True,
+                "app_metadata": {"role": DEFAULT_ROLE},
+            }
         )
         user_id = str(resp.user.id)
     except Exception as exc:
@@ -138,6 +167,7 @@ def login(email: str, password: str) -> AuthTokenResponse:
             user_id=user_id,
             email=user.email,
             username=_fetch_username(user_id),
+            role=_role_from_user(user),
         )
     except HTTPException:
         raise
@@ -170,7 +200,12 @@ def get_user_from_token(jwt: str) -> UserResponse:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         user_id = str(user.id)
-        return UserResponse(user_id=user_id, email=user.email, username=_fetch_username(user_id))
+        return UserResponse(
+            user_id=user_id,
+            email=user.email,
+            username=_fetch_username(user_id),
+            role=_role_from_user(user),
+        )
     except HTTPException:
         raise
     except Exception as exc:
