@@ -43,7 +43,7 @@ function Assessment({ phase, onStart, onComplete }) {
           showIf: q.show_if,
         })))
       })
-      .catch(() => {}) // backend down — keep the bundled fallback
+      .catch(() => {}) // backend down - keep the bundled fallback
     return () => { cancelled = true }
   }, [])
 
@@ -51,7 +51,7 @@ function Assessment({ phase, onStart, onComplete }) {
   // earlier answers, so indices 0..currentQ stay stable when the path recomputes.
   const path = useMemo(() => visibleQuestions(answers, questions), [answers, questions])
 
-  // Only visible questions' answers leave this component — no stale keys for questions
+  // Only visible questions' answers leave this component - no stale keys for questions
   // hidden by a later edit. Shape stays { qId: number | null }.
   const visibleAnswers = () =>
     Object.fromEntries(
@@ -222,7 +222,7 @@ function AssessmentStart({ onStart }) {
         <span className="italic text-gold">tech career</span>
       </h2>
       <p className="font-body text-navy/65 text-body max-w-[52ch] mx-auto leading-snug mb-10">
-        Up to 15 questions · 3–5 minutes
+        Up to 15 questions · 3-5 minutes
       </p>
       <div className="flex flex-wrap justify-center gap-2 mb-10">
         {['Skills & interests', 'Work style', 'Personality fit', 'Personalized match'].map((tag) => (
@@ -273,7 +273,7 @@ function QuizCard({ path, currentQ, answers, highWater, pendingVal, advancing, f
         {fromReview && (
           <div className="flex items-center gap-2 mb-4 px-3 py-1.5 bg-gold/10 border border-gold/40 rounded-full w-fit">
             <Edit3 size={12} className="text-gold" aria-hidden="true" />
-            <span className="font-body text-eyebrow font-semibold text-gold uppercase">Editing — will return to Review</span>
+            <span className="font-body text-eyebrow font-semibold text-gold uppercase">Editing - will return to Review</span>
           </div>
         )}
 
@@ -349,7 +349,7 @@ function QuizCard({ path, currentQ, answers, highWater, pendingVal, advancing, f
                 key={i}
                 onClick={() => clickable && onDotJump(i)}
                 disabled={!clickable}
-                title={isVisited ? (answered ? 'Jump to this question' : skipped ? 'Skipped — click to revisit' : '') : ''}
+                title={isVisited ? (answered ? 'Jump to this question' : skipped ? 'Skipped - click to revisit' : '') : ''}
                 aria-label={`Question ${i + 1}`}
                 aria-current={isCurrentDot ? 'step' : undefined}
                 className={`focus-ring rounded-full transition-all duration-base

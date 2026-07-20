@@ -56,7 +56,7 @@ function App() {
 
   // Mirror anonymous users' last results to localStorage so a refresh can restore
   // them. Logged-in users use server history, so we never write their data here.
-  // Waits for authLoading like the restore effect above — otherwise the initial
+  // Waits for authLoading like the restore effect above - otherwise the initial
   // idle render clears the keys before the restore effect gets to read them.
   const prevUserRef = useRef(user)
   useEffect(() => {

@@ -12,14 +12,14 @@ const progressKey = (careerId) => `nextstep_roadmap_progress_${careerId}`
 // user ticking "Mark as complete" (so unchecking always reverts it); orange
 // marks assessment skill gaps worth focusing on; everything else is neutral.
 const STATUS_COLORS = {
-  todo:  '#64748B', // slate  — not started
-  focus: '#F97316', // orange — skill gap flagged by your assessment
-  done:  '#22C55E', // green  — marked complete by you
+  todo:  '#64748B', // slate  - not started
+  focus: '#F97316', // orange - skill gap flagged by your assessment
+  done:  '#22C55E', // green  - marked complete by you
 }
 
 const STATUS_LABELS = {
   todo:  'Not started',
-  focus: 'Skill gap — focus here',
+  focus: 'Skill gap - focus here',
   done:  'Completed by you',
 }
 
@@ -36,11 +36,11 @@ const TYPE_LABELS = {
 }
 
 // DEV-59: job-ad-derived nodes carry a `demand` payload rendered as an outer frame +
-// badge. Harmonized to the brand accents — navy for "In Demand", gold for "Advantage" —
+// badge. Harmonized to the brand accents - navy for "In Demand", gold for "Advantage" -
 // so the market frames sit distinctly on top of the soft node-state tints.
 const DEMAND_COLORS = {
-  required:  '#0F1B2D', // navy — In Demand (required in job ads)
-  advantage: '#C9A84C', // gold — Advantage (nice-to-have edge)
+  required:  '#0F1B2D', // navy - In Demand (required in job ads)
+  advantage: '#C9A84C', // gold - Advantage (nice-to-have edge)
 }
 
 const DEMAND_BADGE = {
@@ -49,8 +49,8 @@ const DEMAND_BADGE = {
 }
 
 const DEMAND_LEGEND = {
-  required:  'In demand — required in job ads',
-  advantage: 'Advantage — nice-to-have',
+  required:  'In demand - required in job ads',
+  advantage: 'Advantage - nice-to-have',
 }
 
 // Skill ↔ node-label matching: substring first, then canonical-token subset,
@@ -109,7 +109,7 @@ function NodeButton({ node, status, isActive, delay, onClick }) {
       transition={{ duration: 0.4, delay }}
       whileHover={{ scale: 1.04 }}
       className="focus-ring relative max-w-full rounded-md px-3 py-2 font-body text-[13px] font-medium text-center cursor-pointer"
-      // Every card gets the same treatment — an opaque soft tint of its status
+      // Every card gets the same treatment - an opaque soft tint of its status
       // color (color-mix with cream, so the dotted trunk can't show through) with
       // a stronger tint border; status is carried by hue, never fill-vs-outline.
       // Navy labels keep WCAG AA contrast (>10:1 on these tints). Node type
@@ -136,7 +136,7 @@ function NodeButton({ node, status, isActive, delay, onClick }) {
 
   if (!demand) return button
 
-  // DEV-59: a job-ad-derived skill — wrap the node in a brand "market" frame + badge.
+  // DEV-59: a job-ad-derived skill - wrap the node in a brand "market" frame + badge.
   // The node still fills with its state tint, so an in-demand skill you've completed
   // reads green inside the frame.
   const dColor = DEMAND_COLORS[demand.classification] ?? DEMAND_COLORS.advantage
@@ -243,7 +243,7 @@ function NodeDrawer({ node, status, isMatchedSkill, onClose, isCompleted, onTogg
               {node.description}
             </p>
 
-            {/* DEV-58: matched_skills no longer color the canvas green — the hint
+            {/* DEV-58: matched_skills no longer color the canvas green - the hint
                 that the assessment already saw this skill lives here instead. */}
             {isMatchedSkill && !isCompleted && (
               <p
@@ -253,7 +253,7 @@ function NodeDrawer({ node, status, isMatchedSkill, onClose, isCompleted, onTogg
                   border: '1px solid color-mix(in srgb, var(--color-navy) 12%, var(--color-cream))',
                 }}
               >
-                Your assessment suggests you already have this skill — mark it
+                Your assessment suggests you already have this skill - mark it
                 complete if that sounds right.
               </p>
             )}
@@ -478,7 +478,7 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
               </span>
             </div>
             {/* DEV-58: the tokens don't support alpha modifiers (bg-navy/[0.1] is a
-                silent no-op), so the track gets an explicit tint + thin border —
+                silent no-op), so the track gets an explicit tint + thin border -
                 otherwise its extent is invisible at low progress. */}
             <div
               className="h-2.5 rounded-full overflow-hidden"
@@ -496,7 +496,7 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
             </div>
           </div>
 
-          {/* Legend (DEV-58): the three node states — completion (green + check)
+          {/* Legend (DEV-58): the three node states - completion (green + check)
               is the only user-driven one, so ticking/unticking always matches. */}
           <div className="flex justify-center mb-6">
             <Legend />
@@ -504,13 +504,13 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
 
           {/* Pipeline canvas */}
           <div className="relative">
-            {/* DEV-58: hint shows on all sizes (was mobile-only) — desktop users
+            {/* DEV-58: hint shows on all sizes (was mobile-only) - desktop users
                 also missed that the pipeline scrolls sideways. */}
             <p className="text-center font-body text-eyebrow font-semibold uppercase text-navy/45 mb-2">
               &larr; Scroll to explore &rarr;
             </p>
             <div className="roadmap-scroll overflow-x-auto pb-4 pt-4">
-              {/* DEV-47/DEV-50/DEV-57: roadmap.sh-style pipeline — one continuous
+              {/* DEV-47/DEV-50/DEV-57: roadmap.sh-style pipeline - one continuous
                   gold spine runs behind the solid-navy stage headers (they mask it),
                   and each stage's cards fan out left/right of a dotted center trunk
                   in pair rows. Pure flex, no SVG, scales to any section/node count. */}
@@ -533,7 +533,7 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
                   for (let i = 0; i < section.nodes.length; i += 2) rows.push(section.nodes.slice(i, i + 2))
                   return (
                     <div key={section.id} className="flex flex-col min-w-[320px] shrink-0">
-                      {/* Section header — primary node on the spine, clickable to collapse */}
+                      {/* Section header - primary node on the spine, clickable to collapse */}
                       <button
                         onClick={() => toggleSection(section.id)}
                         className="focus-ring relative flex items-center justify-between gap-2 h-11 px-4 rounded-md bg-navy text-cream hover:bg-navy-light border border-navy transition-colors duration-fast"

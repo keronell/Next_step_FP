@@ -61,7 +61,7 @@ export default function History({ user, onLoadResults }) {
 
         {!loading && !error && submissions.length === 0 && (
           <p className="font-body text-body text-navy/55">
-            No saved assessments yet — complete one above to see it here.
+            No saved assessments yet - complete one above to see it here.
           </p>
         )}
 

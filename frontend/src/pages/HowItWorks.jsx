@@ -9,7 +9,7 @@ const STEPS = [
     number: '01',
     icon: ClipboardList,
     art: '/illustrations/step-1.png',
-    title: 'Answer 10 Questions',
+    title: 'Answer the Questions',
     description: 'Tell us about your skills, interests, and work style through a quick, thoughtfully designed quiz.',
   },
   {
@@ -17,7 +17,7 @@ const STEPS = [
     icon: BarChart3,
     art: '/illustrations/step-2.png',
     title: 'Get Matched',
-    description: 'Our scoring engine analyzes your answers and surfaces your top 3 tech career matches — with percentage fit.',
+    description: 'Our scoring engine analyzes your answers and surfaces your top 3 tech career matches - with percentage fit.',
   },
   {
     number: '03',
