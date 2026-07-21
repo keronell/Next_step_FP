@@ -237,7 +237,7 @@ function App() {
           <History user={user} onLoadResults={handleLoadHistory} />
         </div>
       </main>
-      <Footer onReset={handleReset} />
+      <Footer onReset={handleReset} onStartAssessment={handleGoToAssessment} />
     </div>
   )
 }

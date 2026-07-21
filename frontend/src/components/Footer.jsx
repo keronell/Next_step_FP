@@ -28,7 +28,7 @@ function scrollToId(id) {
   navigateToSection(id)
 }
 
-function FooterColumn({ title, links }) {
+function FooterColumn({ title, links, onNavigate }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="font-body text-eyebrow font-semibold uppercase text-gold">{title}</p>
@@ -36,7 +36,7 @@ function FooterColumn({ title, links }) {
         {links.map((item) => (
           <li key={item.id}>
             <button
-              onClick={() => scrollToId(item.id)}
+              onClick={() => onNavigate(item.id)}
               className="focus-ring group inline-flex items-center gap-2 text-small font-body text-cream/75 hover:text-cream transition-colors duration-fast rounded-sm"
             >
               <span className="h-px w-0 bg-gold transition-all duration-base group-hover:w-4" />
@@ -49,8 +49,14 @@ function FooterColumn({ title, links }) {
   )
 }
 
-function Footer({ onReset }) {
+function Footer({ onReset, onStartAssessment }) {
   const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+
+  // Route the Assessment link through the parent's reset-then-navigate handler
+  // (same as the header): the assessment section renders nothing while phase is
+  // 'results_ready', so a plain scroll would land the user on a blank section.
+  const handleNav = (id) =>
+    id === 'assessment' && onStartAssessment ? onStartAssessment() : scrollToId(id)
 
   return (
     <footer className="relative mt-24 overflow-hidden bg-navy text-cream">
@@ -103,8 +109,8 @@ function Footer({ onReset }) {
 
           {/* Link columns */}
           <div className="md:col-span-4 grid grid-cols-2 gap-8">
-            <FooterColumn title="Explore" links={NAV_LINKS} />
-            <FooterColumn title="Your Results" links={RESOURCE_LINKS} />
+            <FooterColumn title="Explore" links={NAV_LINKS} onNavigate={handleNav} />
+            <FooterColumn title="Your Results" links={RESOURCE_LINKS} onNavigate={handleNav} />
           </div>
 
           {/* Back to top */}

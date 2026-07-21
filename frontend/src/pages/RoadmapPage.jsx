@@ -145,7 +145,7 @@ export default function RoadmapPage({ careerId, recommendations, onStartAssessme
           />
         )}
       </main>
-      <Footer onReset={goHome} />
+      <Footer onReset={goHome} onStartAssessment={onStartAssessment} />
     </div>
   )
 }
