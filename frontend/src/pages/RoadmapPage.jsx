@@ -1,16 +1,20 @@
-// DEV-76 / DEV-65: standalone, deep-linkable roadmap view at `/roadmap/{careerId}`.
-// It renders ONLY the roadmap (plus header/footer chrome) — deliberately bypassing
-// the Hero, "How It Works", Assessment and Results sections that the scroll app
-// (App.jsx) stacks above the roadmap. A returning user with a completed assessment
+// DEV-76 / DEV-65: standalone, deep-linkable "Your Learning Roadmap" page at
+// `/roadmap/{careerId}` — the returning-user home. It renders the roadmap plus the
+// signed-in user's account details (header/footer chrome around them), deliberately
+// bypassing the Hero, "How It Works", Assessment and Results sections that the scroll
+// app (App.jsx) stacks above the roadmap. A returning user with a completed assessment
 // lands here directly; a bare bookmark still shows the generic roadmap.
 //
 // The roadmap itself is the existing <Roadmap> component, reused unchanged (it
-// fetches its own roadmap data + progress). All this page adds is resolving the
-// assessment-derived skill gaps for `careerId` so the roadmap can highlight them.
+// fetches its own roadmap data + progress). This page resolves the assessment-derived
+// skill gaps for `careerId` so the roadmap can highlight them, and surfaces account
+// details via <AccountDetails> (which reads the same useAuth source as the header).
 import { useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import AccountDetails from '../components/AccountDetails'
+import Eyebrow from '../components/ui/Eyebrow.jsx'
 import Roadmap from './Roadmap'
 import { fetchMySubmissions, selectCareer } from '../api'
 import { useAuth } from '../contexts/AuthContext'
@@ -81,6 +85,22 @@ export default function RoadmapPage({ careerId }) {
             <ArrowLeft size={15} aria-hidden="true" />
             Back to home
           </button>
+
+          {/* Page hero: the "Your Learning Roadmap" heading alongside the signed-in
+              user's account details. AccountDetails renders nothing when signed out,
+              so an anonymous deep-link still sees just the heading + roadmap. */}
+          <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-xl">
+              <Eyebrow dot className="mb-3">Welcome back</Eyebrow>
+              <h1 className="font-display font-bold text-h1 text-navy tracking-tight text-balance">
+                Your Learning Roadmap
+              </h1>
+              <p className="font-body text-body text-navy/65 leading-snug mt-3">
+                Your matched path, progress, and skill gaps — all in one place.
+              </p>
+            </div>
+            <AccountDetails onSignOut={goHome} className="w-full lg:w-80 lg:shrink-0" />
+          </div>
         </div>
 
         {resolving ? (
