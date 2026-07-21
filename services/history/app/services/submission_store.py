@@ -8,6 +8,9 @@ Key schema (`||` is reserved by Dapr, so `:` separates segments):
     idx:user:{user_id}        -> [request_id, ...]   (claimed / authenticated)
     claim:{session_id}        -> [{"user_id", "at"}, ...]  (TTL'd claim windows)
     sel:{session_id}          -> {"career_id", "at"}       (TTL'd, latest click wins)
+    del:{request_id}          -> {"at"}  (TTL'd deletion tombstone: suppresses
+                                 at-least-once redelivery from resurrecting a
+                                 hard-deleted submission — see persist_submission)
 
 Everything raises DaprError upward — callers own the HTTP semantics (persistence
 swallows, auth history routes translate to 503/500), same split as before.
@@ -84,6 +87,10 @@ def _claim_marker(session_id: str) -> str:
 
 def _sel_marker(session_id: str) -> str:
     return f"sel:{session_id}"
+
+
+def _tombstone_key(request_id: str) -> str:
+    return f"del:{request_id}"
 
 
 def _now_iso() -> str:
@@ -175,6 +182,15 @@ def persist_submission(record: dict) -> None:
     """
     request_id = record["request_id"]
     session_id = record.get("session_id")
+    # A tombstone means the owner hard-deleted this submission. Without this check a
+    # redelivered event (pub/sub is at-least-once) would find an absent sub: key,
+    # treat it as a first delivery, and resurrect the record + its indexes after a
+    # successful 204. Drop it instead — the subscriber ACKs, ending redelivery. (The
+    # tombstone is TTL'd well past the broker's redelivery horizon; request_ids are
+    # unique per submission, so it can never suppress a genuinely new one.)
+    if get_state(_tombstone_key(request_id)) is not None:
+        logger.info("Submission %s tombstoned — dropping redelivered event", request_id)
+        return
     key = _sub_key(request_id)
     if get_state(key) is None:  # first write wins — redelivery can't clobber a claim
         try:
@@ -357,14 +373,17 @@ def delete_submission(user_id: str, request_id: str) -> bool:
     user_id (not any client-supplied index), so a user can only ever delete their
     own submissions.
 
-    The id is dropped from the owner's index first (so it leaves history
-    immediately), then the record and its session-index entry are removed. A crash
-    mid-way can only leave a harmless orphan: get_user_submissions bulk-reads and
-    omits missing keys, and the claim/selection walks skip a record that's gone.
+    A tombstone is written FIRST so a submission event redelivered after this delete
+    (at-least-once pub/sub) can't resurrect the record — persist_submission consults
+    it. Then the id is dropped from the owner's index (so it leaves history
+    immediately), and finally the record and its session-index entry are removed. A
+    crash mid-way can only leave a harmless orphan: get_user_submissions bulk-reads
+    and omits missing keys, and the claim/selection walks skip a record that's gone.
     """
     record = get_state(_sub_key(request_id))
     if record is None or record.get("user_id") != user_id:
         return False
+    save_state(_tombstone_key(request_id), {"at": _now_iso()}, ttl_seconds=MARKER_TTL_SECONDS)
     _remove_from_index(_user_idx(user_id), request_id)
     session_id = record.get("session_id")
     if session_id:

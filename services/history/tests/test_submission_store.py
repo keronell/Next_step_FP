@@ -416,3 +416,32 @@ def test_delete_submission_anonymous_record_not_owned(state):
     submission_store.persist_submission(_record("r1", user_id=None))
     assert submission_store.delete_submission("u1", "r1") is False
     assert state["sub:r1"]["request_id"] == "r1"
+
+
+def test_delete_writes_tombstone(state):
+    submission_store.persist_submission(_record("r1", user_id="u1"))
+    submission_store.delete_submission("u1", "r1")
+    assert state["del:r1"]["at"]  # tombstone recorded
+
+
+def test_redelivery_after_delete_does_not_resurrect(state):
+    # The core durability guarantee: an at-least-once submission event redelivered
+    # AFTER a successful delete must not recreate the record or re-index it.
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    assert submission_store.delete_submission("u1", "r1") is True
+
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    assert "sub:r1" not in state
+    assert state["idx:user:u1"] == []
+    assert state["idx:session:s1"] == []
+    assert submission_store.get_user_submissions("u1") == []
+
+
+def test_tombstone_does_not_block_a_different_submission(state):
+    # request_ids are unique per submission, so a tombstone only ever suppresses its
+    # own redelivery — a genuinely new submission still persists.
+    submission_store.persist_submission(_record("r1", user_id="u1"))
+    submission_store.delete_submission("u1", "r1")
+    submission_store.persist_submission(_record("r2", session_id="s1", user_id="u1"))
+    assert state["sub:r2"]["request_id"] == "r2"
+    assert state["idx:user:u1"] == ["r2"]

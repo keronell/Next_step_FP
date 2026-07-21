@@ -192,11 +192,13 @@ function HistoryCard({ submission, index, onLoad, onDelete }) {
           </>
         ) : (
           <>
+            {/* Visible by default so touch users can see the actions; only hidden
+                until hover/focus on md+ pointer devices (where hover is reliable). */}
             <Button
               variant="secondary"
               size="md"
               onClick={() => onLoad(submission.recommendations, submission.selected_career ?? null)}
-              className="!px-4 !py-2 !text-small opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-fast"
+              className="!px-4 !py-2 !text-small opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 transition-opacity duration-fast"
               aria-label={`Load ${top.title} results`}
             >
               Load
@@ -205,7 +207,7 @@ function HistoryCard({ submission, index, onLoad, onDelete }) {
             <button
               onClick={() => setConfirming(true)}
               aria-label={`Delete ${top.title} result`}
-              className="focus-ring inline-flex items-center justify-center w-9 h-9 rounded-xl text-navy/40 hover:text-red-600 hover:bg-red-50 transition-colors duration-fast opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              className="focus-ring inline-flex items-center justify-center w-9 h-9 rounded-xl text-navy/40 hover:text-red-600 hover:bg-red-50 transition-colors duration-fast opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
             >
               <Trash2 size={15} aria-hidden="true" />
             </button>
