@@ -31,6 +31,37 @@ function currentPath() {
   return window.location.pathname
 }
 
+// A scroll-app section id a nav control asked for that wasn't mounted at click
+// time (e.g. every #section while the standalone roadmap route is showing). The
+// scroll app consumes and honors it once it mounts — see consumePendingScroll().
+let pendingScrollId = null
+
+// Scroll to a scroll-app section by id. If it's on the current page, scroll now;
+// otherwise remember it and route home, so the control still performs its labeled
+// action (jump to that section) instead of just dumping the user at the top.
+export function navigateToSection(id) {
+  const el = document.getElementById(id)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  // Not on this page. If we're already home the section simply isn't rendered
+  // (e.g. a gated one) — nothing to defer; clear so it can't fire later.
+  if (currentPath() === '/') {
+    pendingScrollId = null
+    return
+  }
+  pendingScrollId = id
+  navigate('/')
+}
+
+// Read-and-clear the pending section target. Returns null when there's none.
+export function consumePendingScroll() {
+  const id = pendingScrollId
+  pendingScrollId = null
+  return id
+}
+
 // Returns the `careerId` for `/roadmap/:careerId` when it decodes to a known
 // career id, else null. Trailing slashes and empty segments are "no match". A
 // malformed percent-encoded segment (e.g. `/roadmap/%E0%A4%A`) makes

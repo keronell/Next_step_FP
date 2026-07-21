@@ -130,7 +130,14 @@ export default function RoadmapPage({ careerId, recommendations }) {
             <div className="h-8 w-8 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
           </div>
         ) : (
+          // Key on the resolved skill set: Roadmap fetches personalized roadmap
+          // data from missingSkills but its fetch effect depends only on
+          // selectedCareer, so if the gaps change after mount (e.g. this page's
+          // history request resolves them, then the app's parallel restore resolves
+          // a different set) it would highlight the new gaps over content generated
+          // for the old ones. Remounting refetches so the two stay consistent.
           <Roadmap
+            key={`${careerId}|${skills.missing.join(',')}|${skills.matched.join(',')}`}
             selectedCareer={careerId}
             missingSkills={skills.missing}
             matchedSkills={skills.matched}

@@ -11,7 +11,7 @@ import RoadmapPage from './pages/RoadmapPage'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
-import { useRoute, matchRoadmap, navigate } from './hooks/useRoute'
+import { useRoute, matchRoadmap, navigate, consumePendingScroll } from './hooks/useRoute'
 
 function App() {
   const { user, authLoading } = useAuth()
@@ -96,6 +96,20 @@ function App() {
       localStorage.removeItem('nextstep_last_career')
     }
   }, [phase, results, selectedCareer, user, authLoading])
+
+  // Returning to the scroll app from a route (e.g. the roadmap page) may carry a
+  // deferred section target: a nav control clicked while its section wasn't mounted
+  // (see navigateToSection). Honor it once we're back on the scroll app, giving the
+  // sections a tick to mount/lay out before scrolling.
+  useEffect(() => {
+    if (roadmapCareerId) return
+    const id = consumePendingScroll()
+    if (!id) return
+    const t = setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
+    return () => clearTimeout(t)
+  }, [roadmapCareerId])
 
   const handleStart = () => {
     if (authLoading) return

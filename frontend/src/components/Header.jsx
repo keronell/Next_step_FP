@@ -3,7 +3,7 @@ import { ChevronDown, Clock, LogOut, Map, Menu, Sparkles, X } from 'lucide-react
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from './ui/Button.jsx'
 import { useAuth } from '../contexts/AuthContext'
-import { navigate } from '../hooks/useRoute'
+import { navigate, navigateToSection } from '../hooks/useRoute'
 
 // `roadmapCareerId` is the career whose roadmap a returning user can jump straight
 // to (their most recent completed assessment). When set, we surface a "My Roadmap"
@@ -39,11 +39,10 @@ function Header({ phase, onReset, onOpenAuth, roadmapCareerId }) {
   const scrollToSection = (id) => {
     setMenuOpen(false)
     setAccountOpen(false)
-    const el = document.getElementById(id)
-    // On the standalone roadmap route the scroll-app sections aren't mounted;
-    // fall back to navigating home so nav links still do something sensible.
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    else navigate('/')
+    // Scrolls now if the section is on this page; otherwise routes home and defers
+    // the scroll until it mounts, so the link still lands on its target section
+    // (rather than the top of the homepage) from the standalone roadmap route.
+    navigateToSection(id)
   }
 
   const goToRoadmap = () => {

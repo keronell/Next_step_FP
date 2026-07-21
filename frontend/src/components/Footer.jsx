@@ -1,6 +1,6 @@
 import { ArrowUp, Sparkles, Github, Twitter, Linkedin } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { navigate } from '../hooks/useRoute'
+import { navigateToSection } from '../hooks/useRoute'
 
 const NAV_LINKS = [
   { label: 'Home', id: 'hero' },
@@ -21,12 +21,11 @@ const SOCIALS = [
 ]
 
 // These targets live in the scroll app. On the standalone /roadmap page none of
-// them are mounted, so fall back to navigating home (matching the header's nav) —
-// otherwise the link silently does nothing.
+// them are mounted, so navigateToSection routes home and defers the scroll until
+// they mount (matching the header's nav) — otherwise the target is discarded and
+// the link just dumps the user at the top of the homepage.
 function scrollToId(id) {
-  const el = document.getElementById(id)
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  else navigate('/')
+  navigateToSection(id)
 }
 
 function FooterColumn({ title, links }) {
