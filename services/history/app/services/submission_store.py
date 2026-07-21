@@ -8,9 +8,10 @@ Key schema (`||` is reserved by Dapr, so `:` separates segments):
     idx:user:{user_id}        -> [request_id, ...]   (claimed / authenticated)
     claim:{session_id}        -> [{"user_id", "at"}, ...]  (TTL'd claim windows)
     sel:{session_id}          -> {"career_id", "at"}       (TTL'd, latest click wins)
-    del:{request_id}          -> {"at"}  (TTL'd deletion tombstone: suppresses
+    del:{request_id}          -> {"at"}  (PERMANENT deletion tombstone: suppresses
                                  at-least-once redelivery from resurrecting a
-                                 hard-deleted submission — see persist_submission)
+                                 hard-deleted submission — see persist_submission.
+                                 Never TTL'd: stream redelivery has no time bound.)
 
 Everything raises DaprError upward — callers own the HTTP semantics (persistence
 swallows, auth history routes translate to 503/500), same split as before.
@@ -196,8 +197,8 @@ def persist_submission(record: dict) -> None:
     # redelivered event (pub/sub is at-least-once) would find an absent sub: key,
     # treat it as a first delivery, and resurrect the record + its indexes after a
     # successful 204. Drop it instead — the subscriber ACKs, ending redelivery. (The
-    # tombstone is TTL'd well past the broker's redelivery horizon; request_ids are
-    # unique per submission, so it can never suppress a genuinely new one.)
+    # tombstone never expires — see delete_submission — so an arbitrarily late
+    # redelivery is still caught; request_ids are unique, so it never blocks a new one.)
     if get_state(_tombstone_key(request_id)) is not None:
         logger.info("Submission %s tombstoned — dropping redelivered event", request_id)
         return
@@ -222,11 +223,23 @@ def persist_submission(record: dict) -> None:
         _purge(request_id, record.get("user_id"), session_id)
         return
     if session_id:
-        _reconcile_markers(request_id, session_id)
+        reconciled_owner = _reconcile_markers(request_id, session_id)
+        # Post-reconcile recheck (P3): for a record that still exists, reconcile can
+        # re-append the (possibly newly-claimed) owner's user index AFTER a concurrent
+        # DELETE already removed it, stranding a permanent missing-record entry that
+        # get_user_submissions reads but never prunes. If the tombstone now exists,
+        # purge again — including the reconciled owner's index, which may differ from
+        # the event's user_id (an anonymous submission claimed after it was delivered).
+        if get_state(_tombstone_key(request_id)) is not None:
+            logger.info("Submission %s tombstoned during reconcile — purging", request_id)
+            _purge(request_id, record.get("user_id"), session_id)
+            if reconciled_owner and reconciled_owner != record.get("user_id"):
+                _remove_from_index(_user_idx(reconciled_owner), request_id)
 
 
-def _reconcile_markers(request_id: str, session_id: str) -> None:
+def _reconcile_markers(request_id: str, session_id: str) -> str | None:
     """Apply a claim/selection that was delivered before this submission existed.
+    Returns the user_id it (re-)indexed the record under, or None.
 
     Idempotent (re-reads the stored record, only fills absent fields) and
     CAS-protected, so redelivery and concurrent claim/selection walks merge
@@ -274,6 +287,8 @@ def _reconcile_markers(request_id: str, session_id: str) -> None:
         stored = get_state(_sub_key(request_id))
     if stored and stored.get("user_id"):
         _append_index(_user_idx(stored["user_id"]), request_id)
+        return stored["user_id"]
+    return None
 
 
 def apply_selection(session_id: str, career_id: str, selected_at: str) -> int:
@@ -403,6 +418,11 @@ def delete_submission(user_id: str, request_id: str) -> bool:
     record = get_state(_sub_key(request_id))
     if record is None or record.get("user_id") != user_id:
         return False
-    save_state(_tombstone_key(request_id), {"at": _now_iso()}, ttl_seconds=MARKER_TTL_SECONDS)
+    # PERMANENT tombstone (no TTL): Redis Streams pending entries have no upper time
+    # bound, so a redelivery could arrive arbitrarily late — a TTL'd marker that
+    # expired first would let the deleted assessment resurface. request_ids are
+    # unique and never reused, so one non-expiring del: key per deleted submission
+    # can never suppress a genuinely new one (bounded by total deletions).
+    save_state(_tombstone_key(request_id), {"at": _now_iso()})
     _purge(request_id, user_id, record.get("session_id"))
     return True

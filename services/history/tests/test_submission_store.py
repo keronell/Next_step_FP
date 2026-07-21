@@ -465,3 +465,28 @@ def test_persist_undoes_recreate_when_tombstoned_mid_persist(store, state, monke
     assert state.get("idx:user:u1", []) == []
     assert state.get("idx:session:s1", []) == []
     assert submission_store.get_user_submissions("u1") == []
+
+
+def test_post_reconcile_recheck_prunes_stale_user_index(store, state, monkeypatch):
+    # An anonymous submission (user_id=None) with a pending claim: reconcile applies
+    # the claim and re-appends the CLAIMANT's user index. Simulate a DELETE landing
+    # (writes the tombstone) exactly as that re-append happens — the post-reconcile
+    # recheck must prune the stale idx:user entry (which _purge alone would miss,
+    # since the event's user_id is None but the reconciled owner is the claimant).
+    state["claim:s1"] = [{"user_id": "u1", "at": "2026-07-16T11:00:00+00:00"}]
+
+    real_append = submission_store._append_index
+
+    def append_then_delete(key, request_id):
+        real_append(key, request_id)
+        if key == "idx:user:u1" and "del:r1" not in state:
+            state["del:r1"] = {"at": "2026-07-16T12:00:00+00:00"}  # concurrent DELETE
+
+    monkeypatch.setattr(submission_store, "_append_index", append_then_delete)
+    submission_store.persist_submission(
+        _record("r1", session_id="s1", user_id=None, created_at="2026-07-16T10:00:00+00:00")
+    )
+
+    assert state.get("idx:user:u1", []) == []    # no permanent dangling entry
+    assert "sub:r1" not in state
+    assert submission_store.get_user_submissions("u1") == []
