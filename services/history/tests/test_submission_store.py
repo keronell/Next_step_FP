@@ -11,7 +11,7 @@ import copy
 import pytest
 
 from app.services import submission_store
-from common.dapr import DaprConflict
+from common.dapr import DaprConflict, DaprError
 
 
 class _FakeStateStore:
@@ -490,3 +490,47 @@ def test_post_reconcile_recheck_prunes_stale_user_index(store, state, monkeypatc
     assert state.get("idx:user:u1", []) == []    # no permanent dangling entry
     assert "sub:r1" not in state
     assert submission_store.get_user_submissions("u1") == []
+
+
+def test_delete_removes_record_even_if_index_cleanup_fails(store, state, monkeypatch):
+    # The hard-delete guarantee: the record (answers) must be gone even if index
+    # cleanup fails afterwards. The delete still succeeds; the dangling index entry
+    # is harmless (get_user_submissions omits the missing record).
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+
+    def boom(*a, **k):
+        raise DaprError("index store down")
+
+    monkeypatch.setattr(submission_store, "_remove_from_index", boom)
+    assert submission_store.delete_submission("u1", "r1") is True
+    assert "sub:r1" not in state                 # answers gone — guarantee holds
+    assert submission_store.get_user_submissions("u1") == []
+
+
+def test_delete_record_failure_leaves_everything_for_retry(store, state, monkeypatch):
+    # If the record delete itself fails, we propagate (caller 500s) with the record
+    # AND its index intact — the row stays visible so the user can retry, never
+    # hidden-but-retained.
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+
+    def boom(*a, **k):
+        raise DaprError("record store down")
+
+    monkeypatch.setattr(submission_store, "delete_state", boom)
+    with pytest.raises(DaprError):
+        submission_store.delete_submission("u1", "r1")
+    assert state["sub:r1"]["request_id"] == "r1"   # still present
+    assert state["idx:user:u1"] == ["r1"]          # still visible for a retry
+
+
+def test_redelivery_self_heals_partially_deleted_record(store, state):
+    # A delete whose purge partially failed: tombstone written, but the record +
+    # index survived. A later redelivery must finish the deletion, not just drop.
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    state["del:r1"] = {"at": "2026-01-01T00:00:00+00:00"}  # tombstone, record retained
+    assert "sub:r1" in state
+
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    assert "sub:r1" not in state
+    assert state.get("idx:user:u1", []) == []
+    assert state.get("idx:session:s1", []) == []

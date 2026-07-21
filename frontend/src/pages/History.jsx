@@ -33,11 +33,19 @@ export default function History({ user, onLoadResults }) {
   }, [user])
 
   // DEV-75: remove a past result. The card confirms first; here we call the API
-  // (server enforces ownership) and drop it from the list only on success. Errors
-  // propagate back to the card so it can surface a retry.
+  // (server enforces ownership), then REFETCH — the list is capped at the server's
+  // HISTORY_LIMIT, so a plain local filter would shrink it and never reveal the
+  // next-older submission after repeated deletes. Errors propagate back to the card
+  // so it can surface a retry.
   const handleDelete = async (requestId) => {
     await deleteSubmission(requestId)
-    setSubmissions((subs) => subs.filter((s) => s.request_id !== requestId))
+    try {
+      setSubmissions(await fetchMySubmissions())
+    } catch {
+      // Delete succeeded but the refill fetch failed — at least drop the removed
+      // card locally so the UI reflects the deletion.
+      setSubmissions((subs) => subs.filter((s) => s.request_id !== requestId))
+    }
   }
 
   if (!user) return null

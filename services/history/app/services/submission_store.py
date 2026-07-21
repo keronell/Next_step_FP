@@ -175,12 +175,26 @@ def _remove_from_index(key: str, request_id: str) -> None:
 
 def _purge(request_id: str, user_id, session_id) -> None:
     """Remove a submission record and its index entries. Idempotent, so a concurrent
-    delete and a persist-undo (both calling this) converge on the deleted state."""
-    if user_id:
-        _remove_from_index(_user_idx(user_id), request_id)
-    if session_id:
-        _remove_from_index(_session_idx(session_id), request_id)
+    delete and a persist-undo (both calling this) converge on the deleted state.
+
+    The RECORD (answers) is deleted FIRST — the hard-delete guarantee. Once it's gone
+    get_user_submissions omits it (bulk-read skips missing keys), so index cleanup is
+    best-effort: a dangling index entry is harmless and must NOT fail the delete after
+    the record is already gone. If deleting the record itself fails we propagate — the
+    caller 500s with everything intact and the row still visible for a retry, never
+    the reverse (user-visible reference removed while the answers are retained)."""
     delete_state(_sub_key(request_id))
+    try:
+        if user_id:
+            _remove_from_index(_user_idx(user_id), request_id)
+        if session_id:
+            _remove_from_index(_session_idx(session_id), request_id)
+    except DaprError:
+        logger.warning(
+            "Index cleanup for %s failed after record delete — harmless dangling "
+            "entry left (omitted from history; self-healed on any redelivery)",
+            request_id,
+        )
 
 
 def persist_submission(record: dict) -> None:
@@ -200,7 +214,17 @@ def persist_submission(record: dict) -> None:
     # tombstone never expires — see delete_submission — so an arbitrarily late
     # redelivery is still caught; request_ids are unique, so it never blocks a new one.)
     if get_state(_tombstone_key(request_id)) is not None:
-        logger.info("Submission %s tombstoned — dropping redelivered event", request_id)
+        # Tombstoned = deleted. If a record is still present — a delete whose purge
+        # partially failed (record retained), or an earlier redelivery that recreated
+        # it — complete the deletion now so a tombstoned submission can never keep a
+        # live record. This makes a partially-failed delete recoverable: any
+        # redelivery finishes it. Then drop (subscriber ACKs, ending redelivery).
+        retained = get_state(_sub_key(request_id))
+        if retained is not None:
+            logger.info("Submission %s tombstoned but record present — purging", request_id)
+            _purge(request_id, retained.get("user_id"), retained.get("session_id"))
+        else:
+            logger.info("Submission %s tombstoned — dropping redelivered event", request_id)
         return
     key = _sub_key(request_id)
     if get_state(key) is None:  # first write wins — redelivery can't clobber a claim
@@ -408,12 +432,15 @@ def delete_submission(user_id: str, request_id: str) -> bool:
     user_id (not any client-supplied index), so a user can only ever delete their
     own submissions.
 
-    A tombstone is written FIRST so a submission event redelivered after this delete
-    (at-least-once pub/sub) can't resurrect the record — persist_submission consults
-    it. Then the id is dropped from the owner's index (so it leaves history
-    immediately), and finally the record and its session-index entry are removed. A
-    crash mid-way can only leave a harmless orphan: get_user_submissions bulk-reads
-    and omits missing keys, and the claim/selection walks skip a record that's gone.
+    A (permanent) tombstone is written FIRST so a submission event redelivered after
+    this delete (at-least-once pub/sub) can't resurrect the record — persist_submission
+    consults it. Then _purge deletes the record (answers) before its index entries, so
+    a partial storage failure never removes the user-visible reference while retaining
+    the record: either everything is still present (record delete failed → 500, row
+    stays visible for a retry), or the record is gone and only a harmless dangling
+    index entry may remain. And because the tombstone is permanent, any later
+    redelivery finishes a partially-failed purge (see persist_submission), so the
+    hard-delete guarantee holds even across storage errors.
     """
     record = get_state(_sub_key(request_id))
     if record is None or record.get("user_id") != user_id:
