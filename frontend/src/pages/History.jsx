@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart2, ChevronRight, Clock, Compass, Layers, Monitor, Pen, Server, Code2, Smartphone, PieChart, Brain, Sparkles, ShieldCheck, Bug, Gamepad2, FileText, Network, Trash2, Loader2 } from 'lucide-react'
 import { fetchMySubmissions, deleteSubmission } from '../api'
@@ -21,6 +21,8 @@ export default function History({ user, onLoadResults }) {
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
+  // Serializes delete+refill operations (see handleDelete).
+  const deleteChain = useRef(Promise.resolve())
 
   useEffect(() => {
     if (!user) { setSubmissions([]); return }
@@ -35,17 +37,29 @@ export default function History({ user, onLoadResults }) {
   // DEV-75: remove a past result. The card confirms first; here we call the API
   // (server enforces ownership), then REFETCH — the list is capped at the server's
   // HISTORY_LIMIT, so a plain local filter would shrink it and never reveal the
-  // next-older submission after repeated deletes. Errors propagate back to the card
-  // so it can surface a retry.
-  const handleDelete = async (requestId) => {
-    await deleteSubmission(requestId)
-    try {
-      setSubmissions(await fetchMySubmissions())
-    } catch {
-      // Delete succeeded but the refill fetch failed — at least drop the removed
-      // card locally so the UI reflects the deletion.
-      setSubmissions((subs) => subs.filter((s) => s.request_id !== requestId))
-    }
+  // next-older submission after repeated deletes.
+  //
+  // Deletes are SERIALIZED through deleteChain: each delete + its refill runs to
+  // completion before the next starts. Otherwise concurrent deletes each issue a
+  // full-list refill that can resolve out of order, and a stale one (its snapshot
+  // taken before a later delete) would reinsert an already-deleted card. Chaining
+  // guarantees every refill reflects all prior deletes. The card awaits its own
+  // link, so it still sees errors and can retry.
+  const handleDelete = (requestId) => {
+    const run = deleteChain.current
+      .catch(() => {}) // isolate this delete from a prior link's failure
+      .then(async () => {
+        await deleteSubmission(requestId)
+        try {
+          setSubmissions(await fetchMySubmissions())
+        } catch {
+          // Delete succeeded but the refill fetch failed — at least drop the removed
+          // card locally so the UI reflects the deletion.
+          setSubmissions((subs) => subs.filter((s) => s.request_id !== requestId))
+        }
+      })
+    deleteChain.current = run
+    return run
   }
 
   if (!user) return null
