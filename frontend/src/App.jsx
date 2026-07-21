@@ -132,6 +132,10 @@ function App() {
     // open it there. Record the selection HERE, on the explicit result click —
     // not on the roadmap page's mount, so merely opening a bookmark can't record a
     // selection (which is session-scoped and could clobber another account's).
+    // Set selectedCareer too (not just the resume id) so returning via the Back
+    // button shows the card as selected, and the anonymous-persistence effect
+    // mirrors the right nextstep_last_career for a later reload.
+    setSelectedCareer(careerId)
     setResumeCareerId(careerId)
     selectCareer(careerId)
     navigate(`/roadmap/${encodeURIComponent(careerId)}`)
