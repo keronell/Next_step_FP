@@ -9,6 +9,7 @@ import re
 from pydantic import BaseModel, Field, field_validator
 
 from common.data import career_ids, question_ids
+from common.models.profile import UserProfile
 
 # Both frontend mint formats (crypto.randomUUID and the s-{ts}-{rand} fallback)
 # are alnum/dash; session ids flow into state-store keys, so anything else is
@@ -24,6 +25,9 @@ class QuestionnaireSubmission(BaseModel):
     # Anonymous browser session id (localStorage UUID). Optional so older clients and
     # tests still validate; used to link this submission to a later career selection.
     session_id: str | None = None
+    # DEV-60 self-input profile, sent inline so it reaches matching in the same
+    # request that produces the recommendations. Absent when the user skipped it.
+    profile: UserProfile | None = None
 
     @field_validator("session_id")
     @classmethod

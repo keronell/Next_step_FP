@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from common.config import Settings
 from common.logging import get_logger
 from common.data import load_careers
+from common.models.profile import UserProfile
 from app.services import job_postings_service
 from app.services.profile import build_profile
 from app.services.rag_service import RagService
@@ -36,8 +37,10 @@ class CareerRepository:
         /api/health so a deploy can confirm the store loaded vs the offline fallback."""
         return self._rag.count
 
-    def get_candidates(self, answers: dict[str, int | None]) -> list[CareerCandidate]:
-        profile = build_profile(answers)
+    def get_candidates(
+        self, answers: dict[str, int | None], user_profile: UserProfile | None = None
+    ) -> list[CareerCandidate]:
+        profile = build_profile(answers, user_profile)
         embedding = self._rag.encode(profile)
         k = self._settings.rag_top_k
 
@@ -50,7 +53,15 @@ class CareerRepository:
             similarity, skills = self._rag.query_field(embedding, career["field"], k)
             # Supplement ChromaDB's market skills with skills from Postgres job_postings.
             # No-op (empty Counter) when Supabase is unconfigured -> ChromaDB-only path.
-            skills = skills + job_postings_service.skill_counts(career["field"], k)
+            #
+            # UNION (max per skill), not sum: build_rag.py populates BOTH stores from the
+            # same `jobs` list, so the two samples overlap. Summing let a skill from a
+            # single ad counted twice look like two ads — which matters now that counts
+            # are thresholded (MIN_MARKET_MENTIONS) rather than only used for membership.
+            # ponytail: max under-counts where the samples genuinely differ (Chroma
+            # returns top-k semantic, Postgres an unranked limit). True dedup needs ad
+            # ids plumbed through both sources — do that only if counts get load-bearing.
+            skills = skills | job_postings_service.skill_counts(career["field"], k)
             candidates.append(CareerCandidate(career, similarity, skills))
 
         retrieved = sum(1 for c in candidates if c.semantic_similarity is not None)
@@ -68,5 +79,7 @@ class FakeCareerRepository:
     def rag_count(self) -> int:
         return len(self._candidates)
 
-    def get_candidates(self, answers: dict[str, int | None]) -> list[CareerCandidate]:
+    def get_candidates(
+        self, answers: dict[str, int | None], user_profile: UserProfile | None = None
+    ) -> list[CareerCandidate]:
         return self._candidates

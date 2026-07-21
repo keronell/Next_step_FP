@@ -8,6 +8,13 @@ class ScoreBreakdown(BaseModel):
     semantic_similarity: float
     questionnaire_fit: float
     skill_overlap: float
+    # DEV-60: present only when a non-empty self-input profile scored this request
+    # (PROFILE_WEIGHTS path) — null on the formula path, which has no user skills to
+    # compare. Optional rather than absent because this model is the public contract:
+    # without it pydantic silently drops a component worth 20% of the score, and the
+    # persisted record (raw dicts, never revalidated) would keep a field the live
+    # response had thrown away.
+    user_skill_match: float | None = None
 
 
 class Recommendation(BaseModel):

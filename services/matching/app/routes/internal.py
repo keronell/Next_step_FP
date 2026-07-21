@@ -15,8 +15,13 @@ router = APIRouter(prefix="/internal")
 def match_endpoint(req: MatchRequest, request: Request) -> MatchResponse:
     repo = get_repository(request)  # 503 while the RAG store is unavailable
     model = getattr(request.app.state, "matcher_model", None)
-    candidates = repo.get_candidates(req.answers)
-    return MatchResponse(recommendations=match(req.answers, candidates, model=model))
+    # The profile shapes BOTH hops: the embedding query built in get_candidates
+    # (semantic_similarity, and the model's `<career>_sem` features) and the
+    # user-skill component scored in match().
+    candidates = repo.get_candidates(req.answers, req.profile)
+    return MatchResponse(
+        recommendations=match(req.answers, candidates, model=model, profile=req.profile)
+    )
 
 
 @router.get("/field-skills", response_model=FieldSkillsResponse)
