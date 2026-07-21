@@ -445,3 +445,23 @@ def test_tombstone_does_not_block_a_different_submission(state):
     submission_store.persist_submission(_record("r2", session_id="s1", user_id="u1"))
     assert state["sub:r2"]["request_id"] == "r2"
     assert state["idx:user:u1"] == ["r2"]
+
+
+def test_persist_undoes_recreate_when_tombstoned_mid_persist(store, state, monkeypatch):
+    # Simulate the check-then-create race: a DELETE lands (writes the tombstone)
+    # AFTER persist's initial tombstone check but as it writes the record. The
+    # post-create recheck must observe the tombstone and undo the recreate.
+    real_save = submission_store.save_state  # the fake's save (installed by `store`)
+
+    def save_then_delete(key, value, **kw):
+        real_save(key, value, **kw)
+        if key == "sub:r1" and "del:r1" not in state:
+            real_save("del:r1", {"at": "2026-01-01T00:00:00+00:00"})  # concurrent delete
+
+    monkeypatch.setattr(submission_store, "save_state", save_then_delete)
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+
+    assert "sub:r1" not in state                 # recreate was undone
+    assert state.get("idx:user:u1", []) == []
+    assert state.get("idx:session:s1", []) == []
+    assert submission_store.get_user_submissions("u1") == []

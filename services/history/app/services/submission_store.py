@@ -172,6 +172,16 @@ def _remove_from_index(key: str, request_id: str) -> None:
     )
 
 
+def _purge(request_id: str, user_id, session_id) -> None:
+    """Remove a submission record and its index entries. Idempotent, so a concurrent
+    delete and a persist-undo (both calling this) converge on the deleted state."""
+    if user_id:
+        _remove_from_index(_user_idx(user_id), request_id)
+    if session_id:
+        _remove_from_index(_session_idx(session_id), request_id)
+    delete_state(_sub_key(request_id))
+
+
 def persist_submission(record: dict) -> None:
     """Store one submission record + index it by session and (if present) user.
 
@@ -201,6 +211,16 @@ def persist_submission(record: dict) -> None:
         _append_index(_session_idx(session_id), request_id)
     if record.get("user_id"):
         _append_index(_user_idx(record["user_id"]), request_id)
+    # Post-create recheck — closes the check-then-create race with delete_submission:
+    # a DELETE can write the tombstone AFTER the initial check above but around these
+    # writes, so the initial guard alone can miss it and resurrect the record. If the
+    # tombstone now exists, undo — deletion wins. _purge is idempotent, so this and
+    # the concurrent delete converge on "deleted" regardless of interleaving; and a
+    # DELETE whose tombstone lands after this recheck simply removes the record itself.
+    if get_state(_tombstone_key(request_id)) is not None:
+        logger.info("Submission %s tombstoned during persist — undoing recreate", request_id)
+        _purge(request_id, record.get("user_id"), session_id)
+        return
     if session_id:
         _reconcile_markers(request_id, session_id)
 
@@ -384,9 +404,5 @@ def delete_submission(user_id: str, request_id: str) -> bool:
     if record is None or record.get("user_id") != user_id:
         return False
     save_state(_tombstone_key(request_id), {"at": _now_iso()}, ttl_seconds=MARKER_TTL_SECONDS)
-    _remove_from_index(_user_idx(user_id), request_id)
-    session_id = record.get("session_id")
-    if session_id:
-        _remove_from_index(_session_idx(session_id), request_id)
-    delete_state(_sub_key(request_id))
+    _purge(request_id, user_id, record.get("session_id"))
     return True
