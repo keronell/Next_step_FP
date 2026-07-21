@@ -7,9 +7,10 @@ const NAV_LINKS = [
   { label: 'Assessment', id: 'assessment' },
 ]
 
+// The learning roadmap now lives on its own page (/roadmap/{id}), reached from the
+// results cards and the account menu — so it's intentionally not a scroll-to link here.
 const RESOURCE_LINKS = [
   { label: 'Career Matches', id: 'results' },
-  { label: 'Learning Roadmap', id: 'roadmap' },
 ]
 
 const SOCIALS = [

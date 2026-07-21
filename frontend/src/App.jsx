@@ -5,14 +5,13 @@ import Hero from './pages/Landing'
 import HowItWorks from './pages/HowItWorks'
 import Assessment from './pages/Questionnaire'
 import Results from './pages/Results'
-import Roadmap from './pages/Roadmap'
 import History from './pages/History'
 import AuthModal from './pages/AuthModal'
 import RoadmapPage from './pages/RoadmapPage'
 import { computeResults } from './data'
-import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
+import { submitQuestionnaire, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
-import { useRoute, matchRoadmap } from './hooks/useRoute'
+import { useRoute, matchRoadmap, navigate } from './hooks/useRoute'
 
 function App() {
   const { user, authLoading } = useAuth()
@@ -26,7 +25,6 @@ function App() {
   const [results, setResults] = useState(null)
   const [notice, setNotice] = useState(null)
   const [selectedCareer, setSelectedCareer] = useState(null)
-  const [activeTooltip, setActiveTooltip] = useState(null)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   // The career whose roadmap a returning user can jump straight to (their most
   // recent completed assessment). Drives the header's "My Roadmap" shortcut; null
@@ -35,7 +33,6 @@ function App() {
 
   const assessmentRef = useRef(null)
   const resultsRef = useRef(null)
-  const roadmapRef = useRef(null)
   const historyRef = useRef(null)
 
   const scrollTo = (ref) => {
@@ -85,7 +82,6 @@ function App() {
       setResults(null)
       setNotice(null)
       setSelectedCareer(null)
-      setActiveTooltip(null)
       setResumeCareerId(null)
       return
     }
@@ -132,11 +128,11 @@ function App() {
   }
 
   const handleSelectCareer = (careerId) => {
-    setSelectedCareer(careerId)
+    // The roadmap lives on its own page now (no inline section on the front page):
+    // open it there. RoadmapPage records the selection and resolves the skill gaps
+    // on mount, so we don't need to here.
     setResumeCareerId(careerId)
-    setActiveTooltip(null)
-    selectCareer(careerId)
-    scrollTo(roadmapRef)
+    navigate(`/roadmap/${encodeURIComponent(careerId)}`)
   }
 
   const handleLoadHistory = (recommendations, careerId = null) => {
@@ -145,7 +141,6 @@ function App() {
     setSelectedCareer(careerId)
     // The "My Roadmap" shortcut points at the selected career, else the top match.
     setResumeCareerId(careerId ?? recommendations?.[0]?.id ?? null)
-    setActiveTooltip(null)
     setPhase('results_ready')
     scrollTo(resultsRef)
   }
@@ -155,7 +150,6 @@ function App() {
     setResults(null)
     setNotice(null)
     setSelectedCareer(null)
-    setActiveTooltip(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -192,15 +186,6 @@ function App() {
             onRetry={handleStart}
             onSelectCareer={handleSelectCareer}
             selectedCareer={selectedCareer}
-          />
-        </div>
-        <div ref={roadmapRef}>
-          <Roadmap
-            selectedCareer={selectedCareer}
-            missingSkills={results?.find((r) => r.id === selectedCareer)?.missing_skills ?? []}
-            matchedSkills={results?.find((r) => r.id === selectedCareer)?.matched_skills ?? []}
-            activeTooltip={activeTooltip}
-            setActiveTooltip={setActiveTooltip}
           />
         </div>
         <div ref={historyRef}>
