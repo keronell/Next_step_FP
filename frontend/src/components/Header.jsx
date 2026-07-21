@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Clock, LogOut, Menu, Sparkles, X } from 'lucide-react'
+import { ChevronDown, Clock, LogOut, Map, Menu, Sparkles, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from './ui/Button.jsx'
 import { useAuth } from '../contexts/AuthContext'
+import { navigate } from '../hooks/useRoute'
 
-function Header({ phase, onReset, onOpenAuth }) {
+// `roadmapCareerId` is the career whose roadmap a returning user can jump straight
+// to (their most recent completed assessment). When set, we surface a "My Roadmap"
+// shortcut that deep-links past the intro/questionnaire (DEV-76). It's null for
+// users with no completed assessment, so the shortcut simply never appears.
+function Header({ phase, onReset, onOpenAuth, roadmapCareerId }) {
   const { user, authLoading, signOut } = useAuth()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -34,7 +39,17 @@ function Header({ phase, onReset, onOpenAuth }) {
   const scrollToSection = (id) => {
     setMenuOpen(false)
     setAccountOpen(false)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const el = document.getElementById(id)
+    // On the standalone roadmap route the scroll-app sections aren't mounted;
+    // fall back to navigating home so nav links still do something sensible.
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    else navigate('/')
+  }
+
+  const goToRoadmap = () => {
+    setMenuOpen(false)
+    setAccountOpen(false)
+    navigate(`/roadmap/${encodeURIComponent(roadmapCareerId)}`)
   }
 
   const handleSignOut = async () => {
@@ -161,6 +176,15 @@ function Header({ phase, onReset, onOpenAuth }) {
                           <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold">Signed in as</p>
                           <p className="font-body text-small text-navy font-medium truncate mt-0.5">{user.username || user.email}</p>
                         </div>
+                        {roadmapCareerId && (
+                          <button
+                            onClick={goToRoadmap}
+                            className="focus-ring w-full text-left flex items-center gap-2.5 px-4 py-2.5 font-body text-small text-navy/70 hover:text-navy hover:bg-navy/[0.04] transition-colors duration-fast"
+                          >
+                            <Map size={14} aria-hidden="true" className="text-navy/40" />
+                            My Roadmap
+                          </button>
+                        )}
                         <button
                           onClick={() => scrollToSection('history')}
                           className="focus-ring w-full text-left flex items-center gap-2.5 px-4 py-2.5 font-body text-small text-navy/70 hover:text-navy hover:bg-navy/[0.04] transition-colors duration-fast"
@@ -249,6 +273,15 @@ function Header({ phase, onReset, onOpenAuth }) {
                   <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold px-0.5 mb-1">
                     {user.username || user.email}
                   </p>
+                  {roadmapCareerId && (
+                    <button
+                      onClick={goToRoadmap}
+                      className="focus-ring flex items-center gap-2 text-left font-body text-small text-navy/65 hover:text-gold transition-colors duration-fast py-2"
+                    >
+                      <Map size={13} aria-hidden="true" />
+                      My Roadmap
+                    </button>
+                  )}
                   <button
                     onClick={() => scrollToSection('history')}
                     className="focus-ring flex items-center gap-2 text-left font-body text-small text-navy/65 hover:text-gold transition-colors duration-fast py-2"

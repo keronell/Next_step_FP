@@ -8,12 +8,19 @@ import Results from './pages/Results'
 import Roadmap from './pages/Roadmap'
 import History from './pages/History'
 import AuthModal from './pages/AuthModal'
+import RoadmapPage from './pages/RoadmapPage'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
+import { useRoute, matchRoadmap } from './hooks/useRoute'
 
 function App() {
   const { user, authLoading } = useAuth()
+
+  // Deep-link routing: `/roadmap/{id}` renders the standalone roadmap (bypassing
+  // the intro/questionnaire); every other path renders the scroll app below.
+  const path = useRoute()
+  const roadmapCareerId = matchRoadmap(path)
 
   const [phase, setPhase] = useState('idle')
   const [results, setResults] = useState(null)
@@ -21,6 +28,10 @@ function App() {
   const [selectedCareer, setSelectedCareer] = useState(null)
   const [activeTooltip, setActiveTooltip] = useState(null)
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  // The career whose roadmap a returning user can jump straight to (their most
+  // recent completed assessment). Drives the header's "My Roadmap" shortcut; null
+  // for users with no completed assessment, so their flow stays untouched.
+  const [resumeCareerId, setResumeCareerId] = useState(null)
 
   const assessmentRef = useRef(null)
   const resultsRef = useRef(null)
@@ -75,6 +86,7 @@ function App() {
       setNotice(null)
       setSelectedCareer(null)
       setActiveTooltip(null)
+      setResumeCareerId(null)
       return
     }
     prevUserRef.current = user
@@ -106,10 +118,13 @@ function App() {
     try {
       const recs = await submitQuestionnaire(answers)
       setResults(recs)
+      setResumeCareerId(recs?.[0]?.id ?? null)
       setNotice(recs.length === 0 ? 'empty' : null)
     } catch (err) {
       console.warn('Falling back to local results:', err)
-      setResults(computeResults(answers))
+      const local = computeResults(answers)
+      setResults(local)
+      setResumeCareerId(local?.[0]?.id ?? null)
       setNotice('offline')
     }
     setPhase('results_ready')
@@ -118,6 +133,7 @@ function App() {
 
   const handleSelectCareer = (careerId) => {
     setSelectedCareer(careerId)
+    setResumeCareerId(careerId)
     setActiveTooltip(null)
     selectCareer(careerId)
     scrollTo(roadmapRef)
@@ -127,6 +143,8 @@ function App() {
     setResults(recommendations)
     setNotice(null)
     setSelectedCareer(careerId)
+    // The "My Roadmap" shortcut points at the selected career, else the top match.
+    setResumeCareerId(careerId ?? recommendations?.[0]?.id ?? null)
     setActiveTooltip(null)
     setPhase('results_ready')
     scrollTo(resultsRef)
@@ -141,9 +159,20 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Standalone roadmap route (DEV-76/DEV-65): render only the roadmap, skipping
+  // the whole intro/questionnaire flow the scroll app renders below.
+  if (roadmapCareerId) {
+    return <RoadmapPage careerId={roadmapCareerId} />
+  }
+
   return (
     <div className="min-h-screen bg-cream">
-      <Header phase={phase} onReset={handleReset} onOpenAuth={() => setAuthModalOpen(true)} />
+      <Header
+        phase={phase}
+        onReset={handleReset}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        roadmapCareerId={resumeCareerId}
+      />
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <main>
         <Hero onStart={handleStart} />
