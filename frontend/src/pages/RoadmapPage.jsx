@@ -28,7 +28,7 @@ function findRec(recs, careerId) {
   return (recs || []).find((r) => r.id === careerId) || null
 }
 
-export default function RoadmapPage({ careerId, recommendations }) {
+export default function RoadmapPage({ careerId, recommendations, onStartAssessment }) {
   const { user, authLoading } = useAuth()
   const [skills, setSkills] = useState({ missing: [], matched: [] })
   const [resolving, setResolving] = useState(true)
@@ -95,6 +95,7 @@ export default function RoadmapPage({ careerId, recommendations }) {
         phase="idle"
         onReset={goHome}
         onOpenAuth={() => setAuthModalOpen(true)}
+        onStartAssessment={onStartAssessment}
         roadmapCareerId={careerId}
       />
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />

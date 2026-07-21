@@ -11,7 +11,7 @@ import RoadmapPage from './pages/RoadmapPage'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
-import { useRoute, matchRoadmap, navigate, consumePendingScroll } from './hooks/useRoute'
+import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll } from './hooks/useRoute'
 
 function App() {
   const { user, authLoading } = useAuth()
@@ -173,12 +173,34 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Header's Assessment / Start Assessment controls. Questionnaire renders nothing
+  // while phase is 'results_ready', so a returning user (whose background restore
+  // set that phase, e.g. while the standalone roadmap page was showing) would land
+  // on a blank assessment section. Reset to the idle start card first — but never
+  // disturb an in-progress assessment. navigateToSection scrolls here, or routes
+  // home and defers the scroll when we're on the roadmap route.
+  const handleGoToAssessment = () => {
+    if (phase !== 'assessing' && phase !== 'loading') {
+      setPhase('idle')
+      setResults(null)
+      setNotice(null)
+      setSelectedCareer(null)
+    }
+    navigateToSection('assessment')
+  }
+
   // Standalone roadmap route (DEV-76/DEV-65): render only the roadmap, skipping
   // the whole intro/questionnaire flow the scroll app renders below. Hand the page
   // the current results so a just-clicked "View Roadmap" uses that recommendation
   // directly, rather than re-fetching a not-yet-persisted submission from history.
   if (roadmapCareerId) {
-    return <RoadmapPage careerId={roadmapCareerId} recommendations={results} />
+    return (
+      <RoadmapPage
+        careerId={roadmapCareerId}
+        recommendations={results}
+        onStartAssessment={handleGoToAssessment}
+      />
+    )
   }
 
   return (
@@ -187,6 +209,7 @@ function App() {
         phase={phase}
         onReset={handleReset}
         onOpenAuth={() => setAuthModalOpen(true)}
+        onStartAssessment={handleGoToAssessment}
         roadmapCareerId={resumeCareerId}
       />
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />

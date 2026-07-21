@@ -9,7 +9,7 @@ import { navigate, navigateToSection } from '../hooks/useRoute'
 // to (their most recent completed assessment). When set, we surface a "My Roadmap"
 // shortcut that deep-links past the intro/questionnaire (DEV-76). It's null for
 // users with no completed assessment, so the shortcut simply never appears.
-function Header({ phase, onReset, onOpenAuth, roadmapCareerId }) {
+function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId }) {
   const { user, authLoading, signOut } = useAuth()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -49,6 +49,16 @@ function Header({ phase, onReset, onOpenAuth, roadmapCareerId }) {
     setMenuOpen(false)
     setAccountOpen(false)
     navigate(`/roadmap/${encodeURIComponent(roadmapCareerId)}`)
+  }
+
+  // The Assessment nav item and Start Assessment buttons go through the parent so
+  // it can reset the flow first — the assessment section renders nothing while the
+  // (possibly background-restored) phase is 'results_ready', so a plain scroll would
+  // land the user on a blank section.
+  const startAssessment = () => {
+    setMenuOpen(false)
+    setAccountOpen(false)
+    onStartAssessment()
   }
 
   const handleSignOut = async () => {
@@ -105,7 +115,7 @@ function Header({ phase, onReset, onOpenAuth, roadmapCareerId }) {
               {navItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => scrollToSection(item.id)}
+                  onClick={() => (item.id === 'assessment' ? startAssessment() : scrollToSection(item.id))}
                   onMouseEnter={() => setHovered(item.id)}
                   className="focus-ring relative px-4 py-2 rounded-full font-body text-small text-navy/75 hover:text-navy transition-colors duration-fast"
                 >
@@ -207,7 +217,7 @@ function Header({ phase, onReset, onOpenAuth, roadmapCareerId }) {
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => scrollToSection('assessment')}
+                onClick={startAssessment}
                 className="ml-2 !px-5 !py-2 !text-small"
               >
                 <Sparkles size={14} aria-hidden="true" />
@@ -240,7 +250,7 @@ function Header({ phase, onReset, onOpenAuth, roadmapCareerId }) {
               {navItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => scrollToSection(item.id)}
+                  onClick={() => (item.id === 'assessment' ? startAssessment() : scrollToSection(item.id))}
                   className="focus-ring text-left font-body text-navy/80 hover:text-gold py-2.5 border-b border-navy/5 last:border-0 transition-colors duration-fast"
                 >
                   {item.label}
@@ -250,7 +260,7 @@ function Header({ phase, onReset, onOpenAuth, roadmapCareerId }) {
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => scrollToSection('assessment')}
+                onClick={startAssessment}
                 className="mt-3 !text-small"
               >
                 <Sparkles size={14} aria-hidden="true" />
