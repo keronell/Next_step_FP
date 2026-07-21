@@ -38,7 +38,6 @@ export default function History({ user, onLoadResults }) {
     <section id="history" className="py-24 px-6 border-t border-navy/[0.06]">
       <div className="max-w-3xl mx-auto">
         <SectionHeading
-          eyebrow="Your Account"
           title="Past assessments"
           lede="Career discovery results linked to your account. Click any to reload."
           align="left"

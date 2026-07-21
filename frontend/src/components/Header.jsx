@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Clock, LogOut, Menu, Sparkles, X } from 'lucide-react'
+import { ChevronDown, Clock, LogOut, Map, Menu, Sparkles, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from './ui/Button.jsx'
 import { useAuth } from '../contexts/AuthContext'
+import { navigate, navigateToSection } from '../hooks/useRoute'
 
-function Header({ phase, onReset, onOpenAuth }) {
+// `roadmapCareerId` is the career whose roadmap a returning user can jump straight
+// to (their most recent completed assessment). When set, we surface a "My Roadmap"
+// shortcut that deep-links past the intro/questionnaire (DEV-76). It's null for
+// users with no completed assessment, so the shortcut simply never appears.
+function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId }) {
   const { user, authLoading, signOut } = useAuth()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -34,7 +39,26 @@ function Header({ phase, onReset, onOpenAuth }) {
   const scrollToSection = (id) => {
     setMenuOpen(false)
     setAccountOpen(false)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // Scrolls now if the section is on this page; otherwise routes home and defers
+    // the scroll until it mounts, so the link still lands on its target section
+    // (rather than the top of the homepage) from the standalone roadmap route.
+    navigateToSection(id)
+  }
+
+  const goToRoadmap = () => {
+    setMenuOpen(false)
+    setAccountOpen(false)
+    navigate(`/roadmap/${encodeURIComponent(roadmapCareerId)}`)
+  }
+
+  // The Assessment nav item and Start Assessment buttons go through the parent so
+  // it can reset the flow first — the assessment section renders nothing while the
+  // (possibly background-restored) phase is 'results_ready', so a plain scroll would
+  // land the user on a blank section.
+  const startAssessment = () => {
+    setMenuOpen(false)
+    setAccountOpen(false)
+    onStartAssessment()
   }
 
   const handleSignOut = async () => {
@@ -91,7 +115,7 @@ function Header({ phase, onReset, onOpenAuth }) {
               {navItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => scrollToSection(item.id)}
+                  onClick={() => (item.id === 'assessment' ? startAssessment() : scrollToSection(item.id))}
                   onMouseEnter={() => setHovered(item.id)}
                   className="focus-ring relative px-4 py-2 rounded-full font-body text-small text-navy/75 hover:text-navy transition-colors duration-fast"
                 >
@@ -161,6 +185,15 @@ function Header({ phase, onReset, onOpenAuth }) {
                           <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold">Signed in as</p>
                           <p className="font-body text-small text-navy font-medium truncate mt-0.5">{user.username || user.email}</p>
                         </div>
+                        {roadmapCareerId && (
+                          <button
+                            onClick={goToRoadmap}
+                            className="focus-ring w-full text-left flex items-center gap-2.5 px-4 py-2.5 font-body text-small text-navy/70 hover:text-navy hover:bg-navy/[0.04] transition-colors duration-fast"
+                          >
+                            <Map size={14} aria-hidden="true" className="text-navy/40" />
+                            My Roadmap
+                          </button>
+                        )}
                         <button
                           onClick={() => scrollToSection('history')}
                           className="focus-ring w-full text-left flex items-center gap-2.5 px-4 py-2.5 font-body text-small text-navy/70 hover:text-navy hover:bg-navy/[0.04] transition-colors duration-fast"
@@ -184,7 +217,7 @@ function Header({ phase, onReset, onOpenAuth }) {
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => scrollToSection('assessment')}
+                onClick={startAssessment}
                 className="ml-2 !px-5 !py-2 !text-small"
               >
                 <Sparkles size={14} aria-hidden="true" />
@@ -217,7 +250,7 @@ function Header({ phase, onReset, onOpenAuth }) {
               {navItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => scrollToSection(item.id)}
+                  onClick={() => (item.id === 'assessment' ? startAssessment() : scrollToSection(item.id))}
                   className="focus-ring text-left font-body text-navy/80 hover:text-gold py-2.5 border-b border-navy/5 last:border-0 transition-colors duration-fast"
                 >
                   {item.label}
@@ -227,7 +260,7 @@ function Header({ phase, onReset, onOpenAuth }) {
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => scrollToSection('assessment')}
+                onClick={startAssessment}
                 className="mt-3 !text-small"
               >
                 <Sparkles size={14} aria-hidden="true" />
@@ -249,6 +282,15 @@ function Header({ phase, onReset, onOpenAuth }) {
                   <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold px-0.5 mb-1">
                     {user.username || user.email}
                   </p>
+                  {roadmapCareerId && (
+                    <button
+                      onClick={goToRoadmap}
+                      className="focus-ring flex items-center gap-2 text-left font-body text-small text-navy/65 hover:text-gold transition-colors duration-fast py-2"
+                    >
+                      <Map size={13} aria-hidden="true" />
+                      My Roadmap
+                    </button>
+                  )}
                   <button
                     onClick={() => scrollToSection('history')}
                     className="focus-ring flex items-center gap-2 text-left font-body text-small text-navy/65 hover:text-gold transition-colors duration-fast py-2"
