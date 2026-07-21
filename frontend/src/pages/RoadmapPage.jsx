@@ -7,12 +7,15 @@
 //
 // The roadmap itself is the existing <Roadmap> component, reused unchanged (it
 // fetches its own roadmap data + progress). This page resolves the assessment-derived
-// skill gaps for `careerId` so the roadmap can highlight them, and surfaces account
+// skill gaps for `careerId` so the roadmap can highlight them — preferring the
+// recommendation the app already holds (the result the user just clicked), and only
+// falling back to history/localStorage for true deep links. It also surfaces account
 // details via <AccountDetails> (which reads the same useAuth source as the header).
 import { useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import AuthModal from './AuthModal'
 import AccountDetails from '../components/AccountDetails'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
 import Roadmap from './Roadmap'
@@ -25,15 +28,19 @@ function findRec(recs, careerId) {
   return (recs || []).find((r) => r.id === careerId) || null
 }
 
-export default function RoadmapPage({ careerId }) {
+export default function RoadmapPage({ careerId, recommendations }) {
   const { user, authLoading } = useAuth()
   const [skills, setSkills] = useState({ missing: [], matched: [] })
   const [resolving, setResolving] = useState(true)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
 
-  // Resolve the skill gaps for this career from the user's completed assessment:
-  // server history when logged in, localStorage when anonymous. No match (e.g. a
-  // bare bookmark, or a career they never assessed) → render unpersonalized; the
-  // roadmap still loads from the backend / ROADMAPS fallback.
+  // Resolve the skill gaps for this career. Prefer the recommendation the app
+  // already holds (passed in when the user clicks "View Roadmap" right after a
+  // submit) — at that moment the submission hasn't necessarily been persisted /
+  // its selection applied yet, so re-fetching history could miss it or return a
+  // stale pick. For a true deep link/bookmark (no app state) fall back to server
+  // history when logged in, or localStorage when anonymous. No match anywhere →
+  // render unpersonalized; the roadmap still loads from the backend / ROADMAPS.
   useEffect(() => {
     if (authLoading) return // wait for auth to settle before choosing a source
     let cancelled = false
@@ -43,6 +50,12 @@ export default function RoadmapPage({ careerId }) {
       if (cancelled) return
       setSkills({ missing: rec?.missing_skills ?? [], matched: rec?.matched_skills ?? [] })
       setResolving(false)
+    }
+
+    const passed = findRec(recommendations, careerId)
+    if (passed) {
+      apply(passed)
+      return () => { cancelled = true }
     }
 
     if (user) {
@@ -66,7 +79,7 @@ export default function RoadmapPage({ careerId }) {
     }
 
     return () => { cancelled = true }
-  }, [careerId, user, authLoading])
+  }, [careerId, user, authLoading, recommendations])
 
   // Record the deep-linked choice, mirroring App.jsx::handleSelectCareer.
   useEffect(() => { selectCareer(careerId) }, [careerId])
@@ -75,7 +88,13 @@ export default function RoadmapPage({ careerId }) {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header phase="idle" onReset={goHome} onOpenAuth={goHome} roadmapCareerId={careerId} />
+      <Header
+        phase="idle"
+        onReset={goHome}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        roadmapCareerId={careerId}
+      />
+      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <main>
         <div className="max-w-7xl mx-auto px-6 pt-24 pb-0">
           <button

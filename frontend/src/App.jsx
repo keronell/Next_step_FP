@@ -154,9 +154,11 @@ function App() {
   }
 
   // Standalone roadmap route (DEV-76/DEV-65): render only the roadmap, skipping
-  // the whole intro/questionnaire flow the scroll app renders below.
+  // the whole intro/questionnaire flow the scroll app renders below. Hand the page
+  // the current results so a just-clicked "View Roadmap" uses that recommendation
+  // directly, rather than re-fetching a not-yet-persisted submission from history.
   if (roadmapCareerId) {
-    return <RoadmapPage careerId={roadmapCareerId} />
+    return <RoadmapPage careerId={roadmapCareerId} recommendations={results} />
   }
 
   return (

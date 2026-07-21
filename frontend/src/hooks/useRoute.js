@@ -24,10 +24,18 @@ function currentPath() {
 }
 
 // Returns the `careerId` for `/roadmap/:careerId`, else null. Trailing slashes
-// and empty segments are treated as "no match".
+// and empty segments are treated as "no match". A malformed percent-encoded
+// segment (e.g. `/roadmap/%E0%A4%A`) would make decodeURIComponent throw during
+// render and blank the whole app, so decode failures are treated as "no match"
+// too — the path just falls through to the normal scroll app.
 export function matchRoadmap(pathname) {
   const m = pathname.match(/^\/roadmap\/([^/]+)\/?$/)
-  return m ? decodeURIComponent(m[1]) : null
+  if (!m) return null
+  try {
+    return decodeURIComponent(m[1])
+  } catch {
+    return null
+  }
 }
 
 // Subscribe to the current pathname, re-rendering on Back/forward (popstate) and
