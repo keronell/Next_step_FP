@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { BarChart2, ChevronRight, Clock, Compass, Layers, Monitor, Pen, Server, Code2, Smartphone, PieChart, Brain, Sparkles, ShieldCheck, Bug, Gamepad2, FileText, Network } from 'lucide-react'
-import { fetchMySubmissions } from '../api'
+import { BarChart2, ChevronRight, Clock, Compass, Layers, Monitor, Pen, Server, Code2, Smartphone, PieChart, Brain, Sparkles, ShieldCheck, Bug, Gamepad2, FileText, Network, Trash2, Loader2 } from 'lucide-react'
+import { fetchMySubmissions, deleteSubmission } from '../api'
 import Button from '../components/ui/Button.jsx'
 import SectionHeading from '../components/ui/SectionHeading.jsx'
 
@@ -31,6 +31,14 @@ export default function History({ user, onLoadResults }) {
       .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [user])
+
+  // DEV-75: remove a past result. The card confirms first; here we call the API
+  // (server enforces ownership) and drop it from the list only on success. Errors
+  // propagate back to the card so it can surface a retry.
+  const handleDelete = async (requestId) => {
+    await deleteSubmission(requestId)
+    setSubmissions((subs) => subs.filter((s) => s.request_id !== requestId))
+  }
 
   if (!user) return null
 
@@ -73,6 +81,7 @@ export default function History({ user, onLoadResults }) {
                 submission={sub}
                 index={i}
                 onLoad={onLoadResults}
+                onDelete={handleDelete}
               />
             ))}
           </div>
@@ -82,12 +91,28 @@ export default function History({ user, onLoadResults }) {
   )
 }
 
-function HistoryCard({ submission, index, onLoad }) {
+function HistoryCard({ submission, index, onLoad, onDelete }) {
+  const [confirming, setConfirming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [failed, setFailed] = useState(false)
+
   const top = submission.recommendations?.[0]
   if (!top) return null
 
   const CareerIcon = ICON_MAP[top.icon] || Monitor
   const date = formatDate(submission.created_at)
+
+  const confirmDelete = async () => {
+    setDeleting(true)
+    setFailed(false)
+    try {
+      await onDelete(submission.request_id)
+      // On success the parent drops this card from the list, so it unmounts here.
+    } catch {
+      setDeleting(false)
+      setFailed(true)
+    }
+  }
 
   return (
     <motion.div
@@ -128,20 +153,65 @@ function HistoryCard({ submission, index, onLoad }) {
               </span>
             </>
           )}
+          {failed && (
+            <>
+              <span className="text-navy/20" aria-hidden="true">·</span>
+              <span className="font-body text-small text-red-600" role="alert">
+                Couldn’t delete - try again
+              </span>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Load button */}
-      <Button
-        variant="secondary"
-        size="md"
-        onClick={() => onLoad(submission.recommendations, submission.selected_career ?? null)}
-        className="flex-shrink-0 !px-4 !py-2 !text-small opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-fast"
-        aria-label={`Load ${top.title} results`}
-      >
-        Load
-        <ChevronRight size={13} aria-hidden="true" />
-      </Button>
+      {/* Actions: default (Load + delete) vs. an inline delete confirmation. Plain
+          conditional render - no per-card AnimatePresence, which swallowed the state
+          toggle here. */}
+      <div className="flex-shrink-0 flex items-center gap-2">
+        {confirming ? (
+          <>
+            <span className="font-body text-small text-navy/60 hidden sm:inline">Delete?</span>
+            <button
+              onClick={() => { setConfirming(false); setFailed(false) }}
+              disabled={deleting}
+              className="focus-ring px-3 py-2 rounded-xl font-body text-small font-medium text-navy/60 hover:text-navy hover:bg-navy/[0.04] transition-colors duration-fast disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              disabled={deleting}
+              aria-label={`Confirm delete ${top.title} result`}
+              className="focus-ring inline-flex items-center gap-1.5 px-3 py-2 rounded-xl font-body text-small font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors duration-fast disabled:opacity-60"
+            >
+              {deleting
+                ? <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                : <Trash2 size={13} aria-hidden="true" />}
+              Delete
+            </button>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => onLoad(submission.recommendations, submission.selected_career ?? null)}
+              className="!px-4 !py-2 !text-small opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-fast"
+              aria-label={`Load ${top.title} results`}
+            >
+              Load
+              <ChevronRight size={13} aria-hidden="true" />
+            </Button>
+            <button
+              onClick={() => setConfirming(true)}
+              aria-label={`Delete ${top.title} result`}
+              className="focus-ring inline-flex items-center justify-center w-9 h-9 rounded-xl text-navy/40 hover:text-red-600 hover:bg-red-50 transition-colors duration-fast opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            >
+              <Trash2 size={15} aria-hidden="true" />
+            </button>
+          </>
+        )}
+      </div>
     </motion.div>
   )
 }

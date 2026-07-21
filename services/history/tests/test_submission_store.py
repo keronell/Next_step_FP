@@ -42,6 +42,10 @@ class _FakeStateStore:
     def bulk(self, keys):
         return {k: copy.deepcopy(self.data[k]) for k in keys if k in self.data}
 
+    def delete(self, key):
+        self.data.pop(key, None)
+        self._versions.pop(key, None)
+
 
 @pytest.fixture
 def store(monkeypatch) -> _FakeStateStore:
@@ -50,6 +54,7 @@ def store(monkeypatch) -> _FakeStateStore:
     monkeypatch.setattr(submission_store, "get_state_with_etag", fake.get_with_etag)
     monkeypatch.setattr(submission_store, "save_state", fake.save)
     monkeypatch.setattr(submission_store, "get_bulk_state", fake.bulk)
+    monkeypatch.setattr(submission_store, "delete_state", fake.delete)
     return fake
 
 
@@ -370,3 +375,44 @@ def test_user_submissions_drops_missing_records(state):
 
 def test_user_submissions_empty_for_unknown_user(state):
     assert submission_store.get_user_submissions("nobody") == []
+
+
+# ── delete_submission (DEV-75) ────────────────────────────────────────────────
+
+def test_delete_submission_removes_record_and_indexes(state):
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    assert submission_store.delete_submission("u1", "r1") is True
+    assert "sub:r1" not in state
+    assert state["idx:user:u1"] == []
+    assert state["idx:session:s1"] == []
+    assert submission_store.get_user_submissions("u1") == []
+
+
+def test_delete_submission_only_targets_the_named_record(state):
+    submission_store.persist_submission(_record("r1", user_id="u1"))
+    submission_store.persist_submission(_record("r2", user_id="u1"))
+    assert submission_store.delete_submission("u1", "r1") is True
+    assert "sub:r1" not in state
+    assert state["sub:r2"]["request_id"] == "r2"
+    assert state["idx:user:u1"] == ["r2"]
+
+
+def test_delete_submission_missing_returns_false(state):
+    assert submission_store.delete_submission("u1", "nope") is False
+
+
+def test_delete_submission_wrong_owner_refused(state):
+    # A user cannot delete another user's submission: refused AND left untouched.
+    submission_store.persist_submission(_record("r1", user_id="owner"))
+    assert submission_store.delete_submission("attacker", "r1") is False
+    assert state["sub:r1"]["request_id"] == "r1"          # record still present
+    assert state["idx:user:owner"] == ["r1"]              # owner's index intact
+    assert "idx:user:attacker" not in state
+
+
+def test_delete_submission_anonymous_record_not_owned(state):
+    # An unclaimed (anonymous) submission has user_id=None — no logged-in user owns
+    # it, so a delete keyed on a real user id is refused.
+    submission_store.persist_submission(_record("r1", user_id=None))
+    assert submission_store.delete_submission("u1", "r1") is False
+    assert state["sub:r1"]["request_id"] == "r1"

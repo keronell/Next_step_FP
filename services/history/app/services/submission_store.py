@@ -48,6 +48,7 @@ from common.logging import get_logger
 from common.dapr import (
     DaprConflict,
     DaprError,
+    delete_state,
     get_bulk_state,
     get_state,
     get_state_with_etag,
@@ -154,6 +155,13 @@ def _append_index(key: str, request_id: str) -> None:
     _update(
         key,
         lambda ids: (ids or []) + [request_id] if request_id not in (ids or []) else None,
+    )
+
+
+def _remove_from_index(key: str, request_id: str) -> None:
+    _update(
+        key,
+        lambda ids: [i for i in ids if i != request_id] if ids and request_id in ids else None,
     )
 
 
@@ -338,3 +346,28 @@ def get_user_submissions(user_id: str) -> list[dict]:
         records.values(), key=lambda r: r.get("created_at") or "", reverse=True
     )
     return ordered[:HISTORY_LIMIT]
+
+
+def delete_submission(user_id: str, request_id: str) -> bool:
+    """Hard-delete a submission the requesting user owns (DEV-75).
+
+    Returns True when a record was removed, False when it doesn't exist or belongs
+    to someone else — the caller maps False to 404, never revealing that another
+    user's submission exists. Ownership is checked against the STORED record's
+    user_id (not any client-supplied index), so a user can only ever delete their
+    own submissions.
+
+    The id is dropped from the owner's index first (so it leaves history
+    immediately), then the record and its session-index entry are removed. A crash
+    mid-way can only leave a harmless orphan: get_user_submissions bulk-reads and
+    omits missing keys, and the claim/selection walks skip a record that's gone.
+    """
+    record = get_state(_sub_key(request_id))
+    if record is None or record.get("user_id") != user_id:
+        return False
+    _remove_from_index(_user_idx(user_id), request_id)
+    session_id = record.get("session_id")
+    if session_id:
+        _remove_from_index(_session_idx(session_id), request_id)
+    delete_state(_sub_key(request_id))
+    return True
