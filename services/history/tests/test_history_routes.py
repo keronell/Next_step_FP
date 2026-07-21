@@ -83,3 +83,57 @@ def test_claim_sessions_rejects_malformed_session_id(client, as_user):
         "/api/auth/claim-sessions", json={"session_id": "a/b?c#d"}, headers=as_user
     )
     assert r.status_code == 422
+
+
+# ── DELETE /api/auth/my-submissions/{request_id} (DEV-75) ──────────────────────
+
+def test_delete_submission_requires_auth(client):
+    assert client.delete("/api/auth/my-submissions/abc123").status_code in (401, 503)
+
+
+def test_delete_submission_dapr_disabled_503(client, as_user):
+    assert client.delete("/api/auth/my-submissions/abc123", headers=as_user).status_code == 503
+
+
+def test_delete_submission_success_204(client, as_user, monkeypatch):
+    monkeypatch.setattr(history_routes, "_require_dapr", lambda: None)
+    calls = []
+    monkeypatch.setattr(
+        submission_store,
+        "delete_submission",
+        lambda user_id, request_id: calls.append((user_id, request_id)) or True,
+    )
+    r = client.delete("/api/auth/my-submissions/abc123", headers=as_user)
+    assert r.status_code == 204
+    assert r.content == b""
+    # Ownership is scoped to the authenticated user, passed through to the store.
+    assert calls == [("user-uuid-123", "abc123")]
+
+
+def test_delete_submission_not_found_or_not_owned_404(client, as_user, monkeypatch):
+    # Store returns False for both "missing" and "belongs to another user" — the
+    # route maps both to 404 so a user can't even probe others' submissions.
+    monkeypatch.setattr(history_routes, "_require_dapr", lambda: None)
+    monkeypatch.setattr(submission_store, "delete_submission", lambda *a: False)
+    r = client.delete("/api/auth/my-submissions/abc123", headers=as_user)
+    assert r.status_code == 404
+
+
+def test_delete_submission_rejects_malformed_request_id(client, as_user, monkeypatch):
+    monkeypatch.setattr(history_routes, "_require_dapr", lambda: None)
+    # Path traversal / odd chars never reach the store.
+    r = client.delete("/api/auth/my-submissions/a%2Fb", headers=as_user)
+    assert r.status_code in (404, 422)
+
+
+def test_delete_submission_store_error_500(client, as_user, monkeypatch):
+    from common.dapr import DaprError
+
+    monkeypatch.setattr(history_routes, "_require_dapr", lambda: None)
+    monkeypatch.setattr(
+        submission_store,
+        "delete_submission",
+        lambda *a: (_ for _ in ()).throw(DaprError("store down")),
+    )
+    r = client.delete("/api/auth/my-submissions/abc123", headers=as_user)
+    assert r.status_code == 500

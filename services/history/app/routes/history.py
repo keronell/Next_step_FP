@@ -6,13 +6,17 @@ invoking auth's /internal/verify via common.auth_dep).
 Contracts unchanged from the monolith: claim is best-effort past the 503 gate;
 my-submissions raises 500 on store errors.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 
 from app.services import submission_store
 from common.auth_dep import get_current_user
 from common.dapr import enabled as _dapr_enabled
 from common.logging import get_logger
 from common.models.auth import ClaimSessionsRequest, SubmissionHistoryItem, UserResponse
+
+# request_id is a uuid4().hex (questionnaire-service); constrain the path segment to
+# a safe charset so nothing odd is interpolated into a state-store key.
+_REQUEST_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
 
 logger = get_logger(__name__)
 
@@ -72,3 +76,32 @@ def my_submissions(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve submission history.",
         )
+
+
+@router.delete("/my-submissions/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_submission(
+    request_id: str = Path(pattern=_REQUEST_ID_PATTERN),
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
+    """Delete one of the caller's own submissions (DEV-75). Returns 404 when it
+    doesn't exist OR isn't theirs — ownership is enforced server-side against the
+    stored record, so a user can never delete another user's submission."""
+    _require_dapr()
+    try:
+        deleted = submission_store.delete_submission(current_user.user_id, request_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Failed to delete submission %s for user %s: %s",
+            request_id,
+            current_user.user_id,
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not delete the submission.",
+        )
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found."
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
