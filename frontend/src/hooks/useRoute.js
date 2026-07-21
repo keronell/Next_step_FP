@@ -8,8 +8,16 @@
 // so every useRoute() consumer re-renders on a same-tab push (pushState alone
 // fires no event).
 import { useEffect, useState } from 'react'
+import { CAREERS } from '../data'
 
 const NAV_EVENT = 'nextstep:navigate'
+
+// Allowlist of valid roadmap ids (the bundled career catalog — kept in sync with
+// the backend per CLAUDE.md). The decoded segment MUST be one of these, so a
+// crafted path like `/roadmap/..%2Fauth%2Flogout` (which decodes to
+// `../auth/logout` and would otherwise be interpolated into API URLs) never
+// matches the route.
+const CAREER_IDS = new Set(CAREERS.map((c) => c.id))
 
 // Programmatic navigation: push the URL, scroll to top, notify consumers.
 export function navigate(path) {
@@ -23,19 +31,23 @@ function currentPath() {
   return window.location.pathname
 }
 
-// Returns the `careerId` for `/roadmap/:careerId`, else null. Trailing slashes
-// and empty segments are treated as "no match". A malformed percent-encoded
-// segment (e.g. `/roadmap/%E0%A4%A`) would make decodeURIComponent throw during
-// render and blank the whole app, so decode failures are treated as "no match"
-// too — the path just falls through to the normal scroll app.
+// Returns the `careerId` for `/roadmap/:careerId` when it decodes to a known
+// career id, else null. Trailing slashes and empty segments are "no match". A
+// malformed percent-encoded segment (e.g. `/roadmap/%E0%A4%A`) makes
+// decodeURIComponent throw, and a crafted one (e.g. `/roadmap/..%2Fauth%2Flogout`)
+// decodes to a path-traversal string; both are rejected here so the path just
+// falls through to the normal scroll app rather than blanking it or reaching an
+// unintended API endpoint.
 export function matchRoadmap(pathname) {
   const m = pathname.match(/^\/roadmap\/([^/]+)\/?$/)
   if (!m) return null
+  let id
   try {
-    return decodeURIComponent(m[1])
+    id = decodeURIComponent(m[1])
   } catch {
     return null
   }
+  return CAREER_IDS.has(id) ? id : null
 }
 
 // Subscribe to the current pathname, re-rendering on Back/forward (popstate) and

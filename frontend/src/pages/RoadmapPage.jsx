@@ -19,7 +19,7 @@ import AuthModal from './AuthModal'
 import AccountDetails from '../components/AccountDetails'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
 import Roadmap from './Roadmap'
-import { fetchMySubmissions, selectCareer } from '../api'
+import { fetchMySubmissions } from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import { navigate } from '../hooks/useRoute'
 
@@ -81,8 +81,11 @@ export default function RoadmapPage({ careerId, recommendations }) {
     return () => { cancelled = true }
   }, [careerId, user, authLoading, recommendations])
 
-  // Record the deep-linked choice, mirroring App.jsx::handleSelectCareer.
-  useEffect(() => { selectCareer(careerId) }, [careerId])
+  // NB: we deliberately do NOT record a career selection on mount here. selectCareer
+  // is scoped to the anonymous session id (which survives sign-out), so recording on
+  // a mere bookmark visit could overwrite a previous signed-in user's selected_career
+  // on a shared browser. Selection is recorded only from the explicit "View Roadmap"
+  // click (App.jsx::handleSelectCareer).
 
   const goHome = () => navigate('/')
 

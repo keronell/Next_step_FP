@@ -9,7 +9,7 @@ import History from './pages/History'
 import AuthModal from './pages/AuthModal'
 import RoadmapPage from './pages/RoadmapPage'
 import { computeResults } from './data'
-import { submitQuestionnaire, fetchMySubmissions } from './api'
+import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
 import { useRoute, matchRoadmap, navigate } from './hooks/useRoute'
 
@@ -129,9 +129,11 @@ function App() {
 
   const handleSelectCareer = (careerId) => {
     // The roadmap lives on its own page now (no inline section on the front page):
-    // open it there. RoadmapPage records the selection and resolves the skill gaps
-    // on mount, so we don't need to here.
+    // open it there. Record the selection HERE, on the explicit result click —
+    // not on the roadmap page's mount, so merely opening a bookmark can't record a
+    // selection (which is session-scoped and could clobber another account's).
     setResumeCareerId(careerId)
+    selectCareer(careerId)
     navigate(`/roadmap/${encodeURIComponent(careerId)}`)
   }
 
