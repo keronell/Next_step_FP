@@ -70,12 +70,12 @@ export const QUESTIONS = [
   {
     id: 'q7',
     category: 'interests',
-    text: 'Which of these tools sounds most appealing?',
+    text: "You're helping build a new app. Which task sounds most appealing to you?",
     options: [
-      { label: 'Figma / design systems', value: 0 },
-      { label: 'React / TypeScript / APIs', value: 1 },
-      { label: 'Python / Jupyter / SQL', value: 2 },
-      { label: 'Kubernetes / Terraform / CI pipelines', value: 3 },
+      { label: 'Deciding how the screens should look and making them easy to use', value: 0 },
+      { label: 'Building the parts people click and interact with', value: 1 },
+      { label: 'Exploring numbers and information to discover useful patterns', value: 2 },
+      { label: 'Setting up the behind-the-scenes systems that keep the app running reliably', value: 3 },
     ],
   },
   {

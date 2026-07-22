@@ -22,7 +22,7 @@ QUESTION_PHRASES = {
     "q4": "the kind of work output you value",
     "q5": "the role you gravitate to in a team",
     "q6": "preferred way of working",
-    "q7": "the tools that appeal to you",
+    "q7": "the kind of app-building task that appeals to you",
     "q8": "how you respond when a project goes sideways",
     "q9": "your draw to visual design",
     "q10": "what success means to you",
