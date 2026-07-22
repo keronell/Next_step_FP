@@ -25,6 +25,7 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
   const [accountOpen, setAccountOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const accountRef = useRef(null)
+  const mobileMenuRef = useRef(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -50,11 +51,18 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Close account dropdown (and the history panel nested in it) on outside click
+  // Close account dropdown (and the history panel nested in it) on outside click.
+  // Checks BOTH containers: the deferred-open effect above can set accountOpen
+  // true while the visible panel is actually the mobile one (mobileMenuRef), and
+  // accountRef alone wouldn't contain clicks there — a tap on a history card's
+  // Load/Delete button would fire this handler's 'mousedown' first, read as
+  // "outside", and unmount the panel before the button's own 'click' handler runs.
   useEffect(() => {
     if (!accountOpen) return
     const handler = (e) => {
-      if (accountRef.current && !accountRef.current.contains(e.target)) {
+      const insideDesktop = accountRef.current?.contains(e.target)
+      const insideMobile = mobileMenuRef.current?.contains(e.target)
+      if (!insideDesktop && !insideMobile) {
         setAccountOpen(false)
         setHistoryOpen(false)
       }
@@ -275,6 +283,7 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
                               user={user}
                               onLoadResults={(...args) => {
                                 setAccountOpen(false)
+                                setMenuOpen(false)
                                 setHistoryOpen(false)
                                 onHistoryLoadResults(...args)
                               }}
@@ -317,7 +326,12 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
           </div>
         </motion.div>
 
-        {/* Mobile dropdown */}
+        {/* Mobile dropdown. mobileMenuRef sits on this always-present wrapper rather
+            than on AnimatePresence's own animated child — motion.div there clashes
+            with AnimatePresence's internal ref handling (dev warning: "ref is not
+            a prop"). Keeping the ref off that child is what makes it reliably
+            available for the outside-click containment check above. */}
+        <div ref={mobileMenuRef}>
         <AnimatePresence>
           {menuOpen && (
             <motion.div
@@ -395,6 +409,7 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
                         user={user}
                         onLoadResults={(...args) => {
                           setMenuOpen(false)
+                          setAccountOpen(false)
                           setHistoryOpen(false)
                           onHistoryLoadResults(...args)
                         }}
@@ -413,6 +428,7 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </header>
 
     </>
