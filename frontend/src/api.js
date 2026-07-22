@@ -39,6 +39,7 @@ async function _request(url, options = {}) {
     try { err.body = await res.json() } catch {} // eslint-disable-line no-empty
     throw err
   }
+  if (res.status === 204) return null // No Content (e.g. DELETE) - nothing to parse
   return res.json()
 }
 
@@ -157,4 +158,12 @@ export async function claimSessions() {
 
 export async function fetchMySubmissions() {
   return _request(`${BASE_URL}/api/auth/my-submissions`)
+}
+
+// Delete one of the current user's submissions (auth required; the server enforces
+// that the submission belongs to the caller). Resolves on 204, throws on 4xx/5xx.
+export async function deleteSubmission(requestId) {
+  return _request(`${BASE_URL}/api/auth/my-submissions/${encodeURIComponent(requestId)}`, {
+    method: 'DELETE',
+  })
 }

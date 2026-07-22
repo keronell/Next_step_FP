@@ -6,22 +6,32 @@ import HowItWorks from './pages/HowItWorks'
 import Assessment from './pages/Questionnaire'
 import Profile from './pages/Profile'
 import Results from './pages/Results'
-import Roadmap from './pages/Roadmap'
 import History from './pages/History'
 import AuthModal from './pages/AuthModal'
+import RoadmapPage from './pages/RoadmapPage'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
+import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll } from './hooks/useRoute'
 
 function App() {
   const { user, authLoading } = useAuth()
+
+  // Deep-link routing: `/roadmap/{id}` renders the standalone roadmap (bypassing
+  // the intro/questionnaire); every other path renders the scroll app below.
+  const path = useRoute()
+  const roadmapCareerId = matchRoadmap(path)
 
   const [phase, setPhase] = useState('idle')
   const [results, setResults] = useState(null)
   const [notice, setNotice] = useState(null)
   const [selectedCareer, setSelectedCareer] = useState(null)
-  const [activeTooltip, setActiveTooltip] = useState(null)
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  // The career whose roadmap a returning user can jump straight to (their most
+  // recent completed assessment). Drives the header's "My Roadmap" shortcut; null
+  // for users with no completed assessment, so their flow stays untouched.
+  const [resumeCareerId, setResumeCareerId] = useState(null)
+
   // Answers are held between the quiz and the profile step, then submitted
   // together; `profile` is kept so the roadmap can personalize from it too.
   const [answers, setAnswers] = useState(null)
@@ -59,7 +69,6 @@ function App() {
   const assessmentRef = useRef(null)
   const profileRef = useRef(null)
   const resultsRef = useRef(null)
-  const roadmapRef = useRef(null)
   const historyRef = useRef(null)
 
   const scrollTo = (ref) => {
@@ -127,9 +136,9 @@ function App() {
       setResults(null)
       setNotice(null)
       setSelectedCareer(null)
-      setActiveTooltip(null)
       setAnswers(null)
       setProfile(null)
+      setResumeCareerId(null)
       return
     }
     prevUserRef.current = user
@@ -143,6 +152,20 @@ function App() {
       localStorage.removeItem('nextstep_last_career')
     }
   }, [phase, results, selectedCareer, user, authLoading])
+
+  // Returning to the scroll app from a route (e.g. the roadmap page) may carry a
+  // deferred section target: a nav control clicked while its section wasn't mounted
+  // (see navigateToSection). Honor it once we're back on the scroll app, giving the
+  // sections a tick to mount/lay out before scrolling.
+  useEffect(() => {
+    if (roadmapCareerId) return
+    const id = consumePendingScroll()
+    if (!id) return
+    const t = setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
+    return () => clearTimeout(t)
+  }, [roadmapCareerId])
 
   const handleStart = () => {
     if (authLoading) return
@@ -211,6 +234,10 @@ function App() {
     // missingSkills still belonged to the PREVIOUS run, firing an LLM roadmap
     // request with mixed inputs that a second request immediately superseded.
     setResults(recs)
+    // "My Roadmap" shortcut (DEV-76). Set here, AFTER the abandoned-run guard
+    // above — pointing it at a run the user walked away from is the same class
+    // of bug that guard exists to prevent.
+    setResumeCareerId(recs?.[0]?.id ?? null)
     setProfile(selfProfile)
     setNotice(nextNotice)
     setPhase('results_ready')
@@ -218,10 +245,17 @@ function App() {
   }
 
   const handleSelectCareer = (careerId) => {
+    // The roadmap lives on its own page now (no inline section on the front page):
+    // open it there. Record the selection HERE, on the explicit result click —
+    // not on the roadmap page's mount, so merely opening a bookmark can't record a
+    // selection (which is session-scoped and could clobber another account's).
+    // Set selectedCareer too (not just the resume id) so returning via the Back
+    // button shows the card as selected, and the anonymous-persistence effect
+    // mirrors the right nextstep_last_career for a later reload.
     setSelectedCareer(careerId)
-    setActiveTooltip(null)
+    setResumeCareerId(careerId)
     selectCareer(careerId)
-    scrollTo(roadmapRef)
+    navigate(`/roadmap/${encodeURIComponent(careerId)}`)
   }
 
   // `profileSnapshot` is the profile that produced these recommendations, stored
@@ -233,8 +267,9 @@ function App() {
     setResults(recommendations)
     setNotice(null)
     setSelectedCareer(careerId)
-    setActiveTooltip(null)
     setProfile(profileSnapshot)
+    // The "My Roadmap" shortcut points at the selected career, else the top match.
+    setResumeCareerId(careerId ?? recommendations?.[0]?.id ?? null)
     setPhase('results_ready')
     scrollTo(resultsRef)
   }
@@ -247,15 +282,50 @@ function App() {
     setResults(null)
     setNotice(null)
     setSelectedCareer(null)
-    setActiveTooltip(null)
     setAnswers(null)
     setProfile(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Header's Assessment / Start Assessment controls. Questionnaire renders nothing
+  // while phase is 'results_ready', so a returning user (whose background restore
+  // set that phase, e.g. while the standalone roadmap page was showing) would land
+  // on a blank assessment section. Reset to the idle start card first — but never
+  // disturb an in-progress assessment. navigateToSection scrolls here, or routes
+  // home and defers the scroll when we're on the roadmap route.
+  const handleGoToAssessment = () => {
+    if (phase !== 'assessing' && phase !== 'loading') {
+      setPhase('idle')
+      setResults(null)
+      setNotice(null)
+      setSelectedCareer(null)
+    }
+    navigateToSection('assessment')
+  }
+
+  // Standalone roadmap route (DEV-76/DEV-65): render only the roadmap, skipping
+  // the whole intro/questionnaire flow the scroll app renders below. Hand the page
+  // the current results so a just-clicked "View Roadmap" uses that recommendation
+  // directly, rather than re-fetching a not-yet-persisted submission from history.
+  if (roadmapCareerId) {
+    return (
+      <RoadmapPage
+        careerId={roadmapCareerId}
+        recommendations={results}
+        onStartAssessment={handleGoToAssessment}
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-cream">
-      <Header phase={phase} onReset={handleReset} onOpenAuth={() => setAuthModalOpen(true)} />
+      <Header
+        phase={phase}
+        onReset={handleReset}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onStartAssessment={handleGoToAssessment}
+        roadmapCareerId={resumeCareerId}
+      />
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <main>
         <Hero onStart={handleStart} />
@@ -284,21 +354,11 @@ function App() {
             selectedCareer={selectedCareer}
           />
         </div>
-        <div ref={roadmapRef}>
-          <Roadmap
-            selectedCareer={selectedCareer}
-            missingSkills={results?.find((r) => r.id === selectedCareer)?.missing_skills ?? []}
-            matchedSkills={results?.find((r) => r.id === selectedCareer)?.matched_skills ?? []}
-            profile={profile}
-            activeTooltip={activeTooltip}
-            setActiveTooltip={setActiveTooltip}
-          />
-        </div>
         <div ref={historyRef}>
           <History user={user} onLoadResults={handleLoadHistory} />
         </div>
       </main>
-      <Footer onReset={handleReset} />
+      <Footer onReset={handleReset} onStartAssessment={handleGoToAssessment} />
     </div>
   )
 }

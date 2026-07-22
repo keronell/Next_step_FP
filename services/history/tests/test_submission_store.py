@@ -11,7 +11,7 @@ import copy
 import pytest
 
 from app.services import submission_store
-from common.dapr import DaprConflict
+from common.dapr import DaprConflict, DaprError
 
 
 class _FakeStateStore:
@@ -42,6 +42,10 @@ class _FakeStateStore:
     def bulk(self, keys):
         return {k: copy.deepcopy(self.data[k]) for k in keys if k in self.data}
 
+    def delete(self, key):
+        self.data.pop(key, None)
+        self._versions.pop(key, None)
+
 
 @pytest.fixture
 def store(monkeypatch) -> _FakeStateStore:
@@ -50,6 +54,7 @@ def store(monkeypatch) -> _FakeStateStore:
     monkeypatch.setattr(submission_store, "get_state_with_etag", fake.get_with_etag)
     monkeypatch.setattr(submission_store, "save_state", fake.save)
     monkeypatch.setattr(submission_store, "get_bulk_state", fake.bulk)
+    monkeypatch.setattr(submission_store, "delete_state", fake.delete)
     return fake
 
 
@@ -370,3 +375,162 @@ def test_user_submissions_drops_missing_records(state):
 
 def test_user_submissions_empty_for_unknown_user(state):
     assert submission_store.get_user_submissions("nobody") == []
+
+
+# ── delete_submission (DEV-75) ────────────────────────────────────────────────
+
+def test_delete_submission_removes_record_and_indexes(state):
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    assert submission_store.delete_submission("u1", "r1") is True
+    assert "sub:r1" not in state
+    assert state["idx:user:u1"] == []
+    assert state["idx:session:s1"] == []
+    assert submission_store.get_user_submissions("u1") == []
+
+
+def test_delete_submission_only_targets_the_named_record(state):
+    submission_store.persist_submission(_record("r1", user_id="u1"))
+    submission_store.persist_submission(_record("r2", user_id="u1"))
+    assert submission_store.delete_submission("u1", "r1") is True
+    assert "sub:r1" not in state
+    assert state["sub:r2"]["request_id"] == "r2"
+    assert state["idx:user:u1"] == ["r2"]
+
+
+def test_delete_submission_missing_returns_false(state):
+    assert submission_store.delete_submission("u1", "nope") is False
+
+
+def test_delete_submission_wrong_owner_refused(state):
+    # A user cannot delete another user's submission: refused AND left untouched.
+    submission_store.persist_submission(_record("r1", user_id="owner"))
+    assert submission_store.delete_submission("attacker", "r1") is False
+    assert state["sub:r1"]["request_id"] == "r1"          # record still present
+    assert state["idx:user:owner"] == ["r1"]              # owner's index intact
+    assert "idx:user:attacker" not in state
+
+
+def test_delete_submission_anonymous_record_not_owned(state):
+    # An unclaimed (anonymous) submission has user_id=None — no logged-in user owns
+    # it, so a delete keyed on a real user id is refused.
+    submission_store.persist_submission(_record("r1", user_id=None))
+    assert submission_store.delete_submission("u1", "r1") is False
+    assert state["sub:r1"]["request_id"] == "r1"
+
+
+def test_delete_writes_tombstone(state):
+    submission_store.persist_submission(_record("r1", user_id="u1"))
+    submission_store.delete_submission("u1", "r1")
+    assert state["del:r1"]["at"]  # tombstone recorded
+
+
+def test_redelivery_after_delete_does_not_resurrect(state):
+    # The core durability guarantee: an at-least-once submission event redelivered
+    # AFTER a successful delete must not recreate the record or re-index it.
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    assert submission_store.delete_submission("u1", "r1") is True
+
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    assert "sub:r1" not in state
+    assert state["idx:user:u1"] == []
+    assert state["idx:session:s1"] == []
+    assert submission_store.get_user_submissions("u1") == []
+
+
+def test_tombstone_does_not_block_a_different_submission(state):
+    # request_ids are unique per submission, so a tombstone only ever suppresses its
+    # own redelivery — a genuinely new submission still persists.
+    submission_store.persist_submission(_record("r1", user_id="u1"))
+    submission_store.delete_submission("u1", "r1")
+    submission_store.persist_submission(_record("r2", session_id="s1", user_id="u1"))
+    assert state["sub:r2"]["request_id"] == "r2"
+    assert state["idx:user:u1"] == ["r2"]
+
+
+def test_persist_undoes_recreate_when_tombstoned_mid_persist(store, state, monkeypatch):
+    # Simulate the check-then-create race: a DELETE lands (writes the tombstone)
+    # AFTER persist's initial tombstone check but as it writes the record. The
+    # post-create recheck must observe the tombstone and undo the recreate.
+    real_save = submission_store.save_state  # the fake's save (installed by `store`)
+
+    def save_then_delete(key, value, **kw):
+        real_save(key, value, **kw)
+        if key == "sub:r1" and "del:r1" not in state:
+            real_save("del:r1", {"at": "2026-01-01T00:00:00+00:00"})  # concurrent delete
+
+    monkeypatch.setattr(submission_store, "save_state", save_then_delete)
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+
+    assert "sub:r1" not in state                 # recreate was undone
+    assert state.get("idx:user:u1", []) == []
+    assert state.get("idx:session:s1", []) == []
+    assert submission_store.get_user_submissions("u1") == []
+
+
+def test_post_reconcile_recheck_prunes_stale_user_index(store, state, monkeypatch):
+    # An anonymous submission (user_id=None) with a pending claim: reconcile applies
+    # the claim and re-appends the CLAIMANT's user index. Simulate a DELETE landing
+    # (writes the tombstone) exactly as that re-append happens — the post-reconcile
+    # recheck must prune the stale idx:user entry (which _purge alone would miss,
+    # since the event's user_id is None but the reconciled owner is the claimant).
+    state["claim:s1"] = [{"user_id": "u1", "at": "2026-07-16T11:00:00+00:00"}]
+
+    real_append = submission_store._append_index
+
+    def append_then_delete(key, request_id):
+        real_append(key, request_id)
+        if key == "idx:user:u1" and "del:r1" not in state:
+            state["del:r1"] = {"at": "2026-07-16T12:00:00+00:00"}  # concurrent DELETE
+
+    monkeypatch.setattr(submission_store, "_append_index", append_then_delete)
+    submission_store.persist_submission(
+        _record("r1", session_id="s1", user_id=None, created_at="2026-07-16T10:00:00+00:00")
+    )
+
+    assert state.get("idx:user:u1", []) == []    # no permanent dangling entry
+    assert "sub:r1" not in state
+    assert submission_store.get_user_submissions("u1") == []
+
+
+def test_delete_removes_record_even_if_index_cleanup_fails(store, state, monkeypatch):
+    # The hard-delete guarantee: the record (answers) must be gone even if index
+    # cleanup fails afterwards. The delete still succeeds; the dangling index entry
+    # is harmless (get_user_submissions omits the missing record).
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+
+    def boom(*a, **k):
+        raise DaprError("index store down")
+
+    monkeypatch.setattr(submission_store, "_remove_from_index", boom)
+    assert submission_store.delete_submission("u1", "r1") is True
+    assert "sub:r1" not in state                 # answers gone — guarantee holds
+    assert submission_store.get_user_submissions("u1") == []
+
+
+def test_delete_record_failure_leaves_everything_for_retry(store, state, monkeypatch):
+    # If the record delete itself fails, we propagate (caller 500s) with the record
+    # AND its index intact — the row stays visible so the user can retry, never
+    # hidden-but-retained.
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+
+    def boom(*a, **k):
+        raise DaprError("record store down")
+
+    monkeypatch.setattr(submission_store, "delete_state", boom)
+    with pytest.raises(DaprError):
+        submission_store.delete_submission("u1", "r1")
+    assert state["sub:r1"]["request_id"] == "r1"   # still present
+    assert state["idx:user:u1"] == ["r1"]          # still visible for a retry
+
+
+def test_redelivery_self_heals_partially_deleted_record(store, state):
+    # A delete whose purge partially failed: tombstone written, but the record +
+    # index survived. A later redelivery must finish the deletion, not just drop.
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    state["del:r1"] = {"at": "2026-01-01T00:00:00+00:00"}  # tombstone, record retained
+    assert "sub:r1" in state
+
+    submission_store.persist_submission(_record("r1", session_id="s1", user_id="u1"))
+    assert "sub:r1" not in state
+    assert state.get("idx:user:u1", []) == []
+    assert state.get("idx:session:s1", []) == []
