@@ -213,7 +213,8 @@ def persist_submission(record: dict) -> None:
     # successful 204. Drop it instead — the subscriber ACKs, ending redelivery. (The
     # tombstone never expires — see delete_submission — so an arbitrarily late
     # redelivery is still caught; request_ids are unique, so it never blocks a new one.)
-    if get_state(_tombstone_key(request_id)) is not None:
+    tombstone = get_state(_tombstone_key(request_id))
+    if tombstone is not None:
         # Tombstoned = deleted. If a record is still present — a delete whose purge
         # partially failed (record retained), or an earlier redelivery that recreated
         # it — complete the deletion now so a tombstoned submission can never keep a
@@ -224,6 +225,18 @@ def persist_submission(record: dict) -> None:
             logger.info("Submission %s tombstoned but record present — purging", request_id)
             _purge(request_id, retained.get("user_id"), retained.get("session_id"))
         else:
+            # Record already gone, but _purge's index cleanup is best-effort and may
+            # have failed, leaving a dangling id the index never sheds — the docstring
+            # promised self-healing, so actually do it. _purge is idempotent, so
+            # re-running it on an absent record only prunes. Fall back to THIS event's
+            # ids for tombstones written before they were recorded.
+            _purge(
+                request_id,
+                (tombstone.get("user_id") if isinstance(tombstone, dict) else None)
+                or record.get("user_id"),
+                (tombstone.get("session_id") if isinstance(tombstone, dict) else None)
+                or session_id,
+            )
             logger.info("Submission %s tombstoned — dropping redelivered event", request_id)
         return
     key = _sub_key(request_id)
@@ -450,6 +463,12 @@ def delete_submission(user_id: str, request_id: str) -> bool:
     # expired first would let the deleted assessment resurface. request_ids are
     # unique and never reused, so one non-expiring del: key per deleted submission
     # can never suppress a genuinely new one (bounded by total deletions).
-    save_state(_tombstone_key(request_id), {"at": _now_iso()})
+    # owner/session ride along so a redelivery can still prune the indexes after
+    # the record itself is gone (see persist_submission). Needed for a CLAIMED
+    # submission, whose event carries user_id=None while the user index exists.
+    save_state(
+        _tombstone_key(request_id),
+        {"at": _now_iso(), "user_id": user_id, "session_id": record.get("session_id")},
+    )
     _purge(request_id, user_id, record.get("session_id"))
     return True

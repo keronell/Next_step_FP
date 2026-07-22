@@ -534,3 +534,66 @@ def test_redelivery_self_heals_partially_deleted_record(store, state):
     assert "sub:r1" not in state
     assert state.get("idx:user:u1", []) == []
     assert state.get("idx:session:s1", []) == []
+
+
+# ── DEV-75 follow-up: a failed index cleanup must self-heal on redelivery ──────
+
+def test_redelivery_prunes_index_left_dangling_by_a_failed_purge(store):
+    """_purge deletes the record first and cleans indexes best-effort. If that
+    cleanup fails the id stays in the index forever: the redelivery path saw the
+    record already absent and returned without repairing it, so the index grew
+    without bound (get_user_submissions bulk-reads every id in it)."""
+    record = {
+        "request_id": "r-dangle",
+        "answers": {"q1": 1},
+        "recommendations": [],
+        "session_id": "sess-d",
+        "user_id": "user-d",
+        "created_at": "2026-07-20T10:00:00+00:00",
+    }
+    submission_store.persist_submission(record)
+    assert "r-dangle" in (submission_store.get_state("idx:user:user-d") or [])
+
+    # Delete, but make index cleanup fail — the dangling-entry scenario.
+    real_remove = submission_store._remove_from_index
+    submission_store._remove_from_index = lambda *a, **k: (_ for _ in ()).throw(DaprError("index down"))
+    try:
+        assert submission_store.delete_submission("user-d", "r-dangle") is True
+    finally:
+        submission_store._remove_from_index = real_remove
+
+    assert submission_store.get_state("sub:r-dangle") is None          # record gone
+    assert "r-dangle" in (submission_store.get_state("idx:user:user-d") or [])   # index stale
+
+    # At-least-once pub/sub redelivers the original event -> must self-heal.
+    submission_store.persist_submission(record)
+    assert submission_store.get_state("sub:r-dangle") is None          # not resurrected
+    assert "r-dangle" not in (submission_store.get_state("idx:user:user-d") or [])
+    assert "r-dangle" not in (submission_store.get_state("idx:session:sess-d") or [])
+
+
+def test_redelivery_prunes_claimed_submission_via_tombstone_owner(store):
+    """A CLAIMED submission was indexed under a user its event never mentioned
+    (user_id=None at publish time), so the event alone can't identify the index —
+    the tombstone has to carry the owner."""
+    event = {
+        "request_id": "r-claimed",
+        "answers": {"q1": 1},
+        "recommendations": [],
+        "session_id": "sess-c",
+        "user_id": None,
+        "created_at": "2026-07-20T10:00:00+00:00",
+    }
+    submission_store.persist_submission(event)
+    submission_store.claim_sessions("user-c", "sess-c")
+    assert "r-claimed" in (submission_store.get_state("idx:user:user-c") or [])
+
+    real_remove = submission_store._remove_from_index
+    submission_store._remove_from_index = lambda *a, **k: (_ for _ in ()).throw(DaprError("index down"))
+    try:
+        assert submission_store.delete_submission("user-c", "r-claimed") is True
+    finally:
+        submission_store._remove_from_index = real_remove
+
+    submission_store.persist_submission(event)   # redelivery
+    assert "r-claimed" not in (submission_store.get_state("idx:user:user-c") or [])

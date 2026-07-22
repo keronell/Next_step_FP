@@ -85,6 +85,39 @@ def test_claim_sessions_rejects_malformed_session_id(client, as_user):
     assert r.status_code == 422
 
 
+# ── DEV-60: the profile snapshot travels with the submission ───────────────────
+
+def _stub_history(monkeypatch, record):
+    monkeypatch.setattr(history_routes, "_require_dapr", lambda: None)
+    monkeypatch.setattr(submission_store, "get_user_submissions", lambda user_id: [record])
+
+
+BASE_RECORD = {
+    "request_id": "r1",
+    "recommendations": [{"id": "data-analyst"}],
+    "selected_career": "data-analyst",
+    "created_at": "2026-07-17T10:00:00+00:00",
+}
+
+
+def test_my_submissions_returns_the_profile_snapshot(client, as_user, monkeypatch):
+    """Restoring a past result must restore the profile it was SCORED with, or the
+    roadmap pairs historical skill gaps with whatever profile is current."""
+    profile = {"experience": [], "projects": [], "skills": ["SQL", "Tableau"]}
+    _stub_history(monkeypatch, {**BASE_RECORD, "profile": profile})
+    r = client.get("/api/auth/my-submissions", headers=as_user)
+    assert r.status_code == 200
+    assert r.json()[0]["profile"] == profile
+
+
+def test_my_submissions_profile_is_null_for_older_submissions(client, as_user, monkeypatch):
+    """Records predating the profile step (and skipped ones) have no snapshot."""
+    _stub_history(monkeypatch, BASE_RECORD)
+    r = client.get("/api/auth/my-submissions", headers=as_user)
+    assert r.status_code == 200
+    assert r.json()[0]["profile"] is None
+
+
 # ── DELETE /api/auth/my-submissions/{request_id} (DEV-75) ──────────────────────
 
 def test_delete_submission_requires_auth(client):

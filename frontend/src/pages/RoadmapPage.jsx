@@ -28,9 +28,11 @@ function findRec(recs, careerId) {
   return (recs || []).find((r) => r.id === careerId) || null
 }
 
-export default function RoadmapPage({ careerId, recommendations, onStartAssessment }) {
+export default function RoadmapPage({ careerId, recommendations, profile, onStartAssessment }) {
   const { user, authLoading } = useAuth()
-  const [skills, setSkills] = useState({ missing: [], matched: [] })
+  // `profile` rides with the gaps: /api/roadmap/{id} personalizes its LLM prompt
+  // from it (DEV-60), and it must be the profile that produced THIS recommendation.
+  const [skills, setSkills] = useState({ missing: [], matched: [], profile: null })
   const [resolving, setResolving] = useState(true)
   const [authModalOpen, setAuthModalOpen] = useState(false)
 
@@ -46,15 +48,19 @@ export default function RoadmapPage({ careerId, recommendations, onStartAssessme
     let cancelled = false
     setResolving(true)
 
-    const apply = (rec) => {
+    const apply = (rec, profileSnapshot = null) => {
       if (cancelled) return
-      setSkills({ missing: rec?.missing_skills ?? [], matched: rec?.matched_skills ?? [] })
+      setSkills({
+        missing: rec?.missing_skills ?? [],
+        matched: rec?.matched_skills ?? [],
+        profile: profileSnapshot,
+      })
       setResolving(false)
     }
 
     const passed = findRec(recommendations, careerId)
     if (passed) {
-      apply(passed)
+      apply(passed, profile ?? null)
       return () => { cancelled = true }
     }
 
@@ -69,17 +75,20 @@ export default function RoadmapPage({ careerId, recommendations, onStartAssessme
           const sub =
             sorted.find((s) => s.selected_career === careerId && findRec(s.recommendations, careerId)) ||
             sorted.find((s) => findRec(s.recommendations, careerId))
-          apply(sub ? findRec(sub.recommendations, careerId) : null)
+          // The snapshot stored with that submission, so the roadmap is personalized
+          // by the profile it was scored with rather than the current run's.
+          apply(sub ? findRec(sub.recommendations, careerId) : null, sub?.profile ?? null)
         })
         .catch(() => apply(null))
     } else {
       let recs = null
       try { recs = JSON.parse(localStorage.getItem('nextstep_last_recommendations')) } catch {} // eslint-disable-line no-empty
+      // Anonymous: no profile snapshot is mirrored to localStorage, so none to apply.
       apply(findRec(recs, careerId))
     }
 
     return () => { cancelled = true }
-  }, [careerId, user, authLoading, recommendations])
+  }, [careerId, user, authLoading, recommendations, profile])
 
   // NB: we deliberately do NOT record a career selection on mount here. selectCareer
   // is scoped to the anonymous session id (which survives sign-out), so recording on
@@ -96,7 +105,11 @@ export default function RoadmapPage({ careerId, recommendations, onStartAssessme
         onReset={goHome}
         onOpenAuth={() => setAuthModalOpen(true)}
         onStartAssessment={onStartAssessment}
-        roadmapCareerId={careerId}
+        // No shortcut on the roadmap page itself: it would point at the URL we
+        // are already showing. Passing careerId here also showed "My Roadmap" to
+        // any signed-in visitor opening a deep link, contradicting Header's
+        // contract that it means "your latest completed assessment".
+        roadmapCareerId={null}
       />
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <main>
@@ -142,6 +155,7 @@ export default function RoadmapPage({ careerId, recommendations, onStartAssessme
             selectedCareer={careerId}
             missingSkills={skills.missing}
             matchedSkills={skills.matched}
+            profile={skills.profile}
           />
         )}
       </main>

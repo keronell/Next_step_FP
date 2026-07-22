@@ -65,3 +65,8 @@ class SubmissionHistoryItem(BaseModel):
     recommendations: list[dict]
     selected_career: str | None
     created_at: datetime | None
+    # The DEV-60 profile snapshot that produced these recommendations. Restoring a
+    # past result must restore the profile it was scored with — otherwise the
+    # roadmap pairs historical skill gaps with whatever profile is current.
+    # None for submissions made before the profile step existed, or when skipped.
+    profile: dict | None = None

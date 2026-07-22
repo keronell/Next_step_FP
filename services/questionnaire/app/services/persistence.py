@@ -24,6 +24,7 @@ def save_submission(
     session_id: str | None,
     user_id: str | None,
     created_at: str,
+    profile: dict | None = None,
 ) -> None:
     """Publish one full submission record. Best-effort: swallows all errors after logging.
 
@@ -42,6 +43,11 @@ def save_submission(
         "user_id": user_id,
         "selected_career": None,
         "created_at": created_at,
+        # Snapshot of the DEV-60 profile that produced these recommendations. The
+        # live profile row (auth-service) is mutable, so without this an edited
+        # profile would leave past submissions unexplainable — same provenance
+        # reasoning as the per-rec model_caveats.
+        "profile": profile,
     }
     try:
         publish(SUBMISSIONS_TOPIC, record)

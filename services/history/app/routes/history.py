@@ -65,6 +65,7 @@ def my_submissions(
                 recommendations=record.get("recommendations") or [],
                 selected_career=record.get("selected_career"),
                 created_at=record.get("created_at"),
+                profile=record.get("profile"),
             )
             for record in submission_store.get_user_submissions(current_user.user_id)
         ]

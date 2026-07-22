@@ -33,12 +33,22 @@ MAX_QUESTION_REASONS = 2
 MIN_CONTRIBUTION = 0.05  # ignore noise-level attributions
 
 
+def user_skill_reason(career: dict, matched_skills: list[str]) -> str:
+    """The one place the 'skills you already have' sentence is worded — both the
+    formula and the model path say it identically (DEV-60)."""
+    return (
+        f"You already have {len(matched_skills)} of the {len(career['keySkills'])} "
+        "key skills: " + ", ".join(matched_skills[:3])
+    )
+
+
 def build_reasons(
     career: dict,
     answers: dict[str, int | None],
     contributions: dict[str, float],
     matched_skills: list[str],
     questions_by_id: dict[str, dict],
+    user_skills: bool = False,
 ) -> list[str]:
     cid = career["id"]
     reasons: list[str] = []
@@ -48,7 +58,11 @@ def build_reasons(
         reasons.append("Strong alignment with how you answered the questionnaire")
     if contributions.get(f"{cid}_sem", 0.0) > MIN_CONTRIBUTION:
         reasons.append(f"Your profile reads like real {career['field']} job postings")
-    if contributions.get(f"{cid}_skill", 0.0) > MIN_CONTRIBUTION and matched_skills:
+    if matched_skills and user_skills:
+        # Not gated on the `_skill` attribution: that feature is the MARKET overlap,
+        # which says nothing about what the user themselves entered.
+        reasons.append(user_skill_reason(career, matched_skills))
+    elif contributions.get(f"{cid}_skill", 0.0) > MIN_CONTRIBUTION and matched_skills:
         reasons.append("Builds on in-demand skills like " + ", ".join(matched_skills[:3]))
 
     # Question-level sentences: top answered questions by attribution (ordinal +

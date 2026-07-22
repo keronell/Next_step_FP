@@ -29,7 +29,9 @@ def submit(
     answered = sum(1 for v in submission.answers.values() if v is not None)
     logger.info("Submission %s: %d answered questions", request_id, answered)
 
-    recommendations = match_remote(submission.answers)  # 503 when matching is down
+    # 503 when matching is down. The self-input profile (DEV-60) rides inline so it
+    # reaches matching in the same request that produces these recommendations.
+    recommendations = match_remote(submission.answers, submission.profile)
     logger.info("Submission %s: returning %d recommendations", request_id, len(recommendations))
 
     # Surface the artifact's training-data caveats at response level as well.
@@ -49,6 +51,7 @@ def submit(
         submission.session_id,
         current_user.user_id if current_user else None,
         datetime.now(timezone.utc).isoformat(),
+        submission.profile.model_dump() if submission.profile else None,
     )
 
     return RecommendationsResponse(

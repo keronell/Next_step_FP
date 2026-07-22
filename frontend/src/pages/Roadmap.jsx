@@ -346,7 +346,7 @@ function Legend() {
   )
 }
 
-function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
+function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [], profile = null }) {
   const saveSeqRef = useRef(0)  // monotonic id so only the latest save reconciliation wins
   const [drawerNode, setDrawerNode] = useState(null)
   const [collapsed, setCollapsed] = useState({})
@@ -395,6 +395,18 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
     })
   }
 
+  // Exactly what fetchRoadmap SENDS — nothing else belongs here. Keying on the
+  // career alone left the roadmap stale whenever these changed: retake the
+  // assessment, complete a different profile, then re-open the same career and
+  // setSelectedCareer writes an identical value — no state change, no refetch.
+  // Serialized because both are fresh objects each render and would otherwise loop.
+  //
+  // matchedSkills is deliberately NOT here: it never reaches the endpoint (it only
+  // drives the drawer's "you may already have this" hint), so including it bought
+  // a paid, multi-second LLM regeneration that could only swap one roadmap for a
+  // differently-worded one.
+  const roadmapRequestKey = JSON.stringify([missingSkills, profile])
+
   // Fetch the roadmap from the backend; fall back to the bundled ROADMAPS if it's
   // down (same offline-estimate spirit as the questionnaire results).
   useEffect(() => {
@@ -403,11 +415,13 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
       return
     }
     let cancelled = false
-    fetchRoadmap(selectedCareer, missingSkills)
+    // The profile also feeds the LLM roadmap prompt, so a generated roadmap knows
+    // what the learner has already built (roadmap_service._build_prompt).
+    fetchRoadmap(selectedCareer, missingSkills, profile)
       .then((data) => { if (!cancelled) setRoadmapData(data) })
       .catch(() => { if (!cancelled) setRoadmapData(ROADMAPS[selectedCareer] ?? null) })
     return () => { cancelled = true }
-  }, [selectedCareer]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedCareer, roadmapRequestKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sections = roadmapData?.sections ?? []
 

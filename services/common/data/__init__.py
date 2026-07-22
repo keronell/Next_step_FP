@@ -21,6 +21,14 @@ def load_roadmaps() -> dict[str, dict]:
     return json.loads((_DATA_DIR / "roadmaps.json").read_text(encoding="utf-8"))
 
 
+# Lowercased spelling -> canonical skill name ("reactjs" -> "React"). Shared by the
+# roadmap requirements display map and the DEV-60 profile skill normalizer.
+@lru_cache
+def load_skill_aliases() -> dict[str, str]:
+    raw = json.loads((_DATA_DIR / "skill_aliases.json").read_text(encoding="utf-8"))
+    return {k.lower(): str(v).lower() for k, v in raw.get("aliases", {}).items()}
+
+
 # Valid question ids, e.g. {"q1", ..., "q10"} — used to validate submissions.
 @lru_cache
 def question_ids() -> frozenset[str]:

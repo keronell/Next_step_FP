@@ -9,18 +9,21 @@ The backend behind `VITE_API_BASE_URL` (default `http://localhost:8000`) is now 
 Single page, scroll-based, sections stacked in `App.jsx`. A `phase` string in `App.jsx` is the source of truth and gates what each section renders:
 
 ```
-idle → assessing → loading → results_ready
+idle → assessing → profiling → loading → results_ready
 ```
 
 - `handleStart` → `assessing` (scrolls to the Assessment section)
-- `handleQuizComplete(answers)` → `loading`, then `await submitQuestionnaire(answers)` (`api.js`); on success stores the backend recommendations, on failure falls back to `computeResults(answers)` and sets `notice='offline'`, → `results_ready`. Guards against duplicate submits.
+- `handleQuizComplete(answers)` parks the answers in state and → `profiling` (DEV-60). It no longer submits — the self-input profile has to reach the matcher in the *same* request that produces the recommendations, so nothing is sent until that step resolves.
+- `handleProfileComplete(profile)` → `loading`, then `await submitQuestionnaire(answers, profile)` (`api.js`); on success stores the backend recommendations, on failure falls back to `computeResults(answers)` and sets `notice='offline'`, → `results_ready`. Guards against duplicate submits. `profile` is `null` when the step was skipped or left empty, and the offline fallback ignores it entirely (`computeResults` only knows the questionnaire).
 - `handleSelectCareer` sets `selectedCareer` and scrolls to the Roadmap section
 - `handleLoadHistory(recommendations, careerId=null)` → `results_ready` directly from a saved submission (no questionnaire step); used by the History panel and by refresh-restore
 - `handleReset` → back to `idle`
 
 **Refresh-restore:** two mount effects in `App.jsx` rehydrate the last results view after a page reload (only while `phase==='idle'`, via `handleLoadHistory`). Logged-in users: once `authLoading` resolves, fetch `fetchMySubmissions()` and restore the most recent submission's recommendations + `selected_career`. Anonymous users: a second effect mirrors `results`/`selectedCareer` to `localStorage` (`nextstep_last_recommendations`, `nextstep_last_career`) whenever `results_ready`, clears them on `idle` (so `handleReset` wipes the restore), and the mount effect rehydrates from them when no user is present.
 
-Sections (`frontend/src/pages/`): `Landing.jsx` (Hero), `HowItWorks.jsx`, `Questionnaire.jsx` (exported as `Assessment`), `Results.jsx`, `Roadmap.jsx`, `History.jsx` (logged-in users only, below Roadmap), `AuthModal.jsx` (modal, rendered in `App.jsx` — state lifted there so `handleStart` can open it directly). Each receives `phase` and renders null / a sub-view based on it (e.g. `Questionnaire` internally switches between `answering`, `review`, and `loading` screens). `History.jsx` ignores `phase` entirely — it renders whenever `user !== null`.
+Sections (`frontend/src/pages/`): `Landing.jsx` (Hero), `HowItWorks.jsx`, `Questionnaire.jsx` (exported as `Assessment`), `Profile.jsx` (the DEV-60 self-input step, between Assessment and Results), `Results.jsx`, `Roadmap.jsx`, `History.jsx` (logged-in users only, below Roadmap), `AuthModal.jsx` (modal, rendered in `App.jsx` — state lifted there so `handleStart` can open it directly).
+
+**Self-input profile (DEV-60):** `Profile.jsx` renders only at `phase==='profiling'` — three sections (Experience / Projects / Skills) with add, edit-in-place and remove, plus a shared `TagInput` for skills and per-project technologies (Enter or comma to add, comma-splitting so a pasted list lands in one go, Backspace on an empty field removes the last chip). Caps mirror `services/common/models/profile.py` so the UI stops you where the API would rather than letting you type into a 422. It prefills from `GET /api/profile` on entering the phase and saves via `PUT` on Continue — but **never blocks the flow on a failed save** (same best-effort posture as submission persistence). The feature is **English-only**: no RTL/`dir` handling, and the backend keeps non-Latin prose out of the embedding (`common/profile_text.py`). Chips deliberately drop `Badge`'s `uppercase` — skill casing carries meaning (PostgreSQL, PyTorch, C#). Each receives `phase` and renders null / a sub-view based on it (e.g. `Questionnaire` internally switches between `answering`, `review`, and `loading` screens). `History.jsx` ignores `phase` entirely — it renders whenever `user !== null`.
 
 **Assessment gating:** The assessment is locked behind auth. `handleStart` in `App.jsx` returns early and opens the auth modal when `!user`. `Landing.jsx` (Hero CTA) and `Questionnaire.jsx` (`AssessmentStart`) show a Lock icon + "Sign in to …" button when `!user && !authLoading`; both still call `onStart` — the guard in `handleStart` does the routing. `authLoading=true` optimistically shows the unlocked state to avoid a flash for returning users.
 
