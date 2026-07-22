@@ -12,7 +12,7 @@ import RoadmapPage from './pages/RoadmapPage'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
-import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll } from './hooks/useRoute'
+import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll, replaceWithHome } from './hooks/useRoute'
 
 function App() {
   const { user, authLoading } = useAuth()
@@ -314,6 +314,29 @@ function App() {
     navigateToSection(phase === 'profiling' ? 'profile' : 'assessment')
   }
 
+  // Is there live component-local state a route change would destroy? Questionnaire
+  // holds the quiz answers ('assessing') and Profile the unsaved form edits
+  // ('profiling'); both live in the children, and the roadmap route below is an
+  // EXCLUSIVE branch that unmounts them. 'loading' is absent on purpose — by then
+  // the answers are parked in App, which stays mounted either way. Same predicate
+  // Header uses to hide the "My Roadmap" shortcut.
+  const midRun = phase === 'assessing' || phase === 'profiling'
+
+  // Because Header hides that shortcut, nothing in the app can navigate to the
+  // roadmap mid-run — so an arrival here during one is always the browser's Back or
+  // Forward landing on a roadmap entry left over from earlier in the session (the
+  // user opened a roadmap, came back, and started a new assessment). Honoring it
+  // would unmount the quiz and remount it empty on the way back, silently restarting
+  // it. Refuse the entry instead: keep rendering the scroll app, then rewrite that
+  // entry to home so a second press can't walk into it again.
+  //
+  // Keyed on the run rather than on history bookkeeping, which is what makes it
+  // survive a reload: a reload destroys the run and any module-level marker
+  // together, so there is never a live run stranded on the far side of one.
+  useEffect(() => {
+    if (roadmapCareerId && midRun) replaceWithHome()
+  }, [roadmapCareerId, midRun])
+
   // Does the app's in-memory run describe THIS career? Two ways it can:
   //   selectedCareer — the user explicitly clicked "View Roadmap" on that card
   //   resumeCareerId — it is the current run's headline match, which is exactly
@@ -332,7 +355,7 @@ function App() {
   // the whole intro/questionnaire flow the scroll app renders below. Hand the page
   // the current results so a just-clicked "View Roadmap" uses that recommendation
   // directly, rather than re-fetching a not-yet-persisted submission from history.
-  if (roadmapCareerId) {
+  if (roadmapCareerId && !midRun) {
     return (
       <RoadmapPage
         careerId={roadmapCareerId}
