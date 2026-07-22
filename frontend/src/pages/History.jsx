@@ -23,15 +23,23 @@ export default function History({ user, onLoadResults }) {
   const [error, setError] = useState(false)
   // Serializes delete+refill operations (see handleDelete).
   const deleteChain = useRef(Promise.resolve())
+  // Live view of who is signed in, for reading AFTER an await. Both fetches below
+  // are issued with one account's token but resolve later — if the user has since
+  // switched accounts, applying that response would render the PREVIOUS account's
+  // assessments (and, since DEV-60, their profile snapshots) to the new one, who
+  // could then open them.
+  const userRef = useRef(user)
+  userRef.current = user
 
   useEffect(() => {
     if (!user) { setSubmissions([]); return }
     setLoading(true)
     setError(false)
+    const startedAs = user
     fetchMySubmissions()
-      .then(setSubmissions)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
+      .then((subs) => { if (userRef.current === startedAs) setSubmissions(subs) })
+      .catch(() => { if (userRef.current === startedAs) setError(true) })
+      .finally(() => { if (userRef.current === startedAs) setLoading(false) })
   }, [user])
 
   // DEV-75: remove a past result. The card confirms first; here we call the API
@@ -46,16 +54,28 @@ export default function History({ user, onLoadResults }) {
   // guarantees every refill reflects all prior deletes. The card awaits its own
   // link, so it still sees errors and can retry.
   const handleDelete = (requestId) => {
+    const startedAs = user
     const run = deleteChain.current
       .catch(() => {}) // isolate this delete from a prior link's failure
       .then(async () => {
-        await deleteSubmission(requestId)
         try {
-          setSubmissions(await fetchMySubmissions())
+          await deleteSubmission(requestId)
+        } catch (err) {
+          // 404 == already gone (deleted in another tab, or a retry whose first
+          // response was lost). The desired end state is reached, so converge:
+          // fall through and refill rather than telling the user it failed.
+          if (err?.status !== 404) throw err
+        }
+        try {
+          const fresh = await fetchMySubmissions()
+          // Dropped outright after an account switch — see userRef above.
+          if (userRef.current === startedAs) setSubmissions(fresh)
         } catch {
           // Delete succeeded but the refill fetch failed — at least drop the removed
           // card locally so the UI reflects the deletion.
-          setSubmissions((subs) => subs.filter((s) => s.request_id !== requestId))
+          if (userRef.current === startedAs) {
+            setSubmissions((subs) => subs.filter((s) => s.request_id !== requestId))
+          }
         }
       })
     deleteChain.current = run

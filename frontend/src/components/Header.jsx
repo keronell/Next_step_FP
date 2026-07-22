@@ -45,6 +45,13 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
     navigateToSection(id)
   }
 
+  // Leaving mid-assessment unmounts Questionnaire/Profile, whose quiz answers and
+  // unsaved form edits are component-local — the roadmap route is an exclusive
+  // branch in App, so returning would restart the quiz or drop the profile draft.
+  // The shortcut only exists for RETURNING users, so hiding it here costs nothing.
+  const midAssessment = phase === 'assessing' || phase === 'profiling'
+  const showRoadmapShortcut = roadmapCareerId && !midAssessment
+
   const goToRoadmap = () => {
     setMenuOpen(false)
     setAccountOpen(false)
@@ -185,7 +192,7 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
                           <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold">Signed in as</p>
                           <p className="font-body text-small text-navy font-medium truncate mt-0.5">{user.username || user.email}</p>
                         </div>
-                        {roadmapCareerId && (
+                        {showRoadmapShortcut && (
                           <button
                             onClick={goToRoadmap}
                             className="focus-ring w-full text-left flex items-center gap-2.5 px-4 py-2.5 font-body text-small text-navy/70 hover:text-navy hover:bg-navy/[0.04] transition-colors duration-fast"
@@ -282,7 +289,7 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
                   <p className="font-body text-eyebrow text-navy/40 uppercase font-semibold px-0.5 mb-1">
                     {user.username || user.email}
                   </p>
-                  {roadmapCareerId && (
+                  {showRoadmapShortcut && (
                     <button
                       onClick={goToRoadmap}
                       className="focus-ring flex items-center gap-2 text-left font-body text-small text-navy/65 hover:text-gold transition-colors duration-fast py-2"

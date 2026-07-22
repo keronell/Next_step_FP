@@ -294,14 +294,39 @@ function App() {
   // disturb an in-progress assessment. navigateToSection scrolls here, or routes
   // home and defers the scroll when we're on the roadmap route.
   const handleGoToAssessment = () => {
-    if (phase !== 'assessing' && phase !== 'loading') {
+    // 'profiling' is an ACTIVE phase too (DEV-60). main's guard predates it, so
+    // resetting from there unmounted the profile form and discarded its
+    // component-local edits — taking the parked quiz answers with it.
+    const inProgress = phase === 'assessing' || phase === 'profiling' || phase === 'loading'
+    if (!inProgress) {
+      // Also invalidates a pending restore. fetchMySubmissions() can still be in
+      // flight from mount, and its continuation calls handleLoadHistory — which
+      // would flip us to results_ready over the assessment the user just explicitly
+      // asked for. Bumping the run token is what the restore guard already checks.
+      runIdRef.current += 1
       setPhase('idle')
       setResults(null)
       setNotice(null)
       setSelectedCareer(null)
     }
-    navigateToSection('assessment')
+    // Send them where they actually are: the assessment section renders nothing
+    // while profiling, so scrolling there would look like the flow vanished.
+    navigateToSection(phase === 'profiling' ? 'profile' : 'assessment')
   }
+
+  // Does the app's in-memory run describe THIS career? Two ways it can:
+  //   selectedCareer — the user explicitly clicked "View Roadmap" on that card
+  //   resumeCareerId — it is the current run's headline match, which is exactly
+  //                    what the header's "My Roadmap" shortcut opens
+  // The second matters because selectedCareer stays null after a plain submit (and
+  // after loading a history item with no selection), and submission persistence is
+  // async — so withholding here would send a just-finished assessment to the history
+  // fallback, which may not have it yet, yielding a generic or older roadmap.
+  // When NEITHER matches we withhold on purpose: on a deep link the background
+  // restore may hold a different assessment that merely contains this career.
+  const roadmapUsesCurrentRun =
+    roadmapCareerId != null &&
+    (selectedCareer === roadmapCareerId || resumeCareerId === roadmapCareerId)
 
   // Standalone roadmap route (DEV-76/DEV-65): render only the roadmap, skipping
   // the whole intro/questionnaire flow the scroll app renders below. Hand the page
@@ -311,7 +336,8 @@ function App() {
     return (
       <RoadmapPage
         careerId={roadmapCareerId}
-        recommendations={results}
+        recommendations={roadmapUsesCurrentRun ? results : null}
+        profile={roadmapUsesCurrentRun ? profile : null}
         onStartAssessment={handleGoToAssessment}
       />
     )
