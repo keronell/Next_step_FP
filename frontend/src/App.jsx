@@ -334,7 +334,14 @@ function App() {
   // survive a reload: a reload destroys the run and any module-level marker
   // together, so there is never a live run stranded on the far side of one.
   useEffect(() => {
-    if (roadmapCareerId && midRun) replaceWithHome()
+    if (!roadmapCareerId || !midRun) return
+    replaceWithHome()
+    // Refusing the entry doesn't undo the traversal's scroll restoration: the
+    // browser already put us at the roadmap entry's saved offset, on a document
+    // that never changed. Without this the run survives but sits off-screen, so
+    // Back reads as "dropped me in a random section". scrollTo's defer also keeps
+    // us behind that restore rather than racing it.
+    scrollTo(phase === 'profiling' ? profileRef : assessmentRef)
   }, [roadmapCareerId, midRun])
 
   // Does the app's in-memory run describe THIS career? Two ways it can:
