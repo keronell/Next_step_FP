@@ -50,10 +50,15 @@ export async function fetchQuestions() {
   return _request(`${BASE_URL}/api/questions`)
 }
 
-export async function submitQuestionnaire(answers) {
+// `profile` is the optional DEV-60 self-input step. It rides inline so it reaches
+// the matcher in the same request that produces these recommendations; omitted
+// entirely when the user skipped the step (the backend then scores exactly as before).
+export async function submitQuestionnaire(answers, profile = null) {
+  const body = { answers, session_id: getSessionId() }
+  if (profile && !isProfileEmpty(profile)) body.profile = profile
   const data = await _request(`${BASE_URL}/api/questionnaire/submit`, {
     method: 'POST',
-    body: JSON.stringify({ answers, session_id: getSessionId() }),
+    body: JSON.stringify(body),
   })
   return data.recommendations || []
 }
@@ -68,10 +73,38 @@ export function selectCareer(careerId) {
 }
 
 // Fetch + optionally personalize a career roadmap via the backend.
-export async function fetchRoadmap(careerId, missingSkills = []) {
+export async function fetchRoadmap(careerId, missingSkills = [], profile = null) {
+  const body = { missing_skills: missingSkills }
+  if (profile && !isProfileEmpty(profile)) body.profile_data = profile
   return _request(`${BASE_URL}/api/roadmap/${careerId}`, {
     method: 'POST',
-    body: JSON.stringify({ missing_skills: missingSkills }),
+    body: JSON.stringify(body),
+  })
+}
+
+// ── Self-input profile (DEV-60) ──────────────────────────────────────────────
+
+export const EMPTY_PROFILE = { experience: [], projects: [], skills: [] }
+
+export function isProfileEmpty(profile) {
+  if (!profile) return true
+  return !(profile.experience?.length || profile.projects?.length || profile.skills?.length)
+}
+
+// Both require auth. The profile is account data, so anonymous users never have one.
+// `signal` lets callers bound the request - see Profile.jsx, where a write left
+// running past its timeout could land after a newer one (storage is last-write-wins).
+export async function fetchProfile(signal) {
+  return _request(`${BASE_URL}/api/profile`, { signal })
+}
+
+// Returns the STORED profile, not what was sent - the server strips, dedupes and
+// caps, so the caller should render what actually persisted.
+export async function saveProfile(profile, signal) {
+  return _request(`${BASE_URL}/api/profile`, {
+    method: 'PUT',
+    body: JSON.stringify(profile),
+    signal,
   })
 }
 

@@ -36,6 +36,8 @@ Assumptions / notes:
 """
 from __future__ import annotations
 
+import re
+
 from common.logging import get_logger
 from common.data import load_questions
 from common.models.profile import UserProfile
@@ -118,6 +120,19 @@ def _strong_market_skills(candidate: CareerCandidate) -> set[str]:
     return {s for s, n in candidate.market_skills.items() if n >= MIN_MARKET_MENTIONS}
 
 
+def _squash(skill: str) -> str:
+    """Compare skills ignoring spacing and punctuation: "Power BI", "power bi" and
+    "powerbi" are one skill.
+
+    The scraped corpus and the curated keySkills disagree on spacing constantly, and
+    the alias map covers spellings ("reactjs") rather than spacing. Without this a
+    user who types "PowerBI" earns no credit for the "Power BI" key skill, and the
+    gap list shows the same skill twice in two spellings. `+` and `#` survive so C++
+    and C# stay distinct (same reasoning as roadmap_service._SLUG_SYMBOLS).
+    """
+    return re.sub(r"[^a-z0-9+#]", "", skill.lower())
+
+
 def _user_skill_signals(
     career: dict, candidate: CareerCandidate, user_skills: set[str]
 ) -> tuple[list[str], list[str]]:
@@ -128,18 +143,22 @@ def _user_skill_signals(
     Before DEV-60 both were market-derived, so those labels were untrue.
     """
     key_skills = career["keySkills"]
-    matched = [s for s in key_skills if s.lower() in user_skills]
-    missing = [s for s in key_skills if s.lower() not in user_skills]
+    held = {_squash(s) for s in user_skills}
+    matched = [s for s in key_skills if _squash(s) in held]
+    missing = [s for s in key_skills if _squash(s) not in held]
 
-    # Top up the gaps with in-demand field skills they don't have yet.
-    key_lower = {s.lower() for s in key_skills}
-    for skill, _ in candidate.market_skills.most_common():
+    # Top up the gaps with in-demand field skills they don't have yet. `seen` spans
+    # key skills, user skills AND everything already added, so the market's spelling
+    # of a skill can never appear beside the curated one.
+    seen = held | {_squash(s) for s in key_skills}
+    for skill, count in candidate.market_skills.most_common():
         if len(missing) >= MAX_MISSING_SKILLS:
             break
-        if skill in key_lower or skill in user_skills:
+        key = _squash(skill)
+        if key in seen or count < MIN_MARKET_MENTIONS:
             continue
-        if candidate.market_skills[skill] >= MIN_MARKET_MENTIONS:
-            missing.append(skill.title())
+        seen.add(key)
+        missing.append(skill.title())
 
     return matched, missing[:MAX_MISSING_SKILLS]
 
@@ -160,16 +179,17 @@ def _user_skill_match(career: dict, candidate: CareerCandidate, user_skills: set
     The second denominator is what makes it discriminating — a data analyst's skill
     set is wanted far more by Data Analysis than by Game Development.
     """
-    if not user_skills:
+    held = {_squash(s) for s in user_skills}
+    if not held:
         return 0.0
     key_skills = career["keySkills"]
     key_hits = (
-        sum(1 for s in key_skills if s.lower() in user_skills) / len(key_skills)
+        sum(1 for s in key_skills if _squash(s) in held) / len(key_skills)
         if key_skills
         else 0.0
     )
-    market = _strong_market_skills(candidate)
-    market_hits = len(user_skills & market) / len(user_skills) if market else 0.0
+    market = {_squash(s) for s in _strong_market_skills(candidate)}
+    market_hits = len(held & market) / len(held) if market else 0.0
     return _KEY_SKILL_SHARE * key_hits + _MARKET_SKILL_SHARE * market_hits
 
 

@@ -186,3 +186,66 @@ def test_inject_requirements_ids_unique_across_columns():
     ids = [n["id"] for s in out["sections"] for n in s["nodes"]]
     assert ids == ["market-c-sharp", "market-c-plus-plus", "market-c"]
     assert len(ids) == len(set(ids))  # all distinct
+
+
+# ── DEV-60: self-input profile reaches the generation prompt ───────────────────
+
+PROFILE_DATA = {
+    "experience": [
+        {"role": "Data Analyst", "context": "a fintech", "duration_months": 24,
+         "description": "built dashboards"}
+    ],
+    "projects": [],
+    "skills": ["Python", "SQL"],
+}
+
+
+def test_profile_data_is_rendered_into_the_prompt(client, monkeypatch):
+    """The frontend sends the profile structured; the route must render it with the
+    SAME helper matching uses, so the two descriptions can never drift."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    from common.config import get_settings
+    get_settings.cache_clear()
+
+    seen = {}
+    monkeypatch.setattr(
+        svc, "_generate",
+        lambda career_id, profile, missing, settings, market=None: seen.update(profile=profile)
+        or {"sections": [{"id": "s", "label": "L", "nodes": [
+            {"id": "n", "label": "N", "level": "beginner", "type": "required",
+             "description": "", "resources": []}]}]},
+    )
+    r = client.post("/api/roadmap/frontend", json={"profile_data": PROFILE_DATA})
+    assert r.status_code == 200
+    assert (
+        "I worked as Data Analyst at a fintech for 2 years, where I built dashboards."
+        in seen["profile"]
+    )
+    assert "I know python, sql." in seen["profile"]
+
+
+def test_explicit_profile_string_wins_over_profile_data(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    from common.config import get_settings
+    get_settings.cache_clear()
+
+    seen = {}
+    monkeypatch.setattr(
+        svc, "_generate",
+        lambda career_id, profile, missing, settings, market=None: seen.update(profile=profile)
+        or {"sections": [{"id": "s", "label": "L", "nodes": [
+            {"id": "n", "label": "N", "level": "beginner", "type": "required",
+             "description": "", "resources": []}]}]},
+    )
+    client.post(
+        "/api/roadmap/frontend",
+        json={"profile": "preset text", "profile_data": PROFILE_DATA},
+    )
+    assert seen["profile"] == "preset text"
+
+
+def test_no_profile_data_leaves_the_prompt_profile_empty(client):
+    """Static fallback path: absent profile must not become an empty-string prompt."""
+    from app.routes.roadmap import RoadmapContext
+    assert RoadmapContext().profile_text() is None
+    assert RoadmapContext(profile_data={}).profile_text() is None

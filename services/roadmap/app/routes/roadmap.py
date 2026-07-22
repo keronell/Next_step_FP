@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 from common.auth_dep import get_current_user
 from common.models.auth import UserResponse
+from common.models.profile import UserProfile
+from common.profile_text import profile_sentences
 from app.services import roadmap_progress_service
 from app.services.roadmap_service import get_roadmap, inject_requirements
 
@@ -14,6 +16,16 @@ class RoadmapContext(BaseModel):
 
     profile: str | None = None
     missing_skills: list[str] = []
+    # DEV-60 self-input profile. Sent structured rather than pre-rendered so the
+    # prose is built by the SAME helper matching uses — the frontend never has to
+    # know how a profile reads as a sentence.
+    profile_data: UserProfile | None = None
+
+    def profile_text(self) -> str | None:
+        if self.profile:
+            return self.profile
+        sentences = profile_sentences(self.profile_data)
+        return " ".join(sentences) if sentences else None
 
 
 class ProgressUpdate(BaseModel):
@@ -46,7 +58,7 @@ def roadmap_personalized(career_id: str, ctx: RoadmapContext, request: Request) 
 
     data = get_roadmap(
         career_id,
-        profile=ctx.profile,
+        profile=ctx.profile_text(),
         missing_skills=ctx.missing_skills,
         market_required=market_required,
     )

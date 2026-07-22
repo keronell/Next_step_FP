@@ -135,7 +135,15 @@ function HistoryCard({ submission, index, onLoad }) {
       <Button
         variant="secondary"
         size="md"
-        onClick={() => onLoad(submission.recommendations, submission.selected_career ?? null)}
+        onClick={() =>
+          onLoad(
+            submission.recommendations,
+            submission.selected_career ?? null,
+            // The profile this submission was scored with, so the restored roadmap
+            // is personalized by it rather than by the current run's.
+            submission.profile ?? null,
+          )
+        }
         className="flex-shrink-0 !px-4 !py-2 !text-small opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-fast"
         aria-label={`Load ${top.title} results`}
       >

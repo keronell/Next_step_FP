@@ -11,6 +11,7 @@ from app.repositories.career_repository import CareerCandidate
 from app.services.matching_service import (
     FORMULA_WEIGHTS,
     PROFILE_WEIGHTS,
+    _squash,
     match,
 )
 from app.services.profile import build_profile
@@ -194,6 +195,29 @@ def test_english_prose_does_reach_the_embedding_query():
     text = build_profile(ANSWERS, profile)
     assert "I worked as Data Analyst at a fintech for 2 years." in text
     assert profile_sentences(None) == []
+
+
+# ── spelling / spacing ────────────────────────────────────────────────────────
+
+def test_spacing_variants_are_one_skill():
+    """The corpus writes "powerbi", the catalog writes "Power BI". Without squashing,
+    a user who types either gets no credit and the gap list shows both spellings."""
+    for spelling in ("Power BI", "powerbi", "power  bi", "PowerBI"):
+        rec = _by_id(
+            match(
+                ANSWERS,
+                _candidates(skills={"powerbi": 4}),
+                profile=UserProfile(skills=[spelling]),
+            )
+        )[DATA_ANALYST["id"]]
+        assert "Power BI" in rec["matched_skills"], spelling
+        assert "Power BI" not in rec["missing_skills"], spelling
+        # The market's spelling must never appear beside the curated one.
+        assert not any(_squash(m) == "powerbi" for m in rec["missing_skills"]), spelling
+
+
+def test_cpp_and_csharp_stay_distinct():
+    assert _squash("C++") != _squash("C#")
 
 
 # ── learned-model path ────────────────────────────────────────────────────────
