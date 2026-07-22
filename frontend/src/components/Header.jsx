@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Button from './ui/Button.jsx'
 import History from '../pages/History'
 import { useAuth } from '../contexts/AuthContext'
-import { navigate, navigateToSection } from '../hooks/useRoute'
+import { navigate, navigateToSection, requestHistoryOpen, consumePendingHistoryOpen } from '../hooks/useRoute'
 
 // `roadmapCareerId` is the career whose roadmap a returning user can jump straight
 // to (their most recent completed assessment). When set, we surface a "My Roadmap"
@@ -30,6 +30,19 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
     const onScroll = () => setScrolled(window.scrollY > 24)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Arriving on the roadmap page via a "My History" click made elsewhere (see
+  // toggleHistory's else branch below): open the account menu with history
+  // already expanded, so the click actually shows history instead of silently
+  // landing on the roadmap like "My Roadmap" would. Only ever true on the mount
+  // right after that click — consumePendingHistoryOpen() clears it either way.
+  useEffect(() => {
+    if (onHistoryLoadResults && consumePendingHistoryOpen()) {
+      setAccountOpen(true)
+      setHistoryOpen(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Close account dropdown (and the history panel nested in it) on outside click
@@ -71,10 +84,16 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
 
   // "My History": on the roadmap page (onHistoryLoadResults provided) it expands
   // the list in place; everywhere else it routes to the roadmap page instead,
-  // since that's the only place the list is rendered now.
+  // since that's the only place the list is rendered — flagging the intent first
+  // so the roadmap page's own Header opens it back up on arrival (see the mount
+  // effect above), rather than leaving the user to find "My History" again.
   const toggleHistory = () => {
-    if (onHistoryLoadResults) setHistoryOpen((v) => !v)
-    else goToRoadmap()
+    if (onHistoryLoadResults) {
+      setHistoryOpen((v) => !v)
+    } else {
+      requestHistoryOpen()
+      goToRoadmap()
+    }
   }
 
   // The Assessment nav item and Start Assessment buttons go through the parent so
