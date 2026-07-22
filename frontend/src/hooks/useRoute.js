@@ -27,6 +27,15 @@ export function navigate(path) {
   window.dispatchEvent(new Event(NAV_EVENT))
 }
 
+// Rewrite the CURRENT history entry to home, creating none. For neutralizing an
+// entry the app has decided not to honor (see App's mid-run roadmap guard):
+// replaceState alone would leave useRoute's path stale — and the app rendering
+// off a route the URL bar no longer shows — so notify consumers like navigate does.
+export function replaceWithHome() {
+  window.history.replaceState({}, '', '/')
+  window.dispatchEvent(new Event(NAV_EVENT))
+}
+
 function currentPath() {
   return window.location.pathname
 }
