@@ -197,6 +197,71 @@ def test_english_prose_does_reach_the_embedding_query():
     assert profile_sentences(None) == []
 
 
+# ── which weight set does each profile shape select? ──────────────────────────
+#
+# This table is documented in README.md / CLAUDE.md / docs/architecture.md and has
+# been mis-stated there repeatedly: the gate is `canonical_skills()` being
+# non-empty, and a tag joins that set by being predominantly LATIN, not by being a
+# skill we recognize. Pin it here so the prose has something to be checked against.
+
+@pytest.mark.parametrize(
+    "label,profile,expects_profile_weights,changes_embedding",
+    [
+        ("no profile", None, False, False),
+        ("empty profile", UserProfile(), False, False),
+        ("experience prose (Latin)",
+         UserProfile(experience=[ExperienceEntry(role="Data Analyst")]), False, True),
+        ("known skill",
+         UserProfile(skills=["SQL"]), True, True),
+        ("project technology only",
+         UserProfile(projects=[ProjectEntry(name="Dash", technologies=["Python"])]), True, True),
+        # Latin but unrecognized: still selects PROFILE_WEIGHTS, then scores 0.
+        ("unknown Latin tag",
+         UserProfile(skills=["foobar"]), True, True),
+        # Non-Latin: dropped everywhere — no weights, and nothing reaches the query.
+        ("non-Latin tag only",
+         UserProfile(skills=["פייתון"]), False, False),
+        ("non-Latin prose only",
+         UserProfile(experience=[ExperienceEntry(role="מפתחת")]), False, False),
+    ],
+)
+def test_weight_set_and_embedding_per_profile_shape(
+    label, profile, expects_profile_weights, changes_embedding
+):
+    rec = match(ANSWERS, _candidates(), profile=profile)[0]
+    got = "user_skill_match" in rec["score_breakdown"]
+    assert got is expects_profile_weights, f"{label}: wrong weight set"
+
+    assert (build_profile(ANSWERS, profile) != build_profile(ANSWERS)) is changes_embedding, (
+        f"{label}: wrong embedding-query behaviour"
+    )
+
+
+def test_unmatched_tag_costs_each_career_a_different_amount():
+    """The penalty is 0.10*(semantic + skill_overlap), NOT a flat 0.20 — it falls
+    hardest on the best-evidenced careers. Documented in README's 'known wart'."""
+    def candidates():
+        return [
+            CareerCandidate(c, 0.15 + (i % 5) * 0.17,
+                            Counter({s.lower(): 5 for s in c["keySkills"][: (i % 5) + 1]}))
+            for i, c in enumerate(CAREERS)
+        ]
+
+    base = {r["id"]: r for r in match(ANSWERS, candidates())}
+    with_tag = {r["id"]: r for r in match(ANSWERS, candidates(), profile=UserProfile(skills=["foobar"]))}
+
+    deltas = set()
+    for cid, rec in with_tag.items():
+        if cid not in base:
+            continue
+        assert rec["score_breakdown"]["user_skill_match"] == 0.0  # matches nothing
+        b = base[cid]["score_breakdown"]
+        expected = -0.10 * (b["semantic_similarity"] + b["skill_overlap"])
+        assert abs((rec["score"] - base[cid]["score"]) - expected) < 0.002, cid
+        deltas.add(round(rec["score"] - base[cid]["score"], 3))
+    assert len(deltas) > 1, "penalty should vary by career, not be flat"
+
+
 # ── spelling / spacing ────────────────────────────────────────────────────────
 
 def test_spacing_variants_are_one_skill():

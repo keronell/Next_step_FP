@@ -75,6 +75,7 @@ Sidecars share their app's network namespace — restart pairs together:
 | `GET/POST /api/roadmap/{id}` | roadmap | static / personalized roadmap + in-demand market skills |
 | `GET/POST /api/roadmap/{id}/progress` | roadmap | per-user completed nodes (auth) |
 | `POST /api/auth/register\|login\|logout`, `GET /api/auth/me` | auth | Supabase GoTrue + usernames |
+| `GET/PUT /api/profile` | auth | self-input profile: experience, projects, skills (auth) |
 | `POST /api/auth/claim-sessions`, `GET /api/auth/my-submissions` | history | link anonymous submissions, submission history (auth) |
 
 `/internal/*` (service-to-service), `/events/*` and `/dapr/*` (sidecar surface)
@@ -114,6 +115,65 @@ curl -s -X POST http://localhost:8000/api/questionnaire/submit \
 final = 0.40 * questionnaire_fit + 0.40 * semantic_similarity + 0.20 * skill_overlap
 ```
 
+This is the **formula matcher**. When the self-input profile (see below) carries at
+least one skill tag — from the Skills section or a project's technologies — the
+formula gains a fourth term, taken from the two market-derived components; the
+questionnaire keeps its weight:
+
+```
+final = 0.40 * questionnaire_fit + 0.30 * semantic_similarity
+      + 0.10 * skill_overlap     + 0.20 * user_skill_match
+```
+
+A tag counts if it is **predominantly Latin script**, whether or not it is a skill
+we recognize — `foobar` counts, a Hebrew tag does not. A profile of only
+experience/project *prose* therefore keeps the three-term formula, while still
+shifting the result through the embedding. A profile whose content is entirely
+non-Latin moves neither: those tags and sentences are dropped from the embedding
+query as well, leaving only the skill labels and `model_version` affected.
+
+> **Known wart.** A tag we can't match against any career or job ad (`foobar`, or a
+> real skill missing from the catalog like `Svelte 5`) still switches the fourth
+> term on, where it scores 0 for every career. Each career then loses
+> `0.10 * (semantic_similarity + skill_overlap)` — **not** a flat penalty: it bites
+> hardest on the careers with the strongest semantic and market evidence. The tag
+> separately enters the embedding query ("I know foobar."), moving
+> `semantic_similarity` per career on its own. Between the two channels, entering a
+> skill we don't recognize can both lower the percentages and reorder the results
+> relative to skipping the step. Entering more information should never make your
+> results worse — see `_profile_context()` in `matching_service.py` for where the
+> gate would need to move.
+
+### Self-input profile (optional step)
+
+Between the questionnaire and the results, a signed-in user can enter work
+experience, projects and skills. Everything about it is optional: skip it, or leave
+it empty, and matching is byte-identical to the formula above.
+
+Supplying one changes the result two ways — the prose is appended to the embedding
+query (so `semantic_similarity` shifts toward the fields you actually have
+background in) and your skills are scored against each career's key skills plus
+that field's market demand. It also makes `matched_skills` / `missing_skills`
+describe *you* rather than the job market, which is what colours the roadmap's
+skill-gap nodes.
+
+```bash
+# same answers, with a profile -> different ranking and truthful skill lists
+curl -s -X POST http://localhost:8000/api/questionnaire/submit \
+  -H 'Content-Type: application/json' \
+  -d '{"answers":{"q1":3,"q2":1,"q4":2,"q5":1,"q7":2,"q10":1},
+       "profile":{"skills":["Python","SQL","Tableau"],
+                  "experience":[{"role":"Data Analyst","context":"a fintech",
+                                 "duration_months":24,
+                                 "description":"built dashboards and SQL pipelines"}]}}'
+```
+
+Saved per user in Supabase `user_profile_data` via `GET/PUT /api/profile`, and
+snapshotted onto each submission so restoring a past result restores the profile it
+was scored with. English-only: the career catalog, job-ad corpus and embedding
+model are all English, so non-Latin prose is excluded from the query rather than
+degrading it.
+
 - `questionnaire_fit` — per-career answer weights + bonuses, normalized against
   the strongest-fitting career.
 - `semantic_similarity` — ChromaDB cosine distance converted to `1 - distance`.
@@ -125,13 +185,16 @@ formula via `MATCHER_MODEL_PATH` — training pipeline under `data/scripts/`.
 
 ## Tests
 
-Each service has an isolated suite (161 tests total) — external calls are faked
-at seams, so no Docker, sidecar, or database is needed:
+Each service has an isolated suite — external calls are faked at seams, so no
+Docker, sidecar, or database is needed:
 
 ```bash
 cd services/<questionnaire|matching|roadmap|auth|history>
 ../../backend/venv/bin/python -m pytest tests -q
 ```
+
+> If a suite fails for no apparent reason after you've reverted an edit, clear the
+> stale bytecode first: `find services -name __pycache__ -type d -exec rm -rf {} +`.
 
 ## Environment variables
 
@@ -167,7 +230,7 @@ Next_step_FP/
 │   ├── questionnaire/     # questions + submit/select (publishes to Redis)
 │   ├── matching/          # ChromaDB RAG + scoring (+ /internal/match, /internal/field-skills)
 │   ├── roadmap/           # static/LLM roadmaps + market requirements + progress
-│   ├── auth/              # Supabase GoTrue + usernames (+ /internal/verify)
+│   ├── auth/              # Supabase GoTrue + usernames + self-input profile (+ /internal/verify)
 │   ├── history/           # submissions in the Dapr state store (subscribers + history routes)
 │   ├── gateway/nginx.conf # path routing on :8000
 │   └── dapr/              # sidecar components (Redis) + config (Consul resolver)
