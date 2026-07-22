@@ -37,9 +37,14 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
   // already expanded, so the click actually shows history instead of silently
   // landing on the roadmap like "My Roadmap" would. Only ever true on the mount
   // right after that click — consumePendingHistoryOpen() clears it either way.
+  // Both accountOpen (desktop dropdown) and menuOpen (mobile panel) are set
+  // since only one of the two is visible per breakpoint (md:flex / md:hidden) —
+  // setting just accountOpen left mobile taps looking like they did nothing,
+  // because the mobile history section only renders inside {menuOpen && ...}.
   useEffect(() => {
     if (onHistoryLoadResults && consumePendingHistoryOpen()) {
       setAccountOpen(true)
+      setMenuOpen(true)
       setHistoryOpen(true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
