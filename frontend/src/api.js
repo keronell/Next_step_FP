@@ -160,6 +160,26 @@ export async function fetchMySubmissions() {
   return _request(`${BASE_URL}/api/auth/my-submissions`)
 }
 
+// ── Chatbot ──────────────────────────────────────────────────────────────────
+
+// Streaming SSE reply — bypasses _request (JSON-only) and returns the raw
+// response body for the caller to read incrementally. Auth required (chatbot
+// is logged-in only); a plain fetch here (not EventSource) because EventSource
+// can't send the Authorization header or a POST body.
+export async function streamChatMessage(conversationId, message) {
+  const res = await fetch(`${BASE_URL}/api/chatbot/message`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ conversation_id: conversationId, message }),
+  })
+  if (!res.ok || !res.body) {
+    const err = new Error(`Request failed (${res.status})`)
+    err.status = res.status
+    throw err
+  }
+  return res.body
+}
+
 // Delete one of the current user's submissions (auth required; the server enforces
 // that the submission belongs to the caller). Resolves on 204, throws on 4xx/5xx.
 export async function deleteSubmission(requestId) {

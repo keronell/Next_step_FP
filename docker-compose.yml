@@ -35,6 +35,15 @@ services:
   consul:
     image: hashicorp/consul:1.20
     command: ["agent", "-dev", "-client=0.0.0.0"]
+    # The image declares VOLUME /consul/data, so an anonymous volume survives
+    # container restarts — and the agent persists locally-registered services
+    # there and re-registers them on boot. Sidecars deregister only their OWN
+    # live entry on graceful exit, so every restored-but-dead entry (dapr's
+    # service ID embeds the container IP, which Docker recycles) outlives its
+    # owner forever: "Check is now critical: check=daprHealth:<svc>-<old-ip>"
+    # spam that compounds each cycle. tmpfs = a clean registry every start.
+    tmpfs:
+      - /consul/data
     healthcheck:
       test: ["CMD", "consul", "members"]
       interval: 5s
@@ -168,6 +177,33 @@ services:
        "--config", "/config/config.yaml"]
     depends_on:
       roadmap: { condition: service_started }
+      redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
+
+  chatbot:
+    build: { context: ./services, dockerfile: chatbot/Dockerfile }
+    environment:
+      DAPR_ENABLED: "true"
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+    # Ollama runs natively on the host (Metal-accelerated on Apple Silicon — a
+    # containerized Ollama on Mac has no GPU passthrough and would be far too
+    # slow). host.docker.internal resolves automatically on Docker Desktop
+    # (Mac/Windows); extra_hosts is what makes the same compose file work on
+    # Linux, where it doesn't.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis: { condition: service_healthy }
+
+  chatbot-dapr:
+    <<: *dapr-sidecar
+    network_mode: "service:chatbot"
+    command:
+      ["./daprd", "--app-id", "chatbot", "--app-port", "8000",
+       "--dapr-http-port", "3500", "--resources-path", "/components", "--dapr-internal-grpc-port", "50002",
+       "--config", "/config/config.yaml"]
+    depends_on:
+      chatbot: { condition: service_started }
       redis: { condition: service_healthy }
       consul: { condition: service_healthy }
 
