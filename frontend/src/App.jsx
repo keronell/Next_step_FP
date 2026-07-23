@@ -6,7 +6,6 @@ import HowItWorks from './pages/HowItWorks'
 import Assessment from './pages/Questionnaire'
 import Profile from './pages/Profile'
 import Results from './pages/Results'
-import History from './pages/History'
 import AuthModal from './pages/AuthModal'
 import RoadmapPage from './pages/RoadmapPage'
 import { computeResults } from './data'
@@ -69,7 +68,6 @@ function App() {
   const assessmentRef = useRef(null)
   const profileRef = useRef(null)
   const resultsRef = useRef(null)
-  const historyRef = useRef(null)
 
   const scrollTo = (ref) => {
     setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
@@ -274,6 +272,17 @@ function App() {
     scrollTo(resultsRef)
   }
 
+  // History now lives on the standalone roadmap page (moved off the scroll app),
+  // so loading a past assessment from there must also route to the career it
+  // belongs to — plain handleLoadHistory only updates in-memory state, which the
+  // roadmap route ignores unless it already matches the URL's careerId (see
+  // roadmapUsesCurrentRun below). navigate() no-ops if we're already there.
+  const handleLoadHistoryOnRoadmap = (recommendations, careerId = null, profileSnapshot = null) => {
+    handleLoadHistory(recommendations, careerId, profileSnapshot)
+    const targetCareer = careerId ?? recommendations?.[0]?.id ?? null
+    if (targetCareer) navigate(`/roadmap/${encodeURIComponent(targetCareer)}`)
+  }
+
   const handleReset = () => {
     // Abandons any in-flight submit/restore so it can't repopulate the view the
     // user just cleared (sign-out is covered by the runIdRef effect on `user`).
@@ -369,6 +378,7 @@ function App() {
         recommendations={roadmapUsesCurrentRun ? results : null}
         profile={roadmapUsesCurrentRun ? profile : null}
         onStartAssessment={handleGoToAssessment}
+        onLoadResults={handleLoadHistoryOnRoadmap}
       />
     )
   }
@@ -409,9 +419,6 @@ function App() {
             onSelectCareer={handleSelectCareer}
             selectedCareer={selectedCareer}
           />
-        </div>
-        <div ref={historyRef}>
-          <History user={user} onLoadResults={handleLoadHistory} />
         </div>
       </main>
       <Footer onReset={handleReset} onStartAssessment={handleGoToAssessment} />

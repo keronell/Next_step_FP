@@ -45,6 +45,23 @@ function currentPath() {
 // scroll app consumes and honors it once it mounts — see consumePendingScroll().
 let pendingScrollId = null
 
+// Set when "My History" is clicked somewhere that has nowhere to expand the list
+// into (anywhere but the roadmap page itself — see Header's toggleHistory) right
+// before it routes to the roadmap page. That page's Header consumes this on mount
+// to open the account menu with history already expanded, so the click actually
+// shows history instead of silently behaving like "My Roadmap".
+let pendingHistoryOpen = false
+
+export function requestHistoryOpen() {
+  pendingHistoryOpen = true
+}
+
+export function consumePendingHistoryOpen() {
+  const v = pendingHistoryOpen
+  pendingHistoryOpen = false
+  return v
+}
+
 // Scroll to a scroll-app section by id. If it's on the current page, scroll now;
 // otherwise remember it and route home, so the control still performs its labeled
 // action (jump to that section) instead of just dumping the user at the top.
