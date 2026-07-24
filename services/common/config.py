@@ -56,6 +56,20 @@ class Settings(BaseSettings):
     requirements_min_ads: int = 8         # below this, skip — the % would be unreliable
     requirements_max_per_bucket: int = 6  # cap items shown per Required/Advantage bucket
 
+    # Chatbot (roadmap-navigation assistant). Ollama runs on the HOST, not in
+    # compose — host.docker.internal is Docker Desktop's bridge back to it (works
+    # out of the box on Mac/Windows; Linux needs the extra_hosts entry compose adds).
+    ollama_base_url: str = "http://host.docker.internal:11434"
+    ollama_model: str = "qwen3:14b"
+    ollama_timeout_seconds: float = 60.0
+    # Ollama's own default (5m) unloads the model between messages during any
+    # lull (e.g. Q&A between demo segments), reintroducing the ~10s cold-load
+    # cost on the next turn. Keep it resident for the length of a presentation.
+    ollama_keep_alive: str = "30m"
+    chatbot_history_ttl_seconds: int = 3600      # 1 hour session-scoped memory
+    chatbot_history_window: int = 6              # messages replayed into the model
+    chatbot_max_tool_calls: int = 3               # chained tool calls per turn
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
