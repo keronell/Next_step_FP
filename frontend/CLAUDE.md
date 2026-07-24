@@ -35,6 +35,8 @@ Sections (`frontend/src/pages/`): `Landing.jsx` (Hero), `HowItWorks.jsx`, `Quest
 
 Tailwind (`frontend/tailwind.config.js`) with a custom `cream`/`navy`/`gold` theme plus font/radius/duration tokens — reuse these tokens rather than hardcoding values. Animations use `framer-motion`; icons come from `lucide-react`.
 
+**`components/ParticleField.jsx`** is the drifting gold/navy dot canvas behind a hero — used by `Landing.jsx` (the tall `min-h-screen` hero, default counts) and by `RoadmapPage.jsx`'s ~350px hero band, which passes a lower `count` and a `maskImage` bottom fade. It sizes itself with a `ResizeObserver` (no layout/font-loading timing assumptions) and checks `prefers-reduced-motion: reduce` **once at mount**, leaving a blank canvas when set. Its dot colors are literal `rgba` — canvas can't read the CSS-var theme tokens, so recoloring the theme won't move them.
+
 ## Roadmap layout & status colors (DEV-46/DEV-47/DEV-50/DEV-57/DEV-66)
 
 Vocabulary is pinned in the root `CONTEXT.md` — **stage** (serialized as `sections` on the wire), **node**, **spine**, **rail**, **drop**. The old `trunk`/`stub` names are retired; the DEV-66 transpose would have inverted their meaning.

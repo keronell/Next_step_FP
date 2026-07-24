@@ -14,8 +14,8 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import ParticleField from '../components/ParticleField'
 import AuthModal from './AuthModal'
-import Eyebrow from '../components/ui/Eyebrow.jsx'
 import Roadmap from './Roadmap'
 import { CAREERS } from '../data'
 import { fetchMySubmissions } from '../api'
@@ -119,28 +119,55 @@ export default function RoadmapPage({ careerId, recommendations, profile, onStar
       />
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <main>
-        <div className="max-w-7xl mx-auto px-6 pt-24 pb-0">
-          <button
-            onClick={goHome}
-            className="focus-ring inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-body text-small font-medium text-navy/65 hover:text-navy hover:bg-navy/[0.04] transition-all duration-fast"
-          >
-            <ArrowLeft size={15} aria-hidden="true" />
-            Back to home
-          </button>
+        {/* DEV-80: hero tint, the same cream→#F0EAD8 wash the Landing hero paints.
+            Full-bleed (outside the max-w-7xl) so it spans the viewport rather than
+            banding the centre column, and fading to transparent so it dissolves into
+            the cream canvas instead of ending on a seam above the roadmap. Starts
+            `from-cream` for the same reason Landing's does: the header is transparent
+            until scrolled, so a gradient opening on the tint draws a hard edge along
+            the header's bottom. First in DOM with the content `relative`, so the
+            content paints over it. */}
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-cream via-[#F0EAD8] to-transparent"
+          />
+          {/* The Landing hero's drifting particles, sized for this band: it is ~300px
+              tall against that hero's ~900px, so it takes far fewer dots to read at the
+              same density. The mask fades them out on the same curve as the tint above,
+              so the field dissolves into the cream canvas rather than ending on a hard
+              line of dots right above the roadmap. */}
+          <ParticleField
+            count={30}
+            countSmall={12}
+            style={{
+              maskImage: 'linear-gradient(to bottom, #000 55%, transparent)',
+              WebkitMaskImage: 'linear-gradient(to bottom, #000 55%, transparent)',
+            }}
+          />
+          <div className="relative max-w-7xl mx-auto px-6 pt-24 pb-0">
+            <button
+              onClick={goHome}
+              className="focus-ring inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-body text-small font-medium text-navy/65 hover:text-navy hover:bg-navy/[0.04] transition-all duration-fast"
+            >
+              <ArrowLeft size={15} aria-hidden="true" />
+              Back to home
+            </button>
 
-          {/* Page hero. DEV-66: this is now the ONLY heading on the page — <Roadmap>
-              used to render its own "Your Learning Roadmap" eyebrow + "{career} Path"
-              title right below this one, a leftover from when it was a scroll section.
-              A bookmark for an unknown careerId has no title to show, so fall back to
-              the generic heading rather than rendering a bare " Path". */}
-          <div className="mt-8 max-w-xl">
-            <Eyebrow dot className="mb-3">Welcome back</Eyebrow>
-            <h1 className="font-display font-bold text-h1 text-navy tracking-tight text-balance">
-              {career ? `${career.title} Path` : 'Your Learning Roadmap'}
-            </h1>
-            <p className="font-body text-body text-navy/65 leading-snug mt-3">
-              Your matched path, progress, and skill gaps — click any skill node for resources.
-            </p>
+            {/* Page hero. DEV-66: this is now the ONLY heading on the page — <Roadmap>
+                used to render a second title right below this one, a leftover from when
+                it was a scroll section. DEV-80 then dropped this block's own "Welcome
+                back" label, so the h1 leads (hence no Eyebrow import in this file).
+                A bookmark for an unknown careerId has no title to show, so fall back to
+                the generic heading rather than rendering a bare " Path". */}
+            <div className="mt-8 max-w-xl">
+              <h1 className="font-display font-bold text-h1 text-navy tracking-tight text-balance">
+                {career ? `${career.title} Path` : 'Your Learning Roadmap'}
+              </h1>
+              <p className="font-body text-body text-navy/65 leading-snug mt-3">
+                Your matched path, progress, and skill gaps. Click any skill node for resources.
+              </p>
+            </div>
           </div>
         </div>
 

@@ -44,23 +44,6 @@ export default {
           '0%': { transform: 'rotate(0deg)' },
           '100%': { transform: 'rotate(360deg)' },
         },
-        'aurora-1': {
-          '0%, 100%': { transform: 'translate(0%, 0%) scale(1)' },
-          '25%': { transform: 'translate(18%, -16%) scale(1.18)' },
-          '50%': { transform: 'translate(-14%, 14%) scale(0.85)' },
-          '75%': { transform: 'translate(10%, -8%) scale(1.08)' },
-        },
-        'aurora-2': {
-          '0%, 100%': { transform: 'translate(0%, 0%) scale(1)' },
-          '25%': { transform: 'translate(-16%, 16%) scale(1.1)' },
-          '50%': { transform: 'translate(16%, -16%) scale(0.9)' },
-          '75%': { transform: 'translate(-8%, 8%) scale(1.16)' },
-        },
-        'aurora-pan': {
-          '0%': { backgroundPosition: '0% 50%' },
-          '50%': { backgroundPosition: '100% 50%' },
-          '100%': { backgroundPosition: '0% 50%' },
-        },
         shimmer: {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
@@ -79,9 +62,6 @@ export default {
         'float-delayed': 'float 10s ease-in-out 2s infinite',
         'float-slow': 'float 12s ease-in-out 4s infinite',
         'spin-slow': 'spin-slow 2s linear infinite',
-        'aurora-1': 'aurora-1 22s ease-in-out infinite',
-        'aurora-2': 'aurora-2 26s ease-in-out infinite',
-        'aurora-pan': 'aurora-pan 18s linear infinite',
         shimmer: 'shimmer 2.5s ease-in-out infinite',
         'shimmer-slide': 'shimmer-slide 3s linear infinite',
         glow: 'glow 4s ease-in-out infinite',
