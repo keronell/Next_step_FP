@@ -141,8 +141,9 @@ export default function RoadmapPage({ careerId, recommendations, profile, onStar
             </button>
 
             {/* Page hero. DEV-66: this is now the ONLY heading on the page — <Roadmap>
-                used to render its own "Your Learning Roadmap" eyebrow + "{career} Path"
-                title right below this one, a leftover from when it was a scroll section.
+                used to render a second title right below this one, a leftover from when
+                it was a scroll section. DEV-80 then dropped this block's own "Welcome
+                back" label, so the h1 leads (hence no Eyebrow import in this file).
                 A bookmark for an unknown careerId has no title to show, so fall back to
                 the generic heading rather than rendering a bare " Path". */}
             <div className="mt-8 max-w-xl">
