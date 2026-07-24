@@ -20,7 +20,6 @@ def _backends_disabled(monkeypatch):
 
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("SUPABASE_SERVICE_KEY", "")
-    monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("DAPR_ENABLED", "false")
     for cached in (get_settings, get_supabase_client, get_auth_client, dapr._http):
         cached.cache_clear()

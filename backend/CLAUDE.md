@@ -12,7 +12,7 @@ What remains here and why:
   the data pipeline (`data/scripts/build_rag.py`). Rebuild it from
   `requirements.txt` (superset of every service's deps).
 - `.env` / `.env.example` — env for the data pipeline (Supabase upsert in
-  `build_rag.py`) and the source docker-compose reads Supabase/OpenAI secrets
+  `build_rag.py`) and the source docker-compose reads the Supabase secrets
   from (`env_file` on the auth/matching/roadmap services). `APP_API_TOKEN` for
   compose comes from the REPO-ROOT `.env` instead — see both `.env.example`s.
 - `migrations/` — the Supabase SQL history. Still-live tables: `user_profiles`
