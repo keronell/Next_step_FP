@@ -29,7 +29,6 @@ function Results({ phase, results, notice, onRetry, onSelectCareer, selectedCare
       <div className="max-w-6xl mx-auto">
         <div ref={revealRef} className="reveal mb-14">
           <SectionHeading
-            eyebrow="Your Results"
             title="Your top career matches"
             lede="Based on your answers, here are the tech roles where you’re most likely to thrive."
             align="center"

@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Sparkles, ChevronRight, ChevronLeft, SkipForward, Edit3, AlertTriangle, CheckCircle2, Lock } from 'lucide-react'
+import { Sparkles, ChevronRight, ChevronLeft, SkipForward, Edit3, AlertTriangle, Lock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { QUESTIONS, visibleQuestions } from '../data'
+import { CAREERS, QUESTIONS, visibleQuestions } from '../data'
 import { fetchQuestions } from '../api'
 import { useReveal } from '../hooks/useReveal'
 import Button from '../components/ui/Button.jsx'
-import Eyebrow from '../components/ui/Eyebrow.jsx'
 import { useAuth } from '../contexts/AuthContext'
 
 // answers[qId] = number (answered) | null (skipped) | undefined (not visited)
@@ -215,7 +214,6 @@ function AssessmentStart({ onStart }) {
       transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
       className="flex flex-col items-center text-center"
     >
-      <Eyebrow dot className="mb-4">Career Assessment</Eyebrow>
       <h2 className="font-display font-bold text-h1 text-navy mb-5 tracking-tight text-balance">
         Find your ideal
         <br />
@@ -285,9 +283,10 @@ function QuizCard({ path, currentQ, answers, highWater, pendingVal, advancing, f
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
-        {/* Category + counter */}
-        <div className="flex items-center justify-between mb-6">
-          <Eyebrow dot>{question.category}</Eyebrow>
+        {/* Counter. The category label that used to sit opposite it is gone, so
+            justify-end keeps the counter on the right rather than letting a lone
+            child slide left. */}
+        <div className="flex items-center justify-end mb-6">
           <span className="font-body text-small text-navy/55 tabular">
             <span className="font-semibold text-navy/80">{currentQ + 1}</span>
             <span className="mx-0.5">/</span>
@@ -411,10 +410,6 @@ function ReviewScreen({ path, answers, skipWarning, onEdit, onGoBack, onSubmit, 
     >
       {/* Header */}
       <div className="px-8 pt-8 pb-5 border-b border-navy/[0.06]">
-        <Eyebrow dot className="mb-2">
-          <CheckCircle2 size={14} className="text-gold" aria-hidden="true" />
-          Almost there
-        </Eyebrow>
         <h2 className="font-display font-bold text-h2 md:text-h1 text-navy tracking-tight text-balance">
           Review your answers
         </h2>
@@ -585,7 +580,6 @@ function LoadingScreen() {
           />
         </div>
       )}
-      <Eyebrow dot className="mb-4">Analyzing your responses</Eyebrow>
       <div className="flex font-display font-semibold text-h2 text-navy mb-2 tracking-tight" aria-label="Analyzing your profile">
         {'Analyzing your profile…'.split('').map((ch, i) => (
           <span
@@ -598,7 +592,7 @@ function LoadingScreen() {
         ))}
       </div>
       <p className="font-body text-small text-navy/60 mb-8 max-w-xs leading-snug">
-        Matching your answers against 6 tech career paths
+        Matching your answers against {CAREERS.length} tech career paths
       </p>
       <div className="w-64 h-1.5 bg-navy/[0.1] rounded-full overflow-hidden">
         <div
