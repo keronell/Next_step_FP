@@ -1,12 +1,22 @@
 import { useRef, useEffect, useState } from 'react'
 import { ExternalLink, X, Check, ChevronDown, ChevronRight, Flame, Star } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ROADMAPS, CAREERS } from '../data'
+import { ROADMAPS } from '../data'
 import { fetchRoadmap, fetchRoadmapProgress, saveRoadmapProgress } from '../api'
 import { useAuth } from '../contexts/AuthContext'
-import SectionHeading from '../components/ui/SectionHeading.jsx'
 
 const progressKey = (careerId) => `nextstep_roadmap_progress_${careerId}`
+
+// DEV-66: ink for the dotted connectors (rails + stubs). An explicit color-mix
+// rather than `border-gold opacity-60`, because opacity on the grid cell would
+// fade the node card sitting inside it too - and `border-gold/60` emits nothing
+// at all (the color tokens are plain CSS-var strings with no <alpha-value>).
+const TRACK_GOLD = 'color-mix(in srgb, var(--color-gold) 60%, var(--color-cream))'
+
+// One segment of the gold spine: header -> its rail, and stage -> next stage.
+const Drop = () => (
+  <div className="h-6 w-0 shrink-0 border-l-2 border-gold" aria-hidden="true" />
+)
 
 // DEV-58: one status system, one meaning per color. Green comes ONLY from the
 // user ticking "Mark as complete" (so unchecking always reverts it); orange
@@ -101,16 +111,24 @@ function NodeButton({ node, status, isActive, delay, onClick }) {
   const isCompleted = status === 'done'
   const demand = node.demand
 
+  // DEV-66: the reveal rides the OUTER element (see the two returns below), so a
+  // market-framed node fades in frame-and-all instead of showing an empty frame
+  // for 400ms. whileInView, not animate: the stack is now taller than the
+  // viewport, so a mount-time stagger would play out of sight for most stages.
+  const reveal = {
+    initial: { opacity: 0, y: 8 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, amount: 0.3 },
+    transition: { duration: 0.4, delay },
+  }
+
   const button = (
     <motion.button
       onClick={onClick}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
       whileHover={{ scale: 1.04 }}
-      className="focus-ring relative max-w-full rounded-md px-3 py-2 font-body text-[13px] font-medium text-center cursor-pointer"
+      className="focus-ring relative w-full rounded-md px-3 py-2 font-body text-[13px] font-medium text-center cursor-pointer"
       // Every card gets the same treatment - an opaque soft tint of its status
-      // color (color-mix with cream, so the dotted trunk can't show through) with
+      // color (color-mix with cream, so the spine can't show through) with
       // a stronger tint border; status is carried by hue, never fill-vs-outline.
       // Navy labels keep WCAG AA contrast (>10:1 on these tints). Node type
       // (required / good-to-know / optional) shows only as badges in the drawer.
@@ -134,7 +152,9 @@ function NodeButton({ node, status, isActive, delay, onClick }) {
     </motion.button>
   )
 
-  if (!demand) return button
+  // w-full: the card fills its grid cell, so the rail above the row lines up with
+  // the cards' outer edges instead of overhanging a sparse row of floating pills.
+  if (!demand) return <motion.div {...reveal} className="w-full">{button}</motion.div>
 
   // DEV-59: a job-ad-derived skill - wrap the node in a brand "market" frame + badge.
   // The node still fills with its state tint, so an in-demand skill you've completed
@@ -144,8 +164,9 @@ function NodeButton({ node, status, isActive, delay, onClick }) {
   const badgeText =
     demand.classification === 'required' ? `In demand · ${demand.pct}%` : 'Advantage'
   return (
-    <div
-      className="flex flex-col gap-1.5 rounded-lg p-1.5"
+    <motion.div
+      {...reveal}
+      className="flex w-full flex-col items-center gap-1.5 rounded-lg p-1.5"
       style={{ border: `1.5px solid ${dColor}`, background: `${dColor}0F` }}
     >
       <span
@@ -156,7 +177,7 @@ function NodeButton({ node, status, isActive, delay, onClick }) {
         {badgeText}
       </span>
       {button}
-    </div>
+    </motion.div>
   )
 }
 
@@ -354,7 +375,6 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [], profi
   const [completedNodes, setCompletedNodes] = useState(new Set())
 
   const { user } = useAuth()
-  const career = CAREERS.find((c) => c.id === selectedCareer)
 
   // Load completed nodes for this career: from Supabase when logged in, else localStorage.
   useEffect(() => {
@@ -450,26 +470,14 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [], profi
     setDrawerNode((prev) => (prev?.id === node.id ? null : node))
   }
 
-  // Flat node offsets per section, so the reveal stagger runs left-to-right
-  // across the whole pipeline.
-  const sectionOffsets = []
-  sections.reduce((acc, s) => { sectionOffsets.push(acc); return acc + s.nodes.length }, 0)
-
   if (!selectedCareer) return null
 
   return (
     <>
-      <section id="roadmap" className="py-24 px-6 relative">
+      <section id="roadmap" className="pt-10 pb-24 px-6 relative">
         <div className="max-w-7xl mx-auto relative">
-          {/* Header */}
-          <div className="mb-10">
-            <SectionHeading
-              eyebrow="Your Learning Roadmap"
-              title={`${career?.title} Path`}
-              lede="Click any skill node to explore resources and details."
-              align="center"
-            />
-          </div>
+          {/* No heading here: RoadmapPage's hero already titles the page with this
+              career (DEV-66) - this component used to be one section among many. */}
 
           {/* Toolbar */}
           <div className="flex items-center justify-start mb-5">
@@ -516,99 +524,95 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [], profi
             <Legend />
           </div>
 
-          {/* Pipeline canvas */}
-          <div className="relative">
-            {/* DEV-58: hint shows on all sizes (was mobile-only) - desktop users
-                also missed that the pipeline scrolls sideways. */}
-            <p className="text-center font-body text-eyebrow font-semibold uppercase text-navy/45 mb-2">
-              &larr; Scroll to explore &rarr;
-            </p>
-            <div className="roadmap-scroll overflow-x-auto pb-4 pt-4">
-              {/* DEV-47/DEV-50/DEV-57: roadmap.sh-style pipeline - one continuous
-                  gold spine runs behind the solid-navy stage headers (they mask it),
-                  and each stage's cards fan out left/right of a dotted center trunk
-                  in pair rows. Pure flex, no SVG, scales to any section/node count. */}
-              <div key={selectedCareer} className="relative flex items-stretch gap-x-10 w-max mx-auto pl-4 pr-12">
-                {/* Spine + arrowhead, aligned to the h-11 (44px) header row center. */}
-                <div className="absolute left-0 right-0 top-[21px] h-[2px] bg-gold" aria-hidden="true" />
-                <ChevronRight
-                  size={18}
-                  strokeWidth={2.5}
-                  className="absolute right-0 top-[22px] -translate-y-1/2 text-gold"
-                  aria-hidden="true"
-                />
+          {/* Roadmap canvas (DEV-66): stages read top-to-bottom threaded on a gold
+              spine, and each stage's nodes flow left-to-right in a wrapping grid.
+              Deliberately NOT roadmap.sh's left/right zigzag - see
+              docs/adr/0001-vertical-stage-flow.md. No horizontal scrolling at any
+              width; narrow viewports wrap instead. */}
+          <div key={selectedCareer} className="flex flex-col items-center">
+            {sections.map((section, si) => {
+              const isCollapsed = !!collapsed[section.id]
+              const Chevron = isCollapsed ? ChevronRight : ChevronDown
+              const isLast = si === sections.length - 1
+              return (
+                <div key={section.id} className="flex flex-col items-center w-full">
+                  {/* Stage header - a navy pill sitting on the spine, click to collapse. */}
+                  <button
+                    onClick={() => toggleSection(section.id)}
+                    className="focus-ring inline-flex items-center gap-2 h-11 px-5 rounded-md bg-navy text-cream hover:bg-navy-light border border-navy transition-colors duration-fast"
+                  >
+                    <span className="font-body text-[13px] font-semibold">
+                      {section.label}
+                    </span>
+                    <Chevron size={15} className="text-cream opacity-70 shrink-0" aria-hidden="true" />
+                  </button>
 
-                {sections.map((section, si) => {
-                  const isCollapsed = !!collapsed[section.id]
-                  const Chevron = isCollapsed ? ChevronRight : ChevronDown
-                  // Pair rows: node 2i hangs left of the trunk, node 2i+1 right;
-                  // an odd leftover (or a 1-node section) sits centered on it.
-                  const rows = []
-                  for (let i = 0; i < section.nodes.length; i += 2) rows.push(section.nodes.slice(i, i + 2))
-                  return (
-                    <div key={section.id} className="flex flex-col min-w-[320px] shrink-0">
-                      {/* Section header - primary node on the spine, clickable to collapse */}
-                      <button
-                        onClick={() => toggleSection(section.id)}
-                        className="focus-ring relative flex items-center justify-between gap-2 h-11 px-4 rounded-md bg-navy text-cream hover:bg-navy-light border border-navy transition-colors duration-fast"
-                      >
-                        <span className="font-body text-[13px] font-semibold">
-                          {section.label}
-                        </span>
-                        <Chevron size={15} className="text-cream opacity-70 shrink-0" aria-hidden="true" />
-                      </button>
-
-                      {/* Pair rows. Each row draws its own trunk segment; the last
-                          row stops at its vertical center, so the dotted trunk
-                          terminates exactly at the final stub junction. Cards paint
-                          above the segments (NodeButton is position:relative). */}
-                      {!isCollapsed && rows.map((pair, ri) => {
-                        const isLastRow = ri === rows.length - 1
-                        const trunk = (
+                  {!isCollapsed && (
+                    <>
+                      <Drop />
+                      {/* Node rows. Deliberately NO column gap: each cell's dotted
+                          top border butts against its neighbours' to form one
+                          continuous rail, and a wrapped row grows its own rail for
+                          free - no row chunking, no measurement, no SVG. Horizontal
+                          breathing room lives in the cells' own padding instead.
+                          flex-wrap + justify-center (not a grid): grid tracks are
+                          allocated for the whole grid, so a PARTIAL last row would
+                          hug the left edge and its rail would never cross the centre
+                          line. Centering the row fixes both. Cells grow to fill a
+                          full row but cap at 340px, so a lone wrapped node doesn't
+                          stretch across the whole canvas. ~5 per row at 1280px, 3 at
+                          768px, 1 on a phone. */}
+                      <div className="relative flex w-full flex-wrap justify-center gap-y-7">
+                        {/* Threads the rails together: without this, every wrapped
+                            row after the first floats detached from the spine. First
+                            in DOM and the cells are `relative`, so cards paint over
+                            it rather than the other way round. */}
+                        <div
+                          className="absolute left-1/2 top-0 bottom-0 w-0 -translate-x-1/2"
+                          style={{ borderLeft: `2px dotted ${TRACK_GOLD}` }}
+                          aria-hidden="true"
+                        />
+                        {section.nodes.map((node, ni) => (
                           <div
-                            className={`absolute left-1/2 -translate-x-1/2 top-0 ${isLastRow ? 'bottom-1/2' : 'bottom-0'} w-0 border-l-2 border-dotted border-gold opacity-60`}
-                            aria-hidden="true"
-                          />
-                        )
-                        const stub = (
-                          <div className="w-4 border-t-2 border-dotted border-gold opacity-60 shrink-0" aria-hidden="true" />
-                        )
-                        const renderNode = (node, ni) => {
-                          const status = nodeStatus(node, completedNodes, missingSkills)
-                          return (
+                            key={node.id}
+                            className="relative flex max-w-[340px] grow basis-[200px] flex-col items-center px-3"
+                            style={{ borderTop: `2px dotted ${TRACK_GOLD}` }}
+                          >
+                            {/* Stub: rail down to this node. */}
+                            <div
+                              className="h-4 w-0 shrink-0"
+                              style={{ borderLeft: `2px dotted ${TRACK_GOLD}` }}
+                              aria-hidden="true"
+                            />
                             <NodeButton
                               node={node}
-                              status={status}
+                              status={nodeStatus(node, completedNodes, missingSkills)}
                               isActive={drawerNode?.id === node.id}
-                              delay={(sectionOffsets[si] + ri * 2 + ni) * 0.06}
+                              // Sweeps left-to-right across the stage. Capped so a
+                              // wrapped second row doesn't inherit a long delay.
+                              delay={Math.min(ni, 5) * 0.05}
                               onClick={() => handleNodeClick(node)}
                             />
-                          )
-                        }
-                        return pair.length === 2 ? (
-                          <div key={pair[0].id} className="relative flex items-center py-2">
-                            {trunk}
-                            <div className="flex-1 min-w-0 flex items-center justify-end">
-                              {renderNode(pair[0], 0)}
-                              {stub}
-                            </div>
-                            <div className="flex-1 min-w-0 flex items-center justify-start">
-                              {stub}
-                              {renderNode(pair[1], 1)}
-                            </div>
                           </div>
-                        ) : (
-                          <div key={pair[0].id} className="relative flex items-center justify-center py-2">
-                            {trunk}
-                            {renderNode(pair[0], 0)}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Spine carries on to the next stage - emitted for collapsed
+                      stages too, so collapsing never breaks the thread. */}
+                  <Drop />
+                  {isLast && (
+                    <ChevronDown
+                      size={18}
+                      strokeWidth={2.5}
+                      className="text-gold -mt-1"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>

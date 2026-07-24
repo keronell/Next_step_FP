@@ -17,6 +17,7 @@ import Footer from '../components/Footer'
 import AuthModal from './AuthModal'
 import Eyebrow from '../components/ui/Eyebrow.jsx'
 import Roadmap from './Roadmap'
+import { CAREERS } from '../data'
 import { fetchMySubmissions } from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import { navigate } from '../hooks/useRoute'
@@ -94,6 +95,8 @@ export default function RoadmapPage({ careerId, recommendations, profile, onStar
   // on a shared browser. Selection is recorded only from the explicit "View Roadmap"
   // click (App.jsx::handleSelectCareer).
 
+  const career = CAREERS.find((c) => c.id === careerId)
+
   const goHome = () => navigate('/')
 
   return (
@@ -125,14 +128,18 @@ export default function RoadmapPage({ careerId, recommendations, profile, onStar
             Back to home
           </button>
 
-          {/* Page hero: the "Your Learning Roadmap" heading. */}
+          {/* Page hero. DEV-66: this is now the ONLY heading on the page — <Roadmap>
+              used to render its own "Your Learning Roadmap" eyebrow + "{career} Path"
+              title right below this one, a leftover from when it was a scroll section.
+              A bookmark for an unknown careerId has no title to show, so fall back to
+              the generic heading rather than rendering a bare " Path". */}
           <div className="mt-8 max-w-xl">
             <Eyebrow dot className="mb-3">Welcome back</Eyebrow>
             <h1 className="font-display font-bold text-h1 text-navy tracking-tight text-balance">
-              Your Learning Roadmap
+              {career ? `${career.title} Path` : 'Your Learning Roadmap'}
             </h1>
             <p className="font-body text-body text-navy/65 leading-snug mt-3">
-              Your matched path, progress, and skill gaps — all in one place.
+              Your matched path, progress, and skill gaps — click any skill node for resources.
             </p>
           </div>
         </div>
