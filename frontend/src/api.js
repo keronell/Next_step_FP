@@ -74,13 +74,11 @@ export function selectCareer(careerId) {
 }
 
 // Fetch + optionally personalize a career roadmap via the backend.
-export async function fetchRoadmap(careerId, missingSkills = [], profile = null) {
-  const body = { missing_skills: missingSkills }
-  if (profile && !isProfileEmpty(profile)) body.profile_data = profile
-  return _request(`${BASE_URL}/api/roadmap/${careerId}`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
+// POST, not GET, because only the POST adds the job-ad market stages (DEV-59).
+// It carries no body: roadmaps are curated and identical for every user, so there
+// is nothing left to personalize with.
+export async function fetchRoadmap(careerId) {
+  return _request(`${BASE_URL}/api/roadmap/${careerId}`, { method: 'POST' })
 }
 
 // ── Self-input profile (DEV-60) ──────────────────────────────────────────────

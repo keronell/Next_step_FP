@@ -14,8 +14,24 @@ const progressKey = (careerId) => `nextstep_roadmap_progress_${careerId}`
 const TRACK_GOLD = 'color-mix(in srgb, var(--color-gold) 60%, var(--color-cream))'
 
 // One segment of the gold spine: header -> its rail, and stage -> next stage.
-const Drop = () => (
-  <div className="h-6 w-0 shrink-0 border-l-2 border-gold" aria-hidden="true" />
+// DEV-81: only the stage -> stage drop carries a chevron. The header -> nodes drop
+// means "this stage contains these", not "then do these", so it stays a plain line.
+const Drop = ({ arrow = false }) => (
+  <div className="flex flex-col items-center" aria-hidden="true">
+    <div className="h-6 w-0 shrink-0 border-l-2 border-gold" />
+    {arrow && <ChevronDown size={16} strokeWidth={2.5} className="-mt-[9px] text-gold" />}
+  </div>
+)
+
+// DEV-81: a node's position within its stage. Same 18px disc as the completion
+// check on the opposite corner, in navy so it reads as part of the stage system
+// rather than adding a fourth meaning to the three status colors.
+const NumBadge = ({ ordinal, className = '' }) => (
+  <span
+    className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-cream bg-navy px-1 font-body text-[10px] font-bold leading-none text-cream ${className}`}
+  >
+    {ordinal}
+  </span>
 )
 
 // DEV-58: one status system, one meaning per color. Green comes ONLY from the
@@ -106,7 +122,7 @@ function nodeStatus(node, completedNodes, missingSkills) {
   return 'todo'
 }
 
-function NodeButton({ node, status, isActive, delay, onClick }) {
+function NodeButton({ node, status, isActive, delay, ordinal, onClick }) {
   const color = STATUS_COLORS[status]
   const isCompleted = status === 'done'
   const demand = node.demand
@@ -139,6 +155,11 @@ function NodeButton({ node, status, isActive, delay, onClick }) {
         boxShadow: isActive ? `0 0 12px ${color}80` : undefined,
       }}
     >
+      {/* DEV-81: plain text, no aria-hidden - it joins the button's accessible
+          name ("2 HTML"), so the order also reaches users who never see the row.
+          Nodes in the job-ad stages get no ordinal: they are ranked by demand,
+          not sequenced, and the absence is what says "any order". */}
+      {ordinal != null && <NumBadge ordinal={ordinal} className="absolute -top-2 -left-2" />}
       {node.label}
       {isCompleted && (
         <span
@@ -363,11 +384,24 @@ function Legend() {
           </div>
         ))}
       </div>
+      {/* DEV-81: the only place the "unnumbered = any order" rule can be stated. */}
+      <div className="flex items-center gap-2">
+        <span className="flex items-center gap-0.5 shrink-0">
+          {[1, 2, 3].map((n) => <NumBadge key={n} ordinal={n} />)}
+        </span>
+        {/* Both halves, or the rule isn't stated: an unnumbered card is a
+            deliberate "any order", not a number someone forgot. No
+            whitespace-nowrap here (unlike the short rows above) - this copy is
+            long enough to overflow the legend on a phone if it can't wrap. */}
+        <span className="font-body text-small text-navy/70">
+          Numbered - learn in this order; unnumbered - any order
+        </span>
+      </div>
     </div>
   )
 }
 
-function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [], profile = null }) {
+function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
   const saveSeqRef = useRef(0)  // monotonic id so only the latest save reconciliation wins
   const [drawerNode, setDrawerNode] = useState(null)
   const [collapsed, setCollapsed] = useState({})
@@ -415,33 +449,22 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [], profi
     })
   }
 
-  // Exactly what fetchRoadmap SENDS — nothing else belongs here. Keying on the
-  // career alone left the roadmap stale whenever these changed: retake the
-  // assessment, complete a different profile, then re-open the same career and
-  // setSelectedCareer writes an identical value — no state change, no refetch.
-  // Serialized because both are fresh objects each render and would otherwise loop.
-  //
-  // matchedSkills is deliberately NOT here: it never reaches the endpoint (it only
-  // drives the drawer's "you may already have this" hint), so including it bought
-  // a paid, multi-second LLM regeneration that could only swap one roadmap for a
-  // differently-worded one.
-  const roadmapRequestKey = JSON.stringify([missingSkills, profile])
-
   // Fetch the roadmap from the backend; fall back to the bundled ROADMAPS if it's
-  // down (same offline-estimate spirit as the questionnaire results).
+  // down (same offline-estimate spirit as the questionnaire results). The career is
+  // the ONLY input: the response is curated content plus job-ad market stages, so
+  // it no longer varies with the user's gaps or profile and there is nothing else
+  // to key a refetch on.
   useEffect(() => {
     if (!selectedCareer) {
       setRoadmapData(null)
       return
     }
     let cancelled = false
-    // The profile also feeds the LLM roadmap prompt, so a generated roadmap knows
-    // what the learner has already built (roadmap_service._build_prompt).
-    fetchRoadmap(selectedCareer, missingSkills, profile)
+    fetchRoadmap(selectedCareer)
       .then((data) => { if (!cancelled) setRoadmapData(data) })
       .catch(() => { if (!cancelled) setRoadmapData(ROADMAPS[selectedCareer] ?? null) })
     return () => { cancelled = true }
-  }, [selectedCareer, roadmapRequestKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedCareer])
 
   const sections = roadmapData?.sections ?? []
 
@@ -530,10 +553,13 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [], profi
               docs/adr/0001-vertical-stage-flow.md. No horizontal scrolling at any
               width; narrow viewports wrap instead. */}
           <div key={selectedCareer} className="flex flex-col items-center">
-            {sections.map((section, si) => {
+            {sections.map((section) => {
               const isCollapsed = !!collapsed[section.id]
               const Chevron = isCollapsed ? ChevronRight : ChevronDown
-              const isLast = si === sections.length - 1
+              // DEV-81: the job-ad stages inject_requirements() appends are ranked by
+              // demand, not sequenced - numbering them would claim a learning order
+              // the backend never meant. Static and LLM roadmaps carry no `source`.
+              const ordered = section.source !== 'job_ads'
               return (
                 <div key={section.id} className="flex flex-col items-center w-full">
                   {/* Stage header - a navy pill sitting on the spine, click to collapse. */}
@@ -591,6 +617,7 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [], profi
                               // Sweeps left-to-right across the stage. Capped so a
                               // wrapped second row doesn't inherit a long delay.
                               delay={Math.min(ni, 5) * 0.05}
+                              ordinal={ordered ? ni + 1 : null}
                               onClick={() => handleNodeClick(node)}
                             />
                           </div>
@@ -600,16 +627,10 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [], profi
                   )}
 
                   {/* Spine carries on to the next stage - emitted for collapsed
-                      stages too, so collapsing never breaks the thread. */}
-                  <Drop />
-                  {isLast && (
-                    <ChevronDown
-                      size={18}
-                      strokeWidth={2.5}
-                      className="text-gold -mt-1"
-                      aria-hidden="true"
-                    />
-                  )}
+                      stages too, so collapsing never breaks the thread. DEV-81: its
+                      chevron is the "then this" cue; on the last stage the same
+                      chevron terminates the spine (it used to be a special case). */}
+                  <Drop arrow />
                 </div>
               )
             })}

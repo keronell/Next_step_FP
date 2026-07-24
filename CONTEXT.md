@@ -28,7 +28,7 @@ _Avoid_: missing skill, weakness
 The ordered learning path for one career, made of stages.
 
 **Stage**:
-A named, ordered group of nodes within a roadmap — "Foundations", "Gives an Advantage". Serialized as `sections` on the wire, and referred to as a stage everywhere else.
+A named, ordered group of nodes within a roadmap — "Foundations", "Gives an Advantage". Nodes within a stage are in learning order; the job-ad stages are the exception, ranked by demand rather than sequenced. Serialized as `sections` on the wire, and referred to as a stage everywhere else.
 _Avoid_: section, column, phase
 
 **Node**:

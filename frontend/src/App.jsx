@@ -123,9 +123,9 @@ function App() {
     // prior user's data as anonymous. Resetting the view removes that path.
     //
     // answers/profile MUST be cleared here too (DEV-60): they are user-specific and
-    // outlive the view. A surviving `profile` is handed to <Roadmap> and posted to
-    // /api/roadmap/{id}, so the next account to restore history would have its
-    // roadmap personalized with the previous user's experience and projects.
+    // outlive the view. A surviving `profile` rides the next submitQuestionnaire()
+    // into the matcher, so the next account on this browser would be scored against
+    // the previous user's experience and projects.
     if (prevUserRef.current && !user) {
       prevUserRef.current = user
       localStorage.removeItem('nextstep_last_recommendations')
@@ -376,7 +376,6 @@ function App() {
       <RoadmapPage
         careerId={roadmapCareerId}
         recommendations={roadmapUsesCurrentRun ? results : null}
-        profile={roadmapUsesCurrentRun ? profile : null}
         onStartAssessment={handleGoToAssessment}
         onLoadResults={handleLoadHistoryOnRoadmap}
       />

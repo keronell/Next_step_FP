@@ -1,4 +1,4 @@
-"""Roadmap endpoint: static GET, personalized POST, LLM with static fallback."""
+"""Roadmap endpoint: curated GET, and the POST that adds DEV-59 market stages."""
 from fastapi.testclient import TestClient
 
 from common.data import career_ids, load_roadmaps
@@ -42,8 +42,7 @@ def test_roadmap_unknown_career_404(client):
     assert r.status_code == 404
 
 
-def test_post_roadmap_falls_back_to_static_without_openai(client):
-    # OPENAI_API_KEY is forced empty in tests -> personalized POST returns the static roadmap.
+def test_post_roadmap_returns_the_curated_roadmap(client):
     r = client.post(
         "/api/roadmap/frontend", json={"missing_skills": ["GraphQL", "Testing"]}
     )
@@ -51,41 +50,18 @@ def test_post_roadmap_falls_back_to_static_without_openai(client):
     assert r.json()["sections"]  # same static shape
 
 
-def test_get_roadmap_uses_llm_when_configured(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    from common.config import get_settings
-    get_settings.cache_clear()
-    generated = {"sections": [{"id": "s1", "label": "Phase 1", "nodes": [
-        {"id": "n1", "label": "Thing", "level": "beginner", "type": "required",
-         "description": "d", "resources": []}]}]}
-    monkeypatch.setattr(svc, "_generate", lambda *a, **k: generated)
-    out = svc.get_roadmap("frontend", missing_skills=["X"])
-    assert out is generated
+def test_roadmap_is_the_same_for_everyone(client):
+    """There is no personalization left: the POST body is ignored, so callers with
+    different context — including the SPA, which now sends NO body at all — get
+    byte-identical roadmaps, and they are the curated ones."""
+    a = client.post("/api/roadmap/frontend", json={"missing_skills": ["GraphQL"]})
+    b = client.post("/api/roadmap/frontend", json={})
+    c = client.post("/api/roadmap/frontend")  # exactly what api.js sends now
+    assert a.status_code == b.status_code == c.status_code == 200
+    assert a.json() == b.json() == c.json() == load_roadmaps()["frontend"]
 
 
-def test_get_roadmap_falls_back_when_llm_errors(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    from common.config import get_settings
-    get_settings.cache_clear()
-
-    def _boom(*a, **k):
-        raise RuntimeError("openai down")
-
-    monkeypatch.setattr(svc, "_generate", _boom)
-    out = svc.get_roadmap("frontend", missing_skills=["X"])
-    assert out is not None and out["sections"]  # static fallback
-
-
-def test_validate_normalizes_bad_level_and_type():
-    data = {"sections": [{"id": "s", "label": "L", "nodes": [
-        {"id": "n", "label": "N", "level": "wizard", "type": "mandatory"}]}]}
-    out = svc._validate(data)
-    node = out["sections"][0]["nodes"][0]
-    assert node["level"] == "intermediate" and node["type"] == "required"
-    assert node["resources"] == [] and node["description"] == ""
-
-
-# --- DEV-59: job-ad requirement enrichment on the personalized POST -----------------
+# --- DEV-59: job-ad requirement enrichment on the POST ------------------------------
 
 _FAKE_REQUIREMENTS = {
     "required": [{"skill": "React", "count": 31, "total": 50, "pct": 62}],
@@ -186,66 +162,3 @@ def test_inject_requirements_ids_unique_across_columns():
     ids = [n["id"] for s in out["sections"] for n in s["nodes"]]
     assert ids == ["market-c-sharp", "market-c-plus-plus", "market-c"]
     assert len(ids) == len(set(ids))  # all distinct
-
-
-# ── DEV-60: self-input profile reaches the generation prompt ───────────────────
-
-PROFILE_DATA = {
-    "experience": [
-        {"role": "Data Analyst", "context": "a fintech", "duration_months": 24,
-         "description": "built dashboards"}
-    ],
-    "projects": [],
-    "skills": ["Python", "SQL"],
-}
-
-
-def test_profile_data_is_rendered_into_the_prompt(client, monkeypatch):
-    """The frontend sends the profile structured; the route must render it with the
-    SAME helper matching uses, so the two descriptions can never drift."""
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    from common.config import get_settings
-    get_settings.cache_clear()
-
-    seen = {}
-    monkeypatch.setattr(
-        svc, "_generate",
-        lambda career_id, profile, missing, settings, market=None: seen.update(profile=profile)
-        or {"sections": [{"id": "s", "label": "L", "nodes": [
-            {"id": "n", "label": "N", "level": "beginner", "type": "required",
-             "description": "", "resources": []}]}]},
-    )
-    r = client.post("/api/roadmap/frontend", json={"profile_data": PROFILE_DATA})
-    assert r.status_code == 200
-    assert (
-        "I worked as Data Analyst at a fintech for 2 years, where I built dashboards."
-        in seen["profile"]
-    )
-    assert "I know python, sql." in seen["profile"]
-
-
-def test_explicit_profile_string_wins_over_profile_data(client, monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    from common.config import get_settings
-    get_settings.cache_clear()
-
-    seen = {}
-    monkeypatch.setattr(
-        svc, "_generate",
-        lambda career_id, profile, missing, settings, market=None: seen.update(profile=profile)
-        or {"sections": [{"id": "s", "label": "L", "nodes": [
-            {"id": "n", "label": "N", "level": "beginner", "type": "required",
-             "description": "", "resources": []}]}]},
-    )
-    client.post(
-        "/api/roadmap/frontend",
-        json={"profile": "preset text", "profile_data": PROFILE_DATA},
-    )
-    assert seen["profile"] == "preset text"
-
-
-def test_no_profile_data_leaves_the_prompt_profile_empty(client):
-    """Static fallback path: absent profile must not become an empty-string prompt."""
-    from app.routes.roadmap import RoadmapContext
-    assert RoadmapContext().profile_text() is None
-    assert RoadmapContext(profile_data={}).profile_text() is None
