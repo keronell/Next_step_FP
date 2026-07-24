@@ -15,7 +15,6 @@ import { ArrowLeft } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import AuthModal from './AuthModal'
-import Eyebrow from '../components/ui/Eyebrow.jsx'
 import Roadmap from './Roadmap'
 import { CAREERS } from '../data'
 import { fetchMySubmissions } from '../api'
@@ -134,7 +133,6 @@ export default function RoadmapPage({ careerId, recommendations, profile, onStar
               A bookmark for an unknown careerId has no title to show, so fall back to
               the generic heading rather than rendering a bare " Path". */}
           <div className="mt-8 max-w-xl">
-            <Eyebrow dot className="mb-3">Welcome back</Eyebrow>
             <h1 className="font-display font-bold text-h1 text-navy tracking-tight text-balance">
               {career ? `${career.title} Path` : 'Your Learning Roadmap'}
             </h1>
