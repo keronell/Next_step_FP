@@ -104,12 +104,13 @@ function Hero({ onStart }) {
 
   return (
     <section id="hero" className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-6 pt-8 pb-24">
-      {/* Aurora gradient background */}
+      {/* Aurora gradient background. DEV-80: three blurred blobs used to sit on top of
+          this gradient, but they never rendered — they tinted with `bg-gold/25` etc., and
+          the theme tokens are bare `var(--color-*)` strings with no `<alpha-value>`, so
+          Tailwind silently emits no utility for an alpha modifier (see frontend/CLAUDE.md).
+          Removed rather than repaired, to keep this hero and the roadmap hero identical. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-cream via-cream to-[#F0EAD8]" />
-        <div className="absolute -top-1/4 left-[15%] h-[30rem] w-[30rem] rounded-full bg-gold/25 opacity-60 blur-3xl animate-aurora-1" />
-        <div className="absolute top-[10%] right-[10%] h-[26rem] w-[26rem] rounded-full bg-gold-light/25 opacity-50 blur-3xl animate-aurora-2" />
-        <div className="absolute -bottom-1/4 left-[30%] h-[28rem] w-[28rem] rounded-full bg-navy/10 opacity-40 blur-3xl animate-aurora-1 [animation-delay:6s]" />
       </div>
 
       {/* Particle canvas */}
