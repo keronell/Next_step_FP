@@ -36,7 +36,6 @@ function HowItWorks() {
       <div className="max-w-6xl mx-auto">
         <div ref={revealRef} className="reveal mb-16">
           <SectionHeading
-            eyebrow="How It Works"
             title="Three steps to clarity"
             align="center"
           />

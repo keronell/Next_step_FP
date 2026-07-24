@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Sparkles, ArrowDown, Lock } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Button from '../components/ui/Button.jsx'
-import Eyebrow from '../components/ui/Eyebrow.jsx'
 import ParticleField from '../components/ParticleField'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -115,7 +114,6 @@ function Hero({ onStart }) {
 
         {/* Social proof */}
         <motion.div variants={item} className="mt-14 flex flex-col items-center gap-3">
-          <Eyebrow dot>Trusted by</Eyebrow>
           <div className="flex items-center gap-4 opacity-70">
             <div className="flex -space-x-2">
               {['var(--color-gold)', 'var(--color-navy-light)', 'var(--color-gold)'].map((bg, i) => (
