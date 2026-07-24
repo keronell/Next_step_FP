@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import ParticleField from '../components/ParticleField'
 import AuthModal from './AuthModal'
 import Roadmap from './Roadmap'
 import { CAREERS } from '../data'
@@ -130,6 +131,19 @@ export default function RoadmapPage({ careerId, recommendations, profile, onStar
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 bg-gradient-to-b from-cream via-[#F0EAD8] to-transparent"
+          />
+          {/* The Landing hero's drifting particles, sized for this band: it is ~300px
+              tall against that hero's ~900px, so it takes far fewer dots to read at the
+              same density. The mask fades them out on the same curve as the tint above,
+              so the field dissolves into the cream canvas rather than ending on a hard
+              line of dots right above the roadmap. */}
+          <ParticleField
+            count={30}
+            countSmall={12}
+            style={{
+              maskImage: 'linear-gradient(to bottom, #000 55%, transparent)',
+              WebkitMaskImage: 'linear-gradient(to bottom, #000 55%, transparent)',
+            }}
           />
           <div className="relative max-w-7xl mx-auto px-6 pt-24 pb-0">
             <button
