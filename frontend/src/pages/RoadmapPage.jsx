@@ -137,7 +137,7 @@ export default function RoadmapPage({ careerId, recommendations, profile, onStar
               {career ? `${career.title} Path` : 'Your Learning Roadmap'}
             </h1>
             <p className="font-body text-body text-navy/65 leading-snug mt-3">
-              Your matched path, progress, and skill gaps — click any skill node for resources.
+              Your matched path, progress, and skill gaps. Click any skill node for resources.
             </p>
           </div>
         </div>
