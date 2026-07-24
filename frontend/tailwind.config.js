@@ -44,11 +44,6 @@ export default {
           '0%': { transform: 'rotate(0deg)' },
           '100%': { transform: 'rotate(360deg)' },
         },
-        'aurora-pan': {
-          '0%': { backgroundPosition: '0% 50%' },
-          '50%': { backgroundPosition: '100% 50%' },
-          '100%': { backgroundPosition: '0% 50%' },
-        },
         shimmer: {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
@@ -67,7 +62,6 @@ export default {
         'float-delayed': 'float 10s ease-in-out 2s infinite',
         'float-slow': 'float 12s ease-in-out 4s infinite',
         'spin-slow': 'spin-slow 2s linear infinite',
-        'aurora-pan': 'aurora-pan 18s linear infinite',
         shimmer: 'shimmer 2.5s ease-in-out infinite',
         'shimmer-slide': 'shimmer-slide 3s linear infinite',
         glow: 'glow 4s ease-in-out infinite',
