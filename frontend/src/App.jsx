@@ -8,6 +8,7 @@ import Profile from './pages/Profile'
 import Results from './pages/Results'
 import AuthModal from './pages/AuthModal'
 import RoadmapPage from './pages/RoadmapPage'
+import Admin from './pages/Admin'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
@@ -20,6 +21,9 @@ function App() {
   // the intro/questionnaire); every other path renders the scroll app below.
   const path = useRoute()
   const roadmapCareerId = matchRoadmap(path)
+  // DEV-62 admin screen. Like the roadmap route it replaces the scroll app, so it
+  // is subject to the same mid-run guard below.
+  const adminRoute = path === '/admin'
 
   const [phase, setPhase] = useState('idle')
   const [results, setResults] = useState(null)
@@ -331,19 +335,19 @@ function App() {
   // Header uses to hide the "My Roadmap" shortcut.
   const midRun = phase === 'assessing' || phase === 'profiling'
 
-  // Because Header hides that shortcut, nothing in the app can navigate to the
-  // roadmap mid-run — so an arrival here during one is always the browser's Back or
-  // Forward landing on a roadmap entry left over from earlier in the session (the
-  // user opened a roadmap, came back, and started a new assessment). Honoring it
-  // would unmount the quiz and remount it empty on the way back, silently restarting
-  // it. Refuse the entry instead: keep rendering the scroll app, then rewrite that
-  // entry to home so a second press can't walk into it again.
+  // Because Header hides both that shortcut and the Admin link mid-run, nothing in
+  // the app can navigate to the roadmap or /admin mid-run — so an arrival at either
+  // during one is always the browser's Back or Forward landing on an entry left over
+  // from earlier in the session (the user opened a roadmap, came back, and started a
+  // new assessment). Honoring it would unmount the quiz and remount it empty on the
+  // way back, silently restarting it. Refuse the entry instead: keep rendering the
+  // scroll app, then rewrite that entry to home so a second press can't walk in again.
   //
   // Keyed on the run rather than on history bookkeeping, which is what makes it
   // survive a reload: a reload destroys the run and any module-level marker
   // together, so there is never a live run stranded on the far side of one.
   useEffect(() => {
-    if (!roadmapCareerId || !midRun) return
+    if (!midRun || (!roadmapCareerId && !adminRoute)) return
     replaceWithHome()
     // Refusing the entry doesn't undo the traversal's scroll restoration: the
     // browser already put us at the roadmap entry's saved offset, on a document
@@ -351,7 +355,7 @@ function App() {
     // Back reads as "dropped me in a random section". scrollTo's defer also keeps
     // us behind that restore rather than racing it.
     scrollTo(phase === 'profiling' ? profileRef : assessmentRef)
-  }, [roadmapCareerId, midRun])
+  }, [roadmapCareerId, adminRoute, midRun])
 
   // Does the app's in-memory run describe THIS career? Two ways it can:
   //   selectedCareer — the user explicitly clicked "View Roadmap" on that card
@@ -371,6 +375,10 @@ function App() {
   // the whole intro/questionnaire flow the scroll app renders below. Hand the page
   // the current results so a just-clicked "View Roadmap" uses that recommendation
   // directly, rather than re-fetching a not-yet-persisted submission from history.
+  // Admin route (DEV-62). Admin.jsx does its own role check — it waits for
+  // authLoading to resolve before bouncing a non-admin home.
+  if (adminRoute && !midRun) return <Admin />
+
   if (roadmapCareerId && !midRun) {
     return (
       <RoadmapPage

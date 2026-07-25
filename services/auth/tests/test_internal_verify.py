@@ -36,8 +36,11 @@ def test_verify_valid_token_returns_user(client, monkeypatch):
     )
     r = client.get("/internal/verify", headers={"Authorization": "Bearer good"})
     assert r.status_code == 200
+    # The east-west contract every other service parses (common/auth_dep.py).
+    # `role` joined it in DEV-62 and defaults to "user".
     assert r.json() == {
         "user_id": "user-uuid-123",
         "email": "user@example.com",
         "username": "testuser",
+        "role": "user",
     }

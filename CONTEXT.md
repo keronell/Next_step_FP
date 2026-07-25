@@ -4,11 +4,21 @@ A career-discovery app: a questionnaire and an optional self-described profile a
 
 ## Language
 
+### Identity
+
+**Role**:
+What an account is allowed to do — `user` or `admin`. Never an occupation; that is a Career.
+_Avoid_: permission, access level
+
+**Admin**:
+An account holding the admin role. The only account that can see every account and delete one. Granted in the database, never through the app.
+_Avoid_: superuser, moderator, staff
+
 ### Matching
 
 **Career**:
 One of the 16 occupations a user can be matched to and shown a roadmap for.
-_Avoid_: job, role, field
+_Avoid_: job, field, role (reserved for the authorization sense)
 
 **Assessment**:
 One completed run of the questionnaire, producing a ranked set of career recommendations.

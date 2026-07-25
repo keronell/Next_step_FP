@@ -76,6 +76,7 @@ Sidecars share their app's network namespace — restart pairs together:
 | `GET/POST /api/roadmap/{id}/progress` | roadmap | per-user completed nodes (auth) |
 | `POST /api/auth/register\|login\|logout`, `GET /api/auth/me` | auth | Supabase GoTrue + usernames |
 | `GET/PUT /api/profile` | auth | self-input profile: experience, projects, skills (auth) |
+| `GET /api/admin/users`, `DELETE /api/admin/users/{id}` | auth | account list + deletion (admin role only — DEV-62) |
 | `POST /api/auth/claim-sessions`, `GET /api/auth/my-submissions` | history | link anonymous submissions, submission history (auth) |
 
 `/internal/*` (service-to-service), `/events/*` and `/dapr/*` (sidecar surface)

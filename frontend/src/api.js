@@ -173,3 +173,17 @@ export async function deleteSubmission(requestId) {
     method: 'DELETE',
   })
 }
+
+// ── Admin (DEV-62) ───────────────────────────────────────────────────────────
+// Both throw 403 for a non-admin caller — require_admin on the server is the gate,
+// the hidden UI is only presentation.
+
+export async function fetchAccounts() {
+  return _request(`${BASE_URL}/api/admin/users`)
+}
+
+export async function deleteAccount(userId) {
+  return _request(`${BASE_URL}/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  })
+}

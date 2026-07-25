@@ -39,6 +39,24 @@ def get_current_token(
     return credentials.credentials
 
 
+def require_admin(
+    current_user: UserResponse = Depends(get_current_user),
+) -> UserResponse:
+    """Require an admin caller (DEV-62). Raises 403 for a signed-in non-admin.
+
+    This is the real gate — unlike the roadmap, where the SPA holds the rule and
+    the API only checks authentication (docs/adr/0002-roadmap-access.md). The
+    admin surface guards other people's account data, so hiding the UI is
+    presentation only.
+    """
+    if current_user.role != auth_service.ADMIN_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required.",
+        )
+    return current_user
+
+
 def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> UserResponse | None:
