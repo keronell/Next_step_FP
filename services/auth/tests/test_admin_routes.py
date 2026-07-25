@@ -6,7 +6,6 @@ with fakes. The caller's role is injected by patching get_user_from_token —
 the same seam every other auth test uses to stand in for a valid token.
 """
 from datetime import datetime, timezone
-
 import pytest
 from fastapi import status
 
@@ -220,3 +219,128 @@ def test_me_carries_the_role(client, signed_in, supabase):
     r = client.get("/api/auth/me", headers={"Authorization": "Bearer t"})
     assert r.status_code == 200
     assert r.json()["role"] == "admin"
+
+
+# ---------------------------------------------------------------------------
+# The raw GoTrue delete
+# ---------------------------------------------------------------------------
+
+BAD_JWT = (
+    "invalid JWT: unable to parse or verify signature, token is unverifiable: "
+    "error while executing keyfunc: unrecognized JWT kid <nil> for algorithm ES256"
+)
+
+
+def _flaky(fail_times: int, exc_message: str = BAD_JWT):
+    """A callable that raises `exc_message` the first `fail_times` calls, then works."""
+    calls = {"n": 0}
+
+    def call(*a, **k):
+        calls["n"] += 1
+        if calls["n"] <= fail_times:
+            raise RuntimeError(exc_message)
+
+    call.calls = calls
+    return call
+
+
+def test_delete_retries_the_transient_bad_jwt(client, signed_in, supabase):
+    """Supabase 403s ~1 admin request in 4 with an ES256 `bad_jwt`; measured 9/9 of
+    those recover on an immediate retry. Deleting must ride that out, not surface it.
+    """
+    signed_in(_as(ADMIN_ID, "admin"))
+    flaky = _flaky(fail_times=2)
+    supabase.auth.admin.delete_user = flaky
+
+    r = client.delete(f"/api/admin/users/{USER_ID}", headers={"Authorization": "Bearer t"})
+
+    assert r.status_code == status.HTTP_204_NO_CONTENT
+    assert flaky.calls["n"] == 3, "should have retried twice then succeeded"
+
+
+def test_delete_gives_up_after_repeated_bad_jwt(client, signed_in, supabase):
+    """Exhausted retries must read as 502, never 403 — the SPA renders 403 as
+    'Admin access required.', which blames the admin's role for our credential."""
+    signed_in(_as(ADMIN_ID, "admin"))
+    supabase.auth.admin.delete_user = _flaky(fail_times=99)
+
+    r = client.delete(f"/api/admin/users/{USER_ID}", headers={"Authorization": "Bearer t"})
+
+    assert r.status_code == status.HTTP_502_BAD_GATEWAY
+
+
+def test_delete_does_not_retry_a_real_error(client, signed_in, supabase):
+    """Only bad_jwt is transient. A genuine GoTrue error must fail on the first try,
+    or a wrong credential would be retried as though it were flakiness."""
+    signed_in(_as(ADMIN_ID, "admin"))
+    flaky = _flaky(fail_times=99, exc_message="User not found")
+    supabase.auth.admin.delete_user = flaky
+
+    client.delete(f"/api/admin/users/{USER_ID}", headers={"Authorization": "Bearer t"})
+
+    assert flaky.calls["n"] == 1, "a non-bad_jwt error must not be retried"
+
+
+def test_list_retries_the_transient_bad_jwt(client, signed_in, supabase):
+    signed_in(_as(ADMIN_ID, "admin"))
+    users = supabase.auth.admin._users
+    flaky_calls = {"n": 0}
+
+    def flaky_list(page=None, per_page=None):
+        flaky_calls["n"] += 1
+        if flaky_calls["n"] <= 2:
+            raise RuntimeError(BAD_JWT)
+        return users
+
+    supabase.auth.admin.list_users = flaky_list
+    r = client.get("/api/admin/users", headers={"Authorization": "Bearer t"})
+
+    assert r.status_code == status.HTTP_200_OK
+    assert len(r.json()) == 2
+
+
+def test_list_reports_an_exhausted_bad_jwt_as_502(client, signed_in, supabase):
+    """An exhausted credential failure must not surface as 403.
+
+    The SPA renders any 403 from this route as "Admin access required.", so passing
+    it through told the admin their *role* was wrong when the real problem was our
+    credential — the misdirection that hid this bug for an hour.
+    """
+    signed_in(_as(ADMIN_ID, "admin"))
+    supabase.auth.admin.list_users = _flaky(fail_times=99)
+
+    r = client.get("/api/admin/users", headers={"Authorization": "Bearer t"})
+    assert r.status_code == status.HTTP_502_BAD_GATEWAY
+
+
+def test_list_preserves_a_rate_limit(client, signed_in, supabase):
+    """Only bad_jwt gets reclassified. A 429 must keep its own status and contract —
+    collapsing every GoTrue error into 502 would tell the SPA to retry immediately
+    against a server that just asked us to back off."""
+    from supabase_auth.errors import AuthApiError
+
+    signed_in(_as(ADMIN_ID, "admin"))
+
+    def throttled(*a, **k):
+        raise AuthApiError("Too many requests", status.HTTP_429_TOO_MANY_REQUESTS, None)
+
+    supabase.auth.admin.list_users = throttled
+    r = client.get("/api/admin/users", headers={"Authorization": "Bearer t"})
+
+    assert r.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+
+
+def test_delete_passes_a_gotrue_404_through(client, signed_in, supabase):
+    """Deleting an already-gone account stays 404 — _handle_auth_error's pass-through
+    must survive the retry wrapper sitting in front of it."""
+    signed_in(_as(ADMIN_ID, "admin"))
+
+    from supabase_auth.errors import AuthApiError
+
+    def missing(*a, **k):
+        raise AuthApiError("User not found", status.HTTP_404_NOT_FOUND, None)
+
+    supabase.auth.admin.delete_user = missing
+    r = client.delete(f"/api/admin/users/{USER_ID}", headers={"Authorization": "Bearer t"})
+
+    assert r.status_code == status.HTTP_404_NOT_FOUND

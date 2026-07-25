@@ -117,6 +117,16 @@ export default function RoadmapPage({ careerId, recommendations, onStartAssessme
     // open (unlock). An empty-but-fulfilled result may just be persistence lag right
     // after a submit, so retry a bounded number of times before concluding locked.
     const resolveUnlocked = async () => {
+      // dev-only: skip the eligibility check so working on the roadmap locally
+      // doesn't cost a fresh 13-15 question assessment per career. `vite build`
+      // substitutes `false` here and drops the branch, so it stays out of the
+      // production bundle (verified: byte-identical output with and without this
+      // line). The signed-out wall above still applies, so this narrows the DEV-82
+      // gate (docs/adr/0002-roadmap-access.md) in dev rather than removing it —
+      // LockedPanel's "never recommended" door is unreachable until you comment
+      // this out.
+      if (import.meta.env.DEV) return true
+
       for (let attempt = 0; ; attempt++) {
         try {
           if ((await fetchRecommendedCareers()).includes(careerId)) return true

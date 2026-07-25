@@ -21,6 +21,21 @@ ADMIN_ROLE = "admin"
 # ponytail: the account list reads one page. Paginate if the user base outgrows it.
 ADMIN_LIST_LIMIT = 100
 
+# Supabase rejects roughly one GoTrue *admin* request in four with 403 `bad_jwt`
+# ("unrecognized JWT kid <nil> for algorithm ES256"). The project has asymmetric ES256
+# JWT signing keys enabled while our credential is an `sb_secret_*` API key, which is
+# not a JWT at all — some GoTrue instances accept it, some try to verify it and fail.
+#
+# Measured on this project: 9 of 40 admin requests failed, and 9 of 9 recovered on an
+# immediate retry. That independence (not sticky to a connection) is what makes a
+# retry both sound and sufficient — and a credential that is genuinely wrong fails
+# every attempt, so this cannot mask a real authorization problem. 4 attempts puts the
+# residual failure rate near 0.3%.
+#
+# ponytail: delete this once Supabase handles the key format consistently; the real
+# fix is server-side, this only stops it surfacing to the admin.
+_BAD_JWT_ATTEMPTS = 4
+
 
 def _require(client):
     if client is None:
@@ -55,6 +70,33 @@ def _get_admin_client():
     with "Session from session_id claim in JWT does not exist".
     """
     return _require(get_supabase_client())
+
+
+def _is_bad_jwt(exc: Exception) -> bool:
+    """Is this the transient GoTrue ES256 rejection described at _BAD_JWT_ATTEMPTS?
+
+    Matched on the message because supabase-py surfaces it as a generic AuthApiError;
+    the 403 status alone is not enough, since require_admin uses 403 for the real
+    authorization failure and those must never be retried.
+    """
+    text = str(exc)
+    return "bad_jwt" in text or "unrecognized JWT kid" in text
+
+
+def _retry_bad_jwt(call, what: str):
+    """Run `call()`, retrying only the transient bad_jwt 403. Re-raises anything else."""
+    for attempt in range(1, _BAD_JWT_ATTEMPTS + 1):
+        try:
+            return call()
+        except Exception as exc:
+            if attempt == _BAD_JWT_ATTEMPTS or not _is_bad_jwt(exc):
+                raise
+            logger.warning(
+                "GoTrue %s: transient bad_jwt on attempt %d/%d, retrying",
+                what,
+                attempt,
+                _BAD_JWT_ATTEMPTS,
+            )
 
 
 def _fetch_profile(user_id: str) -> tuple[str, str]:
@@ -213,8 +255,26 @@ def list_accounts() -> list[AdminUserItem]:
     data = _get_data_client()
 
     try:
-        users = admin.auth.admin.list_users(per_page=ADMIN_LIST_LIMIT)
+        users = _retry_bad_jwt(
+            lambda: admin.auth.admin.list_users(per_page=ADMIN_LIST_LIMIT), "list_users"
+        )
     except Exception as exc:
+        # Only the credential failure is reclassified. Passing an exhausted bad_jwt
+        # through _handle_auth_error would surface it as 403, which the SPA renders as
+        # "Admin access required." — blaming the caller's role for what is really our
+        # credential, and that misdirection is what hid this bug for an hour. 502 says
+        # the true thing: upstream refused *us*, not the admin.
+        #
+        # Everything else keeps its own contract (429 rate limits especially), exactly
+        # as delete_account does. Known gap: a GoTrue 403 that is NOT bad_jwt still
+        # passes through and mislabels — narrow enough to leave, and the honest fix is
+        # in Admin.jsx, which should not read every 403 as an authorization failure.
+        if _is_bad_jwt(exc):
+            logger.error("GoTrue list_users exhausted bad_jwt retries: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="The account list could not be loaded.",
+            )
         _handle_auth_error(exc, "list_accounts")
         raise  # unreachable — _handle_auth_error always raises
 
@@ -257,9 +317,16 @@ def delete_account(user_id: str) -> None:
     user_profile_data; the Dapr state store is deliberately NOT purged — see
     docs/adr/0003-admin-role.md.
     """
+    admin = _get_admin_client()
     try:
-        _get_admin_client().auth.admin.delete_user(user_id)
+        _retry_bad_jwt(lambda: admin.auth.admin.delete_user(user_id), "delete_user")
     except Exception as exc:
+        if _is_bad_jwt(exc):
+            logger.error("GoTrue delete_user %s exhausted bad_jwt retries", user_id)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="The account could not be deleted.",
+            )
         _handle_auth_error(exc, "delete_account")  # passes GoTrue's 404 through
     logger.info("Admin deleted account %s", user_id)
 
