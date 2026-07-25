@@ -278,9 +278,25 @@ def list_accounts() -> list[AdminUserItem]:
         _handle_auth_error(exc, "list_accounts")
         raise  # unreachable — _handle_auth_error always raises
 
+    # Filtered to the accounts actually being rendered, never the whole table.
+    # PostgREST truncates a response at db-max-rows (1000 by default), so an
+    # unfiltered read would start silently dropping rows once user_profiles outgrows
+    # that — and a listed account missing from the result renders as a plain user with
+    # a blank username, quietly mislabelling an admin as an ordinary one. ADMIN_LIST_LIMIT
+    # keeps this at =<100 ids, comfortably inside one page, and it is the cheaper query
+    # besides. GoTrue and this table are read independently, so nothing guarantees the
+    # first 1000 profile rows cover the page GoTrue returned.
+    user_ids = [str(u.id) for u in users]
+    if not user_ids:
+        return []
+
     try:
         rows = (
-            data.table("user_profiles").select("user_id, username, role").execute().data
+            data.table("user_profiles")
+            .select("user_id, username, role")
+            .in_("user_id", user_ids)
+            .execute()
+            .data
         ) or []
     except Exception as exc:
         # Not degraded to empty profiles: that would render every account as a

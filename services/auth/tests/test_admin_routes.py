@@ -65,11 +65,18 @@ class _FakeTableResult:
 class _FakeTable:
     def __init__(self, rows):
         self._rows = rows
+        self.filtered_ids = None
 
     def select(self, *a, **k):
         return self
 
     def eq(self, *a, **k):
+        return self
+
+    def in_(self, column, values):
+        """Mirror PostgREST: only the requested ids come back."""
+        self.filtered_ids = list(values)
+        self._rows = [r for r in self._rows if r.get(column) in values]
         return self
 
     def execute(self):
@@ -80,9 +87,11 @@ class _FakeClient:
     def __init__(self, users, rows):
         self.auth = type("_A", (), {"admin": _FakeAdminAPI(users)})()
         self._rows = rows
+        self.last_table = None
 
     def table(self, name):
-        return _FakeTable(self._rows)
+        self.last_table = _FakeTable(list(self._rows))
+        return self.last_table
 
 
 @pytest.fixture
@@ -311,6 +320,22 @@ def test_list_reports_an_exhausted_bad_jwt_as_502(client, signed_in, supabase):
 
     r = client.get("/api/admin/users", headers={"Authorization": "Bearer t"})
     assert r.status_code == status.HTTP_502_BAD_GATEWAY
+
+
+def test_list_queries_profiles_only_for_the_listed_accounts(client, signed_in, supabase):
+    """The profile lookup must be filtered to the ids GoTrue returned.
+
+    PostgREST truncates an unfiltered read at db-max-rows (1000 by default), and the
+    two reads are independent — so once user_profiles outgrows that, a listed account
+    missing from the truncated set renders with a blank username and the default role,
+    silently showing an admin as an ordinary user.
+    """
+    signed_in(_as(ADMIN_ID, "admin"))
+    r = client.get("/api/admin/users", headers={"Authorization": "Bearer t"})
+
+    assert r.status_code == status.HTTP_200_OK
+    assert supabase.last_table.filtered_ids is not None, "profile read was unfiltered"
+    assert sorted(supabase.last_table.filtered_ids) == sorted([ADMIN_ID, USER_ID])
 
 
 def test_list_preserves_a_rate_limit(client, signed_in, supabase):
