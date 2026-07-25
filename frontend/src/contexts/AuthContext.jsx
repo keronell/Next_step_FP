@@ -4,7 +4,9 @@ import { claimSessions, getMe, signIn as apiSignIn, signOut as apiSignOut, signU
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)      // { user_id, email, username } or null
+  // { user_id, email, username, role } or null. `role` (DEV-62) is 'user' or
+  // 'admin' — authorization only, never an occupation (CONTEXT.md).
+  const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
 
   // Rehydrate session from localStorage on mount.
@@ -15,7 +17,7 @@ export function AuthProvider({ children }) {
       return
     }
     getMe()
-      .then(setUser)
+      .then((me) => setUser({ ...me, role: me.role ?? 'user' }))
       .catch(() => {
         localStorage.removeItem('nextstep_access_token')
         localStorage.removeItem('nextstep_refresh_token')
@@ -26,7 +28,14 @@ export function AuthProvider({ children }) {
   const _storeTokens = (data) => {
     localStorage.setItem('nextstep_access_token', data.access_token)
     localStorage.setItem('nextstep_refresh_token', data.refresh_token)
-    setUser({ user_id: data.user_id, email: data.email, username: data.username ?? '' })
+    setUser({
+      user_id: data.user_id,
+      email: data.email,
+      username: data.username ?? '',
+      // Defaulted, not assumed: a token response from a pre-DEV-62 backend has no
+      // role, and the safe reading of "unknown" is the unprivileged one.
+      role: data.role ?? 'user',
+    })
   }
 
   const signUp = async (email, password, username) => {

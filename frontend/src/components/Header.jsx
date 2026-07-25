@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Clock, LogOut, Map, Menu, Sparkles, X } from 'lucide-react'
+import { ChevronDown, Clock, LogOut, Map, Menu, Shield, Sparkles, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from './ui/Button.jsx'
 import History from '../pages/History'
@@ -87,6 +87,15 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
   // The shortcut only exists for RETURNING users, so hiding it here costs nothing.
   const midAssessment = phase === 'assessing' || phase === 'profiling'
   const showRoadmapShortcut = roadmapCareerId && !midAssessment
+  // DEV-62: the admin screen replaces the scroll app, so like the roadmap shortcut
+  // it stays hidden mid-run rather than unmounting a half-finished assessment.
+  const showAdminLink = user?.role === 'admin' && !midAssessment
+
+  const goToAdmin = () => {
+    setAccountOpen(false)
+    setMenuOpen(false)
+    navigate('/admin')
+  }
 
   const goToRoadmap = () => {
     setMenuOpen(false)
@@ -290,6 +299,15 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
                             />
                           </div>
                         )}
+                        {showAdminLink && (
+                          <button
+                            onClick={goToAdmin}
+                            className="focus-ring w-full text-left flex items-center gap-2.5 px-4 py-2.5 font-body text-small text-navy/70 hover:text-navy hover:bg-navy/[0.04] transition-colors duration-fast"
+                          >
+                            <Shield size={14} aria-hidden="true" className="text-navy/40" />
+                            Admin
+                          </button>
+                        )}
                         <button
                           onClick={handleSignOut}
                           className="focus-ring w-full text-left flex items-center gap-2.5 px-4 py-2.5 font-body text-small text-navy/70 hover:text-navy hover:bg-navy/[0.04] transition-colors duration-fast"
@@ -415,6 +433,15 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
                         }}
                       />
                     </div>
+                  )}
+                  {showAdminLink && (
+                    <button
+                      onClick={goToAdmin}
+                      className="focus-ring flex items-center gap-2 text-left font-body text-small text-navy/65 hover:text-gold transition-colors duration-fast py-2"
+                    >
+                      <Shield size={13} aria-hidden="true" />
+                      Admin
+                    </button>
                   )}
                   <button
                     onClick={handleSignOut}

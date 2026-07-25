@@ -6,12 +6,20 @@ HTTPException on failure so the caller gets a proper error response.
 from fastapi import HTTPException, status
 
 from common.logging import get_logger
-from common.models.auth import AuthTokenResponse, UserResponse
+from common.models.auth import AdminUserItem, AuthTokenResponse, UserResponse
 from common.supabase_client import get_auth_client, get_supabase_client
 
 logger = get_logger(__name__)
 
 _AUTH_UNAVAILABLE = "Authentication is unavailable — Supabase is not configured."
+
+# DEV-62 roles. Granted by SQL only (`update user_profiles set role='admin' ...`)
+# — no endpoint changes a role, so there is no escalation surface in the API.
+DEFAULT_ROLE = "user"
+ADMIN_ROLE = "admin"
+
+# ponytail: the account list reads one page. Paginate if the user base outgrows it.
+ADMIN_LIST_LIMIT = 100
 
 
 def _require(client):
@@ -49,20 +57,28 @@ def _get_admin_client():
     return _require(get_supabase_client())
 
 
-def _fetch_username(user_id: str) -> str:
-    """Return the username for a user, or '' if no profile row exists yet."""
+def _fetch_profile(user_id: str) -> tuple[str, str]:
+    """Return (username, role) for a user; ('', DEFAULT_ROLE) if no row exists.
+
+    Read on every token verification, so the role is never baked into the JWT:
+    a promotion or demotion in SQL takes effect on the caller's next request.
+    """
     try:
         result = (
             _get_data_client()
             .table("user_profiles")
-            .select("username")
+            .select("username, role")
             .eq("user_id", user_id)
             .execute()
         )
-        return result.data[0]["username"] if result.data else ""
+        if not result.data:
+            return "", DEFAULT_ROLE
+        row = result.data[0]
+        return row.get("username") or "", row.get("role") or DEFAULT_ROLE
     except Exception as exc:
-        logger.warning("Failed to fetch username for %s: %s", user_id, exc)
-        return ""
+        logger.warning("Failed to fetch profile for %s: %s", user_id, exc)
+        # Failing closed on the role: an unreadable profile is never an admin.
+        return "", DEFAULT_ROLE
 
 
 def register(email: str, password: str, username: str) -> AuthTokenResponse:
@@ -132,12 +148,14 @@ def login(email: str, password: str) -> AuthTokenResponse:
                 detail="Sign-in succeeded but no session was returned.",
             )
         user_id = str(user.id)
+        username, role = _fetch_profile(user_id)
         return AuthTokenResponse(
             access_token=session.access_token,
             refresh_token=session.refresh_token,
             user_id=user_id,
             email=user.email,
-            username=_fetch_username(user_id),
+            username=username,
+            role=role,
         )
     except HTTPException:
         raise
@@ -170,7 +188,8 @@ def get_user_from_token(jwt: str) -> UserResponse:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         user_id = str(user.id)
-        return UserResponse(user_id=user_id, email=user.email, username=_fetch_username(user_id))
+        username, role = _fetch_profile(user_id)
+        return UserResponse(user_id=user_id, email=user.email, username=username, role=role)
     except HTTPException:
         raise
     except Exception as exc:
@@ -180,6 +199,69 @@ def get_user_from_token(jwt: str) -> UserResponse:
             detail="Invalid or expired token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def list_accounts() -> list[AdminUserItem]:
+    """Every account, newest first (DEV-62).
+
+    GoTrue is the source of truth for existence and email; user_profiles supplies
+    username and role. An account with no profile row still lists — as a plain
+    user with an empty username — so a half-finished registration stays visible
+    (and therefore deletable) instead of vanishing from the admin's view.
+    """
+    admin = _get_admin_client()
+    data = _get_data_client()
+
+    try:
+        users = admin.auth.admin.list_users(per_page=ADMIN_LIST_LIMIT)
+    except Exception as exc:
+        _handle_auth_error(exc, "list_accounts")
+        raise  # unreachable — _handle_auth_error always raises
+
+    try:
+        rows = (
+            data.table("user_profiles").select("user_id, username, role").execute().data
+        ) or []
+    except Exception as exc:
+        # Not degraded to empty profiles: that would render every account as a
+        # plain user and hide who the admins are — worse than failing loudly.
+        logger.error("Failed to read user_profiles for the account list: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The account list could not be loaded.",
+        )
+
+    profiles = {row["user_id"]: row for row in rows}
+
+    def _item(u) -> AdminUserItem:
+        user_id = str(u.id)
+        profile = profiles.get(user_id) or {}
+        return AdminUserItem(
+            user_id=user_id,
+            email=u.email or "",
+            username=profile.get("username") or "",
+            role=profile.get("role") or DEFAULT_ROLE,
+            created_at=getattr(u, "created_at", None),
+        )
+
+    items = [_item(u) for u in users]
+    return sorted(
+        items,
+        key=lambda i: i.created_at.isoformat() if i.created_at else "",
+        reverse=True,
+    )
+
+
+def delete_account(user_id: str) -> None:
+    """Delete a GoTrue user (DEV-62). Supabase cascades user_profiles and
+    user_profile_data; the Dapr state store is deliberately NOT purged — see
+    docs/adr/0003-admin-role.md.
+    """
+    try:
+        _get_admin_client().auth.admin.delete_user(user_id)
+    except Exception as exc:
+        _handle_auth_error(exc, "delete_account")  # passes GoTrue's 404 through
+    logger.info("Admin deleted account %s", user_id)
 
 
 def _handle_auth_error(exc: Exception, context: str) -> None:
