@@ -14,6 +14,10 @@ _Avoid_: job, role, field
 One completed run of the questionnaire, producing a ranked set of career recommendations.
 _Avoid_: quiz, test, submission
 
+**Recommendation**:
+One of the three careers an assessment matches a user to.
+_Avoid_: result, suggestion, match
+
 **Profile**:
 What a user says about themselves — experience, projects and skills — offered between the assessment and the results. Optional, and English-only.
 _Avoid_: CV, resume, bio
@@ -26,6 +30,10 @@ _Avoid_: missing skill, weakness
 
 **Roadmap**:
 The ordered learning path for one career, made of stages.
+
+**Unlocked**:
+A roadmap is unlocked for a user when they hold a recommendation for its career — only an unlocked roadmap can be opened.
+_Avoid_: gated, entitled, permitted
 
 **Stage**:
 A named, ordered group of nodes within a roadmap — "Foundations", "Gives an Advantage". Nodes within a stage are in learning order; the job-ad stages are the exception, ranked by demand rather than sequenced. Serialized as `sections` on the wire, and referred to as a stage everywhere else.

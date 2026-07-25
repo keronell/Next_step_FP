@@ -158,6 +158,14 @@ export async function fetchMySubmissions() {
   return _request(`${BASE_URL}/api/auth/my-submissions`)
 }
 
+// The career ids the user was ever recommended, UNCAPPED — the roadmap unlock
+// check (DEV-82). Distinct from fetchMySubmissions (capped at 20), which can't
+// answer eligibility for a heavy user's older recommendation. Returns string[].
+export async function fetchRecommendedCareers() {
+  const { careers } = await _request(`${BASE_URL}/api/auth/recommended-careers`)
+  return careers || []
+}
+
 // Delete one of the current user's submissions (auth required; the server enforces
 // that the submission belongs to the caller). Resolves on 204, throws on 4xx/5xx.
 export async function deleteSubmission(requestId) {

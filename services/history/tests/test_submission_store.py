@@ -538,6 +538,43 @@ def test_redelivery_self_heals_partially_deleted_record(store, state):
 
 # ── DEV-75 follow-up: a failed index cleanup must self-heal on redelivery ──────
 
+def test_recommended_career_ids_scans_past_the_history_cap(store):
+    """DEV-82: the roadmap unlock check must see EVERY career the user was ever
+    recommended, not just the newest HISTORY_LIMIT. This is the whole reason the
+    function exists — get_user_submissions caps, so it can't answer eligibility."""
+    from app.services.submission_store import HISTORY_LIMIT
+
+    # One more submission than the history cap, each recommending a distinct career;
+    # the oldest ones fall outside get_user_submissions' window.
+    for i in range(HISTORY_LIMIT + 1):
+        rec = _record(f"r{i}", user_id="u1", created_at=f"2026-07-{i + 1:02d}T10:00:00+00:00")
+        rec["recommendations"] = [{"id": f"career-{i}"}]
+        submission_store.persist_submission(rec)
+
+    capped = {r["recommendations"][0]["id"] for r in submission_store.get_user_submissions("u1")}
+    assert "career-0" not in capped  # the oldest is beyond the cap...
+
+    ids = submission_store.recommended_career_ids("u1")
+    assert ids == {f"career-{i}" for i in range(HISTORY_LIMIT + 1)}  # ...but eligibility sees it
+
+
+def test_recommended_career_ids_unions_all_recs_and_ignores_others(store):
+    submission_store.persist_submission(
+        {**_record("r1", user_id="u1"), "recommendations": [{"id": "frontend"}, {"id": "backend"}]}
+    )
+    submission_store.persist_submission(
+        {**_record("r2", user_id="u1"), "recommendations": [{"id": "backend"}, {"id": "data-analyst"}]}
+    )
+    submission_store.persist_submission(
+        {**_record("r3", user_id="u2"), "recommendations": [{"id": "ux"}]}  # another user
+    )
+    assert submission_store.recommended_career_ids("u1") == {"frontend", "backend", "data-analyst"}
+
+
+def test_recommended_career_ids_empty_for_unknown_user(store):
+    assert submission_store.recommended_career_ids("nobody") == set()
+
+
 def test_redelivery_prunes_index_left_dangling_by_a_failed_purge(store):
     """_purge deletes the record first and cleans indexes best-effort. If that
     cleanup fails the id stays in the index forever: the redelivery path saw the

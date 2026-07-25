@@ -47,6 +47,37 @@ def test_my_submissions_store_error_500(client, as_user, monkeypatch):
     assert r.status_code == 500
 
 
+def test_recommended_careers_requires_auth(client):
+    assert client.get("/api/auth/recommended-careers").status_code in (401, 503)
+
+
+def test_recommended_careers_dapr_disabled_503(client, as_user):
+    assert client.get("/api/auth/recommended-careers", headers=as_user).status_code == 503
+
+
+def test_recommended_careers_returns_sorted_ids(client, as_user, monkeypatch):
+    monkeypatch.setattr(history_routes, "_require_dapr", lambda: None)
+    monkeypatch.setattr(
+        submission_store, "recommended_career_ids", lambda user_id: {"ux", "frontend", "backend"}
+    )
+    r = client.get("/api/auth/recommended-careers", headers=as_user)
+    assert r.status_code == 200
+    # Sorted so the response is deterministic (a set has no order on the wire).
+    assert r.json() == {"careers": ["backend", "frontend", "ux"]}
+
+
+def test_recommended_careers_store_error_500(client, as_user, monkeypatch):
+    from common.dapr import DaprError
+
+    monkeypatch.setattr(history_routes, "_require_dapr", lambda: None)
+    monkeypatch.setattr(
+        submission_store,
+        "recommended_career_ids",
+        lambda user_id: (_ for _ in ()).throw(DaprError("store down")),
+    )
+    assert client.get("/api/auth/recommended-careers", headers=as_user).status_code == 500
+
+
 def test_claim_sessions_success(client, as_user, monkeypatch):
     monkeypatch.setattr(history_routes, "_require_dapr", lambda: None)
     calls = []

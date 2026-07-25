@@ -29,34 +29,49 @@ def test_every_career_has_a_wellformed_roadmap():
         assert len(node_ids) == len(set(node_ids)), f"{cid} has duplicate node ids"
 
 
-def test_roadmap_returns_sections(client):
-    r = client.get("/api/roadmap/frontend")
+def test_roadmap_requires_auth(client):
+    """DEV-82: roadmaps are behind the login wall, like the assessment that leads
+    to them. Both verbs, since the SPA calls the POST and only the GET is guessable."""
+    assert client.get("/api/roadmap/frontend").status_code == 401
+    assert client.post("/api/roadmap/frontend").status_code == 401
+
+
+def test_roadmap_unknown_career_401_before_404(client):
+    """Auth is checked before existence, so an anonymous caller can't probe which
+    career ids are real."""
+    assert client.get("/api/roadmap/not-a-career").status_code == 401
+
+
+def test_roadmap_returns_sections(client, as_user):
+    r = client.get("/api/roadmap/frontend", headers=as_user)
     assert r.status_code == 200
     sections = r.json()["sections"]
     assert isinstance(sections, list) and sections
     assert {"id", "label", "nodes"} <= set(sections[0])
 
 
-def test_roadmap_unknown_career_404(client):
-    r = client.get("/api/roadmap/not-a-career")
+def test_roadmap_unknown_career_404(client, as_user):
+    r = client.get("/api/roadmap/not-a-career", headers=as_user)
     assert r.status_code == 404
 
 
-def test_post_roadmap_returns_the_curated_roadmap(client):
+def test_post_roadmap_returns_the_curated_roadmap(client, as_user):
     r = client.post(
-        "/api/roadmap/frontend", json={"missing_skills": ["GraphQL", "Testing"]}
+        "/api/roadmap/frontend",
+        json={"missing_skills": ["GraphQL", "Testing"]},
+        headers=as_user,
     )
     assert r.status_code == 200
     assert r.json()["sections"]  # same static shape
 
 
-def test_roadmap_is_the_same_for_everyone(client):
+def test_roadmap_is_the_same_for_everyone(client, as_user):
     """There is no personalization left: the POST body is ignored, so callers with
     different context — including the SPA, which now sends NO body at all — get
     byte-identical roadmaps, and they are the curated ones."""
-    a = client.post("/api/roadmap/frontend", json={"missing_skills": ["GraphQL"]})
-    b = client.post("/api/roadmap/frontend", json={})
-    c = client.post("/api/roadmap/frontend")  # exactly what api.js sends now
+    a = client.post("/api/roadmap/frontend", json={"missing_skills": ["GraphQL"]}, headers=as_user)
+    b = client.post("/api/roadmap/frontend", json={}, headers=as_user)
+    c = client.post("/api/roadmap/frontend", headers=as_user)  # exactly what api.js sends now
     assert a.status_code == b.status_code == c.status_code == 200
     assert a.json() == b.json() == c.json() == load_roadmaps()["frontend"]
 
@@ -69,11 +84,11 @@ _FAKE_REQUIREMENTS = {
 }
 
 
-def test_post_roadmap_injects_required_and_advantage_columns():
+def test_post_roadmap_injects_required_and_advantage_columns(as_user):
     app.state.requirements = FakeRequirementsService(_FAKE_REQUIREMENTS)
     try:
         client = TestClient(app)
-        r = client.post("/api/roadmap/frontend", json={"missing_skills": []})
+        r = client.post("/api/roadmap/frontend", json={"missing_skills": []}, headers=as_user)
         assert r.status_code == 200
         sections = {s["id"]: s for s in r.json()["sections"]}
 
@@ -96,14 +111,14 @@ def test_post_roadmap_injects_required_and_advantage_columns():
         app.state.requirements = None
 
 
-def test_post_roadmap_injection_does_not_mutate_cached_roadmap():
+def test_post_roadmap_injection_does_not_mutate_cached_roadmap(as_user):
     """The injected sections must appear exactly once even across repeated requests —
     guards against mutating load_roadmaps()'s shared @lru_cache object."""
     app.state.requirements = FakeRequirementsService(_FAKE_REQUIREMENTS)
     try:
         client = TestClient(app)
-        first = client.post("/api/roadmap/frontend", json={"missing_skills": []}).json()
-        second = client.post("/api/roadmap/frontend", json={"missing_skills": []}).json()
+        first = client.post("/api/roadmap/frontend", json={"missing_skills": []}, headers=as_user).json()
+        second = client.post("/api/roadmap/frontend", json={"missing_skills": []}, headers=as_user).json()
         for body in (first, second):
             ids = [s["id"] for s in body["sections"]]
             assert ids.count("in-demand") == 1
@@ -112,21 +127,26 @@ def test_post_roadmap_injection_does_not_mutate_cached_roadmap():
         app.state.requirements = None
 
 
-def test_post_roadmap_only_required_omits_advantage_column():
+def test_post_roadmap_only_required_omits_advantage_column(as_user):
     app.state.requirements = FakeRequirementsService(
         {"required": [{"skill": "React", "count": 40, "total": 50, "pct": 80}], "advantage": []}
     )
     try:
         client = TestClient(app)
-        ids = [s["id"] for s in client.post("/api/roadmap/frontend", json={"missing_skills": []}).json()["sections"]]
+        ids = [
+            s["id"]
+            for s in client.post(
+                "/api/roadmap/frontend", json={"missing_skills": []}, headers=as_user
+            ).json()["sections"]
+        ]
         assert "in-demand" in ids and "advantage" not in ids
     finally:
         app.state.requirements = None
 
 
-def test_post_roadmap_no_requirements_service_leaves_roadmap_plain(client):
+def test_post_roadmap_no_requirements_service_leaves_roadmap_plain(client, as_user):
     # No requirements source (RAG down / tests): plain roadmap, no injected columns.
-    r = client.post("/api/roadmap/frontend", json={"missing_skills": []})
+    r = client.post("/api/roadmap/frontend", json={"missing_skills": []}, headers=as_user)
     assert r.status_code == 200
     assert all(s["id"] not in ("in-demand", "advantage") for s in r.json()["sections"])
 

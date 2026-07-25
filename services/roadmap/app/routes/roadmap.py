@@ -8,6 +8,13 @@ from app.services.roadmap_service import get_roadmap, inject_requirements
 
 router = APIRouter(prefix="/roadmap")
 
+# DEV-82: every route here is behind the login wall, matching the assessment that
+# leads to them. The API stops at *authentication* — it does not check that the
+# caller was actually recommended this career. That stricter "unlocked" rule
+# (CONTEXT.md) lives in the SPA, which already holds the recommendation; enforcing
+# it here would make every roadmap fetch call history-service. See
+# docs/adr/0002-roadmap-access.md.
+
 
 class ProgressUpdate(BaseModel):
     """The full set of completed node ids for a career roadmap (last-write-wins)."""
@@ -16,8 +23,8 @@ class ProgressUpdate(BaseModel):
 
 
 @router.get("/{career_id}")
-def roadmap(career_id: str) -> dict:
-    """The curated roadmap, bare."""
+def roadmap(career_id: str, _: UserResponse = Depends(get_current_user)) -> dict:
+    """The curated roadmap, bare. Requires auth."""
     data = get_roadmap(career_id)
     if data is None:
         raise HTTPException(status_code=404, detail=f"no roadmap for career '{career_id}'")
@@ -25,7 +32,9 @@ def roadmap(career_id: str) -> dict:
 
 
 @router.post("/{career_id}")
-def roadmap_with_market(career_id: str, request: Request) -> dict:
+def roadmap_with_market(
+    career_id: str, request: Request, _: UserResponse = Depends(get_current_user)
+) -> dict:
     """The curated roadmap enriched with job-ad-derived requirements (DEV-59): an
     'In Demand Now' section of Required/Advantage skills mined from the career field's
     job ads. The requirements source is absent in tests / when the RAG store is down,

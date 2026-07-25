@@ -79,6 +79,28 @@ def my_submissions(
         )
 
 
+@router.get("/recommended-careers")
+def recommended_careers(
+    current_user: UserResponse = Depends(get_current_user),
+) -> dict:
+    """The set of career ids the caller was ever recommended, UNCAPPED (DEV-82).
+    The SPA gates roadmap access on this: my-submissions is capped at HISTORY_LIMIT,
+    so a heavy user's older recommendation would falsely lock a roadmap they earned.
+    Sorted for a deterministic wire response."""
+    _require_dapr()
+    try:
+        careers = submission_store.recommended_career_ids(current_user.user_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Failed to fetch recommended careers for user %s: %s", current_user.user_id, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve recommended careers.",
+        )
+    return {"careers": sorted(careers)}
+
+
 @router.delete("/my-submissions/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_submission(
     request_id: str = Path(pattern=_REQUEST_ID_PATTERN),

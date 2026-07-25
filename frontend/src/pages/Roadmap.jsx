@@ -3,9 +3,6 @@ import { ExternalLink, X, Check, ChevronDown, ChevronRight, Flame, Star } from '
 import { motion, AnimatePresence } from 'framer-motion'
 import { ROADMAPS } from '../data'
 import { fetchRoadmap, fetchRoadmapProgress, saveRoadmapProgress } from '../api'
-import { useAuth } from '../contexts/AuthContext'
-
-const progressKey = (careerId) => `nextstep_roadmap_progress_${careerId}`
 
 // DEV-66: ink for the dotted connectors (rails + stubs). An explicit color-mix
 // rather than `border-gold opacity-60`, because opacity on the grid cell would
@@ -408,43 +405,32 @@ function Roadmap({ selectedCareer, missingSkills = [], matchedSkills = [] }) {
   const [roadmapData, setRoadmapData] = useState(null)
   const [completedNodes, setCompletedNodes] = useState(new Set())
 
-  const { user } = useAuth()
-
-  // Load completed nodes for this career: from Supabase when logged in, else localStorage.
+  // Load completed nodes for this career from Supabase. <Roadmap> only ever mounts
+  // for a signed-in user now (DEV-82: RoadmapPage walls everyone else out), so progress
+  // is always server-backed — no anonymous localStorage path.
   useEffect(() => {
     if (!selectedCareer) { setCompletedNodes(new Set()); return }
     let cancelled = false
-    if (user) {
-      fetchRoadmapProgress(selectedCareer)
-        .then((d) => { if (!cancelled) setCompletedNodes(new Set(d.completed_nodes || [])) })
-        .catch(() => { if (!cancelled) setCompletedNodes(new Set()) })
-    } else {
-      try {
-        const raw = localStorage.getItem(progressKey(selectedCareer))
-        setCompletedNodes(new Set(raw ? JSON.parse(raw) : []))
-      } catch { setCompletedNodes(new Set()) }
-    }
+    fetchRoadmapProgress(selectedCareer)
+      .then((d) => { if (!cancelled) setCompletedNodes(new Set(d.completed_nodes || [])) })
+      .catch(() => { if (!cancelled) setCompletedNodes(new Set()) })
     return () => { cancelled = true }
-  }, [selectedCareer, user])
+  }, [selectedCareer])
 
-  // Toggle one node optimistically, then persist. For logged-in users a failed save
-  // reconciles from the server (the source of truth), so the badge never lies about
-  // what was stored. saveSeq guards against out-of-order results from rapid toggles:
-  // only the latest toggle's reconciliation is applied.
+  // Toggle one node optimistically, then persist. A failed save reconciles from the
+  // server (the source of truth), so the badge never lies about what was stored.
+  // saveSeq guards against out-of-order results from rapid toggles: only the latest
+  // toggle's reconciliation is applied.
   const toggleComplete = (nodeId) => {
     setCompletedNodes((prev) => {
       const next = new Set(prev)
       next.has(nodeId) ? next.delete(nodeId) : next.add(nodeId)
-      if (user) {
-        const seq = ++saveSeqRef.current
-        saveRoadmapProgress(selectedCareer, [...next]).catch(() => {
-          fetchRoadmapProgress(selectedCareer)
-            .then((d) => { if (seq === saveSeqRef.current) setCompletedNodes(new Set(d.completed_nodes || [])) })
-            .catch(() => {})
-        })
-      } else {
-        try { localStorage.setItem(progressKey(selectedCareer), JSON.stringify([...next])) } catch { /* ignore */ }
-      }
+      const seq = ++saveSeqRef.current
+      saveRoadmapProgress(selectedCareer, [...next]).catch(() => {
+        fetchRoadmapProgress(selectedCareer)
+          .then((d) => { if (seq === saveSeqRef.current) setCompletedNodes(new Set(d.completed_nodes || [])) })
+          .catch(() => {})
+      })
       return next
     })
   }
