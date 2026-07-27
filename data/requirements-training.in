@@ -1,0 +1,47 @@
+# Training stack for the Phase 2/3 matcher scripts (data/scripts/evaluate_matchers.py,
+# train_models.py, export_model.py). Compiled to requirements-training.txt with
+#
+#     pip-compile --allow-unsafe --generate-hashes --strip-extras \
+#                 --output-file=data/requirements-training.txt \
+#                 data/requirements-training.in
+#
+# All three flags matter. Without --allow-unsafe, setuptools (a torch runtime
+# dependency on 3.12+) is left unpinned and `pip install --require-hashes` refuses
+# the file. Dropping a flag silently produces a *different* lockfile — which is
+# precisely the drift this file exists to prevent.
+#
+# The result is resolved for ONE platform and interpreter (the header pip-compile
+# writes into the .txt records which). It is a single-machine reproduction
+# guarantee, not a cross-platform one: there are no environment markers and no
+# Linux-only torch CUDA dependencies, so `--require-hashes` will fail elsewhere.
+# Reproducing on another platform means recompiling there and re-running the
+# digest acceptance test to find out whether the numbers still match.
+#
+# Install into a virtualenv of its OWN — never backend/venv, which runs the service
+# test suites. Isolation is what protects the dataset digest: every `pip install`
+# into a shared, loosely-constrained environment is an opportunity to move numpy or
+# pandas under `dataset_digest()`, which hashes feature+label content and is
+# therefore sensitive to dtype promotion and parquet-reader changes alike.
+#
+# The root requirements.txt deliberately does NOT reference this file. Root is
+# entirely unpinned (`numpy>=1.20.0`, `pandas>=2.0.0` — the two packages the digest
+# is most sensitive to), and resolving the pinned training stack in that scope
+# would be worse than leaving it out. Nobody deploying the services needs torch.
+#
+# These versions are not "latest" — they are the set that reproduces the recorded
+# dataset_digest 2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27
+# and the recorded Gate-1 metrics. Changing any of them invalidates that proof:
+# re-run data/scripts/evaluate_matchers.py and confirm the digest before accepting
+# a bump. See docs/dev-23-nn-rework-plan.md Step 1.
+
+# --- digest-relevant: read the parquets and produce the hashed content ---
+numpy==2.4.6
+pandas==2.3.3
+pyarrow==24.0.0
+
+# --- Gate-1 / Gate-2 candidate models ---
+scikit-learn==1.8.0
+lightgbm==4.6.0
+
+# --- neural matcher (Step 2); CPU wheels, no CUDA ---
+torch==2.12.0

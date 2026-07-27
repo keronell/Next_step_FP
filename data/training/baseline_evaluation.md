@@ -11,11 +11,33 @@
 > - Floor-level class representation for game-dev (5 labels) — at or below the 5-label stratified-CV minimum; treat their predictions and metrics as low-confidence.
 > - Over-represented classes: frontend (47/232 rows, 20%) (more than 2x the uniform share). class_weight='balanced' prevents amplification during training, but the label skew remains in the data.
 
-Generated: 2026-07-19T15:58:54Z
+Generated: 2026-07-27T16:52:21Z
 Dataset: 232 rows ({'synthetic': 225, 'real': 7}), feature version `features-v4`,
 labels `panel-v2.1.0`, Chroma snapshot 1853 docs.
 Protocol: stratified 5-fold CV (seed 42); metrics on pooled out-of-fold
 predictions. Both trained scorers use class_weight="balanced".
+
+## Environment
+
+Every number in this report is only comparable to runs from an equivalent
+environment. `dataset_digest` hashes feature and label *content*, so a change to
+any package below can move it — and if it moves, nothing here is comparable to
+recorded history (see docs/dev-23-nn-rework-plan.md Step 1).
+
+- Python: 3.14.0 (cpython) — `3.14.0 (tags/v3.14.0:ebf955d, Oct 7 2025, 10:15:03) [MSC v.1944 64 bit (AMD64)]`
+- Platform: Windows-11-10.0.26200-SP0 (AMD64)
+
+| package | version |
+|---|---|
+| joblib | 1.5.3 |
+| lightgbm | 4.6.0 |
+| numpy | 2.4.6 |
+| pandas | 2.3.3 |
+| pyarrow | 24.0.0 |
+| scikit-learn | 1.8.0 |
+| scipy | 1.18.0 |
+| threadpoolctl | 3.6.0 |
+| torch | 2.12.0 |
 
 ## Comparison (panel agreement is DESCRIPTIVE only — see caveat a)
 

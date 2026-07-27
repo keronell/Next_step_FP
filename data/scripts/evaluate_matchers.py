@@ -39,6 +39,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from dataset_guards import assert_min_class_coverage, dataset_caveats, dataset_digest
+from env_manifest import environment_manifest, manifest_markdown
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -294,6 +295,10 @@ def main() -> None:
         for n in learned
     )
 
+    # Read once and reused for both outputs, so the report and the machine-readable
+    # verdict can never disagree about the environment. See env_manifest.py.
+    env = environment_manifest()
+
     balance_rows = "\n".join(
         f"| {c} | {label_share[c]:.1%} | {pred_share['formula'][c]:.1%} | "
         f"{pred_share['logistic'][c]:.1%} | {pred_share['lightgbm'][c]:.1%} |"
@@ -318,6 +323,7 @@ labels `{", ".join(prompt_versions)}`, Chroma snapshot {meta["chroma_snapshot"][
 Protocol: stratified {N_FOLDS}-fold CV (seed {SEED}); metrics on pooled out-of-fold
 predictions. Both trained scorers use class_weight="balanced".
 
+{manifest_markdown(env)}
 ## Comparison (panel agreement is DESCRIPTIVE only — see caveat a)
 
 | scorer | top-1 | top-2 | top-3 | MRR | balanced top-1 | ECE* | top-2 stability |
@@ -376,6 +382,10 @@ Additional notes:
         "thresholds": {"max_ece": GATE1_MAX_ECE, "min_top2_stability": GATE1_MIN_TOP2_STABILITY},
         "metrics": {n: {"ece": results[n]["ece"], "top2_stability": stability[n]} for n in learned},
         "dataset_digest": digest,
+        # Additive: downstream readers (train_models.py, export_model.py) address
+        # known keys, and a verdict with no environment is a verdict nothing can be
+        # diffed against when a later run disagrees.
+        "environment": env,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }, indent=2), encoding="utf-8")
     print(f"Wrote {OUT_GATE1} (passed={gate1}, qualifiers={qualifiers})")

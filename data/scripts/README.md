@@ -2,6 +2,70 @@
 
 All Python scripts for data collection, labeling, annotation, and validation. Run from the project root.
 
+## Matcher training environment
+
+The Phase 2/3 matcher scripts (`evaluate_matchers.py`, `train_models.py`,
+`export_model.py`) run in a virtualenv of **their own**, built from a hash-pinned
+lockfile:
+
+```bash
+python -m venv data/venv-training
+data/venv-training/bin/python -m pip install --require-hashes -r data/requirements-training.txt
+data/venv-training/bin/python data/scripts/evaluate_matchers.py
+```
+
+(Paths follow the repo's POSIX convention, as in root `CLAUDE.md`. On Windows,
+`Scripts/` replaces `bin/` in every venv path on this page.)
+
+Not `backend/venv` — that one runs the service test suites, so every install into
+it is an opportunity to move `numpy` or `pandas` under `dataset_digest()`, which
+hashes feature and label *content*. Not root `requirements.txt` either: root is
+entirely unpinned (`numpy>=1.20.0`, `pandas>=2.0.0`), and nobody deploying the
+services needs torch.
+
+Three mechanisms, none of them substitutes for the others:
+
+| mechanism | job |
+|---|---|
+| `data/requirements-training.txt` | **prevents** environment drift |
+| `dataset_digest()` (`dataset_guards.py`) | **detects** it |
+| `env_manifest.py`, embedded in every report and verdict | **attributes** a number to an environment |
+
+The lockfile resolves for one platform and interpreter — it is a single-machine
+reproduction guarantee, not a cross-platform one. See the header of
+`requirements-training.in` for what that costs elsewhere.
+
+To change a pin, edit `data/requirements-training.in`, recompile with the exact
+command in its header (all three flags matter — a missing one silently yields a
+different lockfile), then re-run `evaluate_matchers.py` and confirm the digest is
+unmoved. If it moved, no number from that environment is comparable to recorded
+history — re-pin rather than re-baseline silently.
+
+`env_manifest.py` is stdlib-only and its tests run under the service-test venv,
+which proves it adds no dependency to the scripts that import it:
+
+```bash
+backend/venv/bin/python -m pytest data/scripts/tests -q
+```
+
+### Reproduction record (DEV-87, 2026-07-27)
+
+`evaluate_matchers.py` was run **before any manifest wiring existed**, on source
+byte-identical to commit `00ca4af`. It reproduced
+`dataset_digest 2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`
+and the recorded Gate-1 metrics exactly (logistic ECE 0.034099440082920096 /
+stability 0.637516702641587; lightgbm 0.128155228434309 / 0.5566450817144618) —
+`baseline_evaluation.md` came back byte-identical apart from its `Generated:`
+timestamp. The manifest was added only afterwards, and the run was repeated: same
+digest, same metrics, and the report diff is exactly the added `## Environment`
+section. The manifest touches report text and one additive JSON key; it enters no
+computation.
+
+`model_selection.md` / `gate2_winner.json` are wired for the manifest but **not
+regenerated here**: the Gate-2 re-baseline is sequenced after the cross-fitted
+temperature fix (plan Step 4.2, execution-order item 5), and re-running Phase 3
+now would break the recorded Gate-2 numbers ahead of that deliberate break.
+
 ## Pipeline order
 
 ```

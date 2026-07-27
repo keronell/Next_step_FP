@@ -1,6 +1,9 @@
 node_modules/
 backend/node_modules/
 backend/venv/
+# Isolated training stack (data/requirements-training.txt) — kept out of
+# backend/venv so service-test installs can never move numpy under the dataset digest.
+data/venv-training/
 backend/__pycache__/
 backend/**/__pycache__/
 *.pyc

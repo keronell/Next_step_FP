@@ -49,6 +49,16 @@ Sidecar/app pairs share a netns — restart them **together** (`docker compose r
 
 (The pre-split monolith was deleted at cutover — `backend/requirements.txt` remains only to rebuild the test venv.)
 
+Matcher training scripts (`data/scripts/evaluate_matchers.py`, `train_models.py`, `export_model.py`) run in a **separate, hash-pinned venv** — never `backend/venv`, whose installs would move `numpy`/`pandas` under the dataset digest:
+
+```bash
+python -m venv data/venv-training
+data/venv-training/bin/python -m pip install --require-hashes -r data/requirements-training.txt
+data/venv-training/bin/python data/scripts/evaluate_matchers.py   # must reproduce the recorded dataset_digest
+```
+
+Root `requirements.txt` deliberately does not reference it. The recorded digest, how to change a pin, and why the lockfile is single-platform: `data/scripts/README.md`.
+
 ## Branches
 
 Active branches: `main`, `Ronen`, `vlad`. The current SPA frontend came from the `Ronen` redesign; `vlad` contributed the adaptive quiz and data pipeline. When merging frontend work, keep `main` and `Ronen` in sync.

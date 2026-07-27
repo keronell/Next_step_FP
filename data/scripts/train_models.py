@@ -35,6 +35,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from dataset_guards import assert_min_class_coverage, dataset_digest
+from env_manifest import environment_manifest, manifest_markdown
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -415,6 +416,10 @@ def main() -> None:
     f_order = np.argsort(-formula_scores(df, careers), axis=1)
     formula_top2_ref = float(np.mean([y[i] in f_order[i, :2] for i in range(len(y))]))
 
+    # Read once and reused for both outputs, so the report and gate2_winner.json can
+    # never disagree about the environment. See env_manifest.py.
+    env = environment_manifest()
+
     def fmt(name, m):
         return (f"| {name} | {m['top1']:.3f} | {m['top2']:.3f} | {m['top3']:.3f} | "
                 f"{m['mrr']:.3f} | {m['balanced_top1']:.3f} | {m['ece_raw']:.3f} | "
@@ -439,6 +444,7 @@ Phase 2 reference (recomputed on THIS dataset, not hardcoded from a previous run
 production-formula top-2 agreement {formula_top2_ref:.3f}; full Phase-2 comparison
 in baseline_evaluation.md.
 
+{manifest_markdown(env)}
 ## Comparison (pooled out-of-fold)
 
 | model | top-1 | top-2 | top-3 | MRR | balanced top-1 | ECE raw | ECE scaled | T |
@@ -486,6 +492,7 @@ Notes:
         # selection. The digest hashes the actual features+labels content —
         # sidecar metadata alone can't detect a replaced table.
         "dataset_digest": digest,
+        "environment": env,
         "dataset_fingerprint": {"created_at": meta["created_at"], "n_rows": len(df)},
         "gate1": {"passed": gate1["passed"], "qualifiers": gate1.get("qualifiers", [])},
         "metrics": {k: v for k, v in results[winner].items() if k != "per_class"},
