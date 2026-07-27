@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.repositories.career_repository import CareerRepository
 from app.routes import health, internal
-from app.services.matcher_model import MatcherModel, MatcherModelError
+from app.services.matcher import MatcherModelError, load_matcher
 from app.services.rag_service import RagService, RagUnavailableError
 from common.app_factory import create_app
 from common.auth_dep import SAFE_UNAVAILABLE
@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     app.state.matcher_model = None
     if settings.matcher_model_path:
         try:
-            app.state.matcher_model = MatcherModel.load(settings.matcher_model_path)
+            app.state.matcher_model = load_matcher(settings.matcher_model_path)
             logger.info("Learned matcher loaded: %s", app.state.matcher_model.version)
         except MatcherModelError as exc:
             logger.warning("Matcher model unavailable, using formula: %s", exc)

@@ -1,6 +1,6 @@
 """Explainable career matching: learned model when available, formula fallback.
 
-When a MatcherModel artifact is loaded (MATCHER_MODEL_PATH set + valid), scoring is
+When a Matcher artifact is loaded (MATCHER_MODEL_PATH set + valid), scoring is
 its probability output over the catalog careers (trained on synthetic silver labels —
 see docs/matching-rework-plan.md), with attribution-driven reasons. On ANY model
 error — or when no model is configured (the default) — scoring falls back to the
@@ -44,7 +44,7 @@ from common.models.profile import UserProfile
 from common.profile_text import canonical_skills
 from app.repositories.career_repository import CareerCandidate
 from app.services import feature_builder, reason_builder
-from app.services.matcher_model import MatcherModel
+from app.services.matcher import Matcher
 
 logger = get_logger(__name__)
 
@@ -223,7 +223,7 @@ def _reasons(
 def match(
     answers: dict[str, int | None],
     candidates: list[CareerCandidate],
-    model: MatcherModel | None = None,
+    model: Matcher | None = None,
     profile: UserProfile | None = None,
 ) -> list[dict]:
     """Score candidates and return the top N as plain dicts (sorted, deduped).
@@ -268,7 +268,7 @@ def _profile_context(profile: UserProfile | None) -> tuple[bool, set[str]]:
 def _match_model(
     answers: dict[str, int | None],
     candidates: list[CareerCandidate],
-    model: MatcherModel,
+    model: Matcher,
     profile: UserProfile | None = None,
 ) -> list[dict]:
     """Score with the learned artifact; response shape identical to the formula path.

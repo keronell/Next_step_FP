@@ -1,0 +1,86 @@
+"""The dispatch seam between the serving code and whatever artifact it loads.
+
+`matching_service` and `main` depend on the `Matcher` protocol below, never on a
+concrete implementation, so adding a new model family means adding one class that
+satisfies this interface — not rewiring the call sites.
+
+`load_matcher()` is a free function, deliberately: a classmethod that hands back a
+sibling class is a surprise, and dispatch does not belong to any one implementation.
+
+`MatcherModelError` is re-exported here so implementations and callers can import
+the failure mode from the seam. It stays defined in `matcher_model` to avoid an
+import cycle (this module imports the implementations, not the other way round).
+Every failure path raises it, because `main.py` catches exactly that type to fall
+back to the formula — a different exception would take service startup down instead.
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Protocol, runtime_checkable
+
+from app.services.matcher_model import MatcherModel, MatcherModelError
+
+__all__ = ["Matcher", "MatcherModelError", "load_matcher"]
+
+
+@runtime_checkable
+class Matcher(Protocol):
+    """What the serving path requires of a scoring artifact.
+
+    `runtime_checkable` makes `isinstance()` available, but it only checks that
+    the members EXIST — not their types or signatures. Treat it as a smoke test;
+    real conformance is what the behavioural tests assert.
+    """
+
+    #: Feature layout the artifact expects, checked against the candidate careers.
+    feature_names: list[str]
+    #: Artifact identifier, stamped onto every recommendation it scores.
+    version: str
+    #: Training-data warnings, carried through to the response and persisted history.
+    caveats: list[str]
+
+    def predict_proba(self, vector: list[float]) -> dict[str, float]:
+        """Career id -> probability, summing to 1."""
+        ...
+
+    def contributions(self, vector: list[float], career_id: str) -> dict[str, float]:
+        """Feature name -> signed contribution to `career_id`'s logit, centered
+        across classes and on the same scale as the logits behind predict_proba."""
+        ...
+
+
+# Artifact `model_type` -> implementation. New families register here; the NN
+# adapter (DEV-23 step 5.2) is one more entry, not a change to the call sites.
+_IMPLEMENTATIONS: dict[str, type[Matcher]] = {
+    "multinomial_logistic_regression": MatcherModel,
+}
+
+
+def load_matcher(path: str | Path) -> Matcher:
+    """Read the artifact at `path`, dispatch on its `model_type`, and return the
+    matching implementation. Raises MatcherModelError on anything unusable —
+    missing, malformed, unknown family, or built for another feature layout.
+    """
+    p = Path(path)
+    if not p.exists():
+        raise MatcherModelError(f"model artifact not found: {p}")
+    try:
+        artifact = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise MatcherModelError(f"malformed model artifact {p}: {exc}") from exc
+    if not isinstance(artifact, dict):
+        raise MatcherModelError(f"model artifact {p} is not a JSON object")
+
+    model_type = artifact.get("model_type")
+    implementation = _IMPLEMENTATIONS.get(model_type) if isinstance(model_type, str) else None
+    if implementation is None:
+        raise MatcherModelError(
+            f"unsupported model_type {model_type!r} in {p} — known types: "
+            f"{', '.join(sorted(_IMPLEMENTATIONS))}"
+        )
+
+    try:
+        return implementation(artifact)
+    except (KeyError, TypeError) as exc:
+        raise MatcherModelError(f"malformed model artifact {p}: {exc}") from exc

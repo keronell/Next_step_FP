@@ -14,7 +14,33 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.repositories.career_repository import CareerCandidate, FakeCareerRepository  # noqa: E402
+from app.services.feature_builder import FEATURE_VERSION, feature_names  # noqa: E402
 from common.data import load_careers  # noqa: E402
+
+_CAREERS = load_careers()
+_NAMES = feature_names(_CAREERS)
+_CIDS = [c["id"] for c in _CAREERS]
+
+
+def tiny_artifact(**overrides) -> dict:
+    """A structurally valid matcher artifact: zero coefs except +1 on each
+    career's own fit. Shared by the loader and dispatch-seam suites."""
+    coef = [[0.0] * len(_NAMES) for _ in _CIDS]
+    for i, cid in enumerate(_CIDS):
+        coef[i][_NAMES.index(f"{cid}_fit")] = 1.0
+    artifact = {
+        "model_version": "test-v0",
+        "feature_version": FEATURE_VERSION,
+        "feature_names": _NAMES,
+        "careers": _CIDS,
+        "scaler_mean": [0.0] * len(_NAMES),
+        "scaler_scale": [1.0] * len(_NAMES),
+        "coef": coef,
+        "intercept": [0.0] * len(_CIDS),
+        "label_source": "synthetic_llm",
+    }
+    artifact.update(overrides)
+    return artifact
 
 
 @pytest.fixture(autouse=True)
