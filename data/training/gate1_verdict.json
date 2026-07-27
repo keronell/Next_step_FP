@@ -1,7 +1,8 @@
 {
   "passed": true,
   "qualifiers": [
-    "logistic"
+    "logistic",
+    "small_nn"
   ],
   "preferred": "logistic",
   "thresholds": {
@@ -16,6 +17,10 @@
     "lightgbm": {
       "ece": 0.128155228434309,
       "top2_stability": 0.5566450817144618
+    },
+    "small_nn": {
+      "ece": 0.06183095636038942,
+      "top2_stability": 0.6153150375167026
     }
   },
   "dataset_digest": "2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27",
@@ -37,5 +42,13 @@
       "torch": "2.12.0"
     }
   },
-  "created_at": "2026-07-27T16:52:21.289778+00:00"
+  "reported_not_gated": {
+    "small_nn_reseeded_top2_stability": 0.6670161373214101,
+    "reseed_seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "created_at": "2026-07-27T20:48:05.721209+00:00"
 }

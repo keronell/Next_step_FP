@@ -1,10 +1,11 @@
 """Phase 2 of the matching-module rework: baselines + Gate 1.
 
-Evaluates four scorers on the silver-label feature table under stratified 5-fold CV:
+Evaluates five scorers on the silver-label feature table under stratified 5-fold CV:
 
     formula        the current production blend (0.40 fit + 0.40 semantic + 0.20 skill)
     logistic       multinomial logistic regression, class-balanced, standardized
     lightgbm       gradient-boosted trees, class-balanced
+    small_nn       deterministic MLP (nn_model.NNClassifier), class-balanced
     archetype_nn   zero-train cosine to the LLM-panel career archetypes
 
 FRAMING: panel-agreement metrics are **agreement with the synthetic LLM panel**
@@ -20,8 +21,21 @@ what it recommends: mean pairwise Jaccard of the top-2 sets produced by the five
 fold-models over all rows >= GATE1_MIN_TOP2_STABILITY. Beating the formula on
 panel agreement is NOT a criterion.
 
-Output: data/training/baseline_evaluation.md
-Run from repo root: python data/scripts/evaluate_matchers.py
+The neural matcher joins the gate (2026-07-27, plan Step 3.1). Until then its
+rejection was an assertion in a Phase-3 report rather than a gate verdict — the
+candidate list was hardcoded to logistic and lightgbm. It is scored through the
+same cv_oof_and_stability(), the same folds and the same thresholds, with no
+special-casing, and it is fed HARD labels like every other candidate. The
+soft-target variant, which trains on the panel's vote distribution, is a genuinely
+different objective and stays a Gate-2 challenger in train_models.py; the
+asymmetry is handled by the pattern already in the repo, where export revalidates
+the exact shipped configuration against these thresholds.
+
+Run from repo root, in the hash-pinned training venv (see data/scripts/README.md):
+
+    data/venv-training/bin/python data/scripts/evaluate_matchers.py
+
+Outputs: data/training/baseline_evaluation.md, data/training/gate1_verdict.json
 """
 from __future__ import annotations
 
@@ -40,6 +54,7 @@ from sklearn.preprocessing import StandardScaler
 
 from dataset_guards import assert_min_class_coverage, dataset_caveats, dataset_digest
 from env_manifest import environment_manifest, manifest_markdown
+from nn_model import NNClassifier
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -62,6 +77,15 @@ FORMULA_WEIGHTS = {"fit": 0.40, "sem": 0.40, "skill": 0.20}
 # recommendation stability, replacing the circular beats-the-formula criterion.
 GATE1_MAX_ECE = 0.10
 GATE1_MIN_TOP2_STABILITY = 0.60
+
+# The Gate-1 candidate list. Trained scorers only — the static scorers below are
+# training-free and are reported for reference, never gated.
+LEARNED = ("logistic", "lightgbm", "small_nn")
+
+# Seeds for the REPORTED-ONLY reseeded-stability number (see reseeded_stability).
+# Three of them, matching INNER_SPLITS, so the two stability numbers are each a
+# mean over three pairwise comparisons per fold and are read at the same precision.
+RESEED_SEEDS = (SEED, SEED + 1, SEED + 2)
 
 
 def load_data():
@@ -150,13 +174,69 @@ def rank_metrics(scores: np.ndarray, y_idx: np.ndarray, probs: np.ndarray, n_cla
 INNER_SPLITS = 3  # stability sub-splits; floor class has ~4 members per outer training partition
 
 
+def _top2_sets(estimator, X_te: np.ndarray) -> np.ndarray:
+    """The two careers an estimator would recommend for each row — the product,
+    and the thing both stability numbers below are agreement over."""
+    return np.argsort(-estimator.predict_proba(X_te), axis=1)[:, :2]
+
+
+def _pairwise_top2_jaccard(top2_sets: list[np.ndarray]) -> list[float]:
+    """Mean per-row top-2 Jaccard for every unordered pair of sub-models.
+
+    One definition, shared by the gated stability number and the reported-only
+    reseeded one, so the two can never measure subtly different quantities and be
+    compared as if they did not."""
+    scores: list[float] = []
+    for i in range(len(top2_sets)):
+        for j in range(i + 1, len(top2_sets)):
+            a, b = top2_sets[i], top2_sets[j]
+            inter = np.array([len(set(a[r]) & set(b[r])) for r in range(len(a))], dtype=float)
+            union = np.array([len(set(a[r]) | set(b[r])) for r in range(len(a))], dtype=float)
+            scores.append(float((inter / union).mean()))
+    return scores
+
+
+def assert_deterministic(name: str, estimator_factory, X, y) -> None:
+    """Fit twice on identical data and require bit-identical predict_proba.
+
+    A PRECONDITION of the stability number, not a nicety. cv_oof_and_stability()
+    attributes all disagreement between sub-models to the training subset they
+    saw. That reading is only valid for an estimator whose refits on identical
+    data agree; for one that does not, the number silently mixes in the
+    estimator's own randomness, and it would be scored on a strictly noisier
+    basis than its competitors. Gate 1's stability threshold must not fire on that
+    artifact, so this runs for every candidate before any stability number is
+    computed."""
+    first = estimator_factory().fit(X, y).predict_proba(X)
+    second = estimator_factory().fit(X, y).predict_proba(X)
+    if not np.array_equal(first, second):
+        disagreeing = int((~np.all(first == second, axis=1)).sum())
+        raise SystemExit(
+            f"Determinism check FAILED for '{name}': two fits on identical data "
+            f"disagree on {disagreeing}/{len(first)} rows (max abs difference "
+            f"{float(np.abs(first - second).max()):.3e}). Its top-2 stability would "
+            "measure the estimator's own randomness on top of the training-subset "
+            "variation the gate intends to measure, so it is not comparable with "
+            "the other candidates' and the Gate-1 stability floor must not be "
+            "evaluated against it. Fix the estimator's seeding (nn_model.py wires "
+            "random_state through every generator a fit draws from) before "
+            "trusting any number from this run."
+        )
+
+
 def cv_oof_and_stability(X, y, estimator_factory, n_classes):
     """Pooled OOF probabilities + leakage-free top-2 stability for ONE trained
     scorer configuration. Stability sub-models train on inner resamples of each
     outer training partition and are compared only on that fold's test rows.
     Shared with export_model.py, which revalidates the EXACT exported
     hyperparameter configuration against the Gate-1 thresholds — qualification
-    never transfers between configurations unchecked."""
+    never transfers between configurations unchecked.
+
+    The number this returns is only interpretable for an estimator whose refits on
+    identical data agree; it reads ALL sub-model disagreement as training-subset
+    variation. main() establishes that with assert_deterministic() before calling
+    this. A new caller must do the same — the precondition belongs to the number,
+    not to this function's implementation."""
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
     oof = np.zeros((len(y), n_classes))
     pair_scores: list[float] = []
@@ -167,14 +247,50 @@ def cv_oof_and_stability(X, y, estimator_factory, n_classes):
         for sub_tr, _ in inner.split(X[tr_idx], y[tr_idx]):
             idx = tr_idx[sub_tr]
             sub = estimator_factory().fit(X[idx], y[idx])
-            sub_top2.append(np.argsort(-sub.predict_proba(X[te_idx]), axis=1)[:, :2])
-        for i in range(len(sub_top2)):
-            for j in range(i + 1, len(sub_top2)):
-                a, b = sub_top2[i], sub_top2[j]
-                inter = np.array([len(set(a[r]) & set(b[r])) for r in range(len(a))], dtype=float)
-                union = np.array([len(set(a[r]) | set(b[r])) for r in range(len(a))], dtype=float)
-                pair_scores.append(float((inter / union).mean()))
+            if sub.predict_proba(X[te_idx]).shape[1] != n_classes:
+                raise SystemExit(
+                    f"A stability sub-model emitted "
+                    f"{sub.predict_proba(X[te_idx]).shape[1]} probability columns, "
+                    f"expected {n_classes}: a class is missing from an inner resample, "
+                    "so its top-2 column indices no longer mean the same careers as "
+                    "the other sub-models'. The Jaccard below would silently compare "
+                    "mislabelled sets. Raise the per-career label floor "
+                    "(dataset_guards.MIN_LABELS_PER_CAREER) rather than reading this "
+                    "run's stability."
+                )
+            sub_top2.append(_top2_sets(sub, X[te_idx]))
+        pair_scores.extend(_pairwise_top2_jaccard(sub_top2))
     return oof, float(np.mean(pair_scores))
+
+
+def reseeded_stability(X, y, estimator_factory_for_seed, seeds=RESEED_SEEDS) -> float:
+    """Top-2 agreement across refits that differ ONLY in seed. REPORTED, NEVER GATED.
+
+    The exact complement of cv_oof_and_stability()'s number: there the seed is held
+    fixed and the training subset varies, here the subset is held fixed and the seed
+    varies. For the two to be *comparable* rather than merely adjacent, everything
+    else has to match — so this reuses the same outer folds, the same inner splits,
+    and therefore the same training-partition SIZE. Refitting on the full outer
+    training partition instead would be the cheaper implementation and a misleading
+    number: it would differ from the gated one in training-set size as well as in
+    what varies, and the report invites the reader to compare them directly.
+
+    Kept out of the gate deliberately. Folding seed sensitivity into the gated
+    number would penalise the network for a property logistic and lightgbm are never
+    measured on; dropping it would hide a real property of the architecture — how
+    much of a user's recommendation depends on where training happened to start."""
+    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
+    pair_scores: list[float] = []
+    for tr_idx, te_idx in skf.split(X, y):
+        inner = StratifiedKFold(n_splits=INNER_SPLITS, shuffle=True, random_state=SEED)
+        for sub_tr, _ in inner.split(X[tr_idx], y[tr_idx]):
+            idx = tr_idx[sub_tr]
+            reseeded = [
+                _top2_sets(estimator_factory_for_seed(s).fit(X[idx], y[idx]), X[te_idx])
+                for s in seeds
+            ]
+            pair_scores.extend(_pairwise_top2_jaccard(reseeded))
+    return float(np.mean(pair_scores))
 
 
 def make_logistic():
@@ -190,6 +306,23 @@ def make_lightgbm():
         subsample=0.9, colsample_bytree=0.8, class_weight="balanced",
         random_state=SEED, verbose=-1,
     )
+
+
+def make_small_nn(random_state: int = SEED):
+    """Gate-1 configuration of the neural matcher: V0 defaults, hard labels, and a
+    fixed random_state — see nn_model.NNClassifier on why the seed is explicit.
+
+    The seed is a parameter so reseeded_stability() varies exactly this
+    configuration. A second construction site would let the gated and reported
+    numbers describe different networks while being printed side by side."""
+    return NNClassifier(random_state=random_state)
+
+
+LEARNED_FACTORIES = {
+    "logistic": make_logistic,
+    "lightgbm": make_lightgbm,
+    "small_nn": make_small_nn,
+}
 
 
 def main() -> None:
@@ -247,15 +380,36 @@ def main() -> None:
     # (identical folds via the fixed seed), which also measures leakage-free
     # top-2 stability.
     oof_scores = {name: s.copy() for name, s in static_scores.items()}
+
+    # Determinism BEFORE stability, for every candidate — the gated stability
+    # number reads all sub-model disagreement as training-subset variation, and
+    # that reading is only valid for estimators whose refits agree. Running this
+    # first means the Gate-1 stability floor can never fire on a measurement
+    # artifact (plan Step 3.2). It fails the run rather than warning: a stability
+    # number nobody can interpret is worse than no number.
+    print(f"determinism check ({', '.join(LEARNED)}) ...")
+    for name in LEARNED:
+        assert_deterministic(name, LEARNED_FACTORIES[name], X, y)
+
     stability = {}
-    oof_scores["logistic"], stability["logistic"] = cv_oof_and_stability(X, y, make_logistic, n_classes)
-    oof_scores["lightgbm"], stability["lightgbm"] = cv_oof_and_stability(X, y, make_lightgbm, n_classes)
+    for name in LEARNED:
+        print(f"{name}: OOF + top-2 stability ...")
+        oof_scores[name], stability[name] = cv_oof_and_stability(
+            X, y, LEARNED_FACTORIES[name], n_classes
+        )
+
+    # Reported, never gated — see reseeded_stability(). Only the network has a seed
+    # whose variation is worth reporting: logistic and lightgbm at these settings
+    # are seed-insensitive, which is exactly why the gated number is comparable
+    # across all three.
+    print("small_nn: reseeded stability (reported, not gated) ...")
+    nn_reseeded_stability = reseeded_stability(X, y, make_small_nn)
 
     results = {}
     for name, s in oof_scores.items():
         # Trained models already emit probabilities; static scorers get a softmax
         # so ECE is computable (flagged as pseudo-probabilities in the report).
-        probs = s if name in ("logistic", "lightgbm") else softmax(s * 10.0)
+        probs = s if name in LEARNED else softmax(s * 10.0)
         results[name] = rank_metrics(s, y, probs, n_classes)
 
     # ---- report
@@ -281,27 +435,30 @@ def main() -> None:
     # existential — it passes if ANY learned model clears both thresholds; the
     # preferred candidate is the best-calibrated of the qualifiers (falling back to
     # best-calibrated overall for reporting when none qualify).
-    learned = ("logistic", "lightgbm")
-    qualifiers = [n for n in learned
+    qualifiers = [n for n in LEARNED
                   if results[n]["ece"] <= GATE1_MAX_ECE and stability[n] >= GATE1_MIN_TOP2_STABILITY]
     gate1 = bool(qualifiers)
-    best_learned = min(qualifiers or learned, key=lambda n: results[n]["ece"])
+    best_learned = min(qualifiers or LEARNED, key=lambda n: results[n]["ece"])
     best_ece = results[best_learned]["ece"]
     best_stab = stability[best_learned]
     gate_rows = "\n".join(
         f"| {n} | {results[n]['ece']:.3f} | {'yes' if results[n]['ece'] <= GATE1_MAX_ECE else 'NO'} | "
         f"{stability[n]:.3f} | {'yes' if stability[n] >= GATE1_MIN_TOP2_STABILITY else 'NO'} | "
         f"{'QUALIFIES' if n in qualifiers else '—'} |"
-        for n in learned
+        for n in LEARNED
     )
 
     # Read once and reused for both outputs, so the report and the machine-readable
     # verdict can never disagree about the environment. See env_manifest.py.
     env = environment_manifest()
 
+    # Columns are derived from the scorers actually evaluated — a hardcoded header
+    # silently drops a candidate the moment one is added.
+    balance_scorers = ["formula", *LEARNED]
+    balance_header = " | ".join(f"{n} pred" for n in balance_scorers)
     balance_rows = "\n".join(
-        f"| {c} | {label_share[c]:.1%} | {pred_share['formula'][c]:.1%} | "
-        f"{pred_share['logistic'][c]:.1%} | {pred_share['lightgbm'][c]:.1%} |"
+        f"| {c} | {label_share[c]:.1%} | "
+        + " | ".join(f"{pred_share[n][c]:.1%}" for n in balance_scorers) + " |"
         for c in careers
     )
 
@@ -321,7 +478,7 @@ Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 Dataset: {len(df)} rows ({meta["rows_by_source"]}), feature version `{meta["feature_version"]}`,
 labels `{", ".join(prompt_versions)}`, Chroma snapshot {meta["chroma_snapshot"]["document_count"]} docs.
 Protocol: stratified {N_FOLDS}-fold CV (seed {SEED}); metrics on pooled out-of-fold
-predictions. Both trained scorers use class_weight="balanced".
+predictions. All three trained scorers use class_weight="balanced".
 
 {manifest_markdown(env)}
 ## Comparison (panel agreement is DESCRIPTIVE only — see caveat a)
@@ -332,15 +489,23 @@ predictions. Both trained scorers use class_weight="balanced".
 {fmt_row("archetype_nn (zero-train)", results["archetype_nn"])} 1.000** |
 {fmt_row("logistic (balanced)", results["logistic"])} {stability["logistic"]:.3f} |
 {fmt_row("lightgbm (balanced)", results["lightgbm"])} {stability["lightgbm"]:.3f} |
+{fmt_row("small_nn (balanced, hard labels)", results["small_nn"])} {stability["small_nn"]:.3f} |
 
 *ECE for `formula` and `archetype_nn` is computed on softmax-normalized scores
 (pseudo-probabilities) — directional only. Trained models emit real probabilities.
 **Static scorers involve no training, so resampling stability is 1.0 by construction.
 
+`small_nn` is scored here on **hard labels**, like every other gate candidate, so
+the comparison is like-for-like. The soft-target variant that trains on the panel's
+vote distribution is a different objective and remains a Gate-2 challenger in
+`train_models.py`; qualification earned here would not transfer to it, which is why
+`export_model.py` revalidates the exact shipped configuration against these same
+thresholds rather than inheriting a verdict.
+
 ## Class balance: label share vs predicted share (over-prediction check)
 
-| career | label share | formula pred | logistic pred | lightgbm pred |
-|---|---|---|---|---|
+| career | label share | {balance_header} |
+|---|---|{"---|" * len(balance_scorers)}
 {balance_rows}
 
 ## Per-class top-1 recall
@@ -364,6 +529,37 @@ The old criterion ("beat the formula on panel agreement") is reported above for
 transparency but is not meaningful under key-anchored labeling — a model wins it by
 learning the bonus table (see caveat a).
 
+### Determinism precondition (passed — otherwise this report would not exist)
+
+Every **trained** candidate above ({", ".join(f"`{n}`" for n in LEARNED)}) was fitted
+twice on identical data and required to produce bit-identical probabilities before
+any stability number was computed. (`formula` and `archetype_nn` are training-free,
+so there is nothing to check.) The gated stability column reads all sub-model
+disagreement as training-subset variation; for an estimator whose own refits
+disagree, that reading is false and the number would be strictly noisier than its
+competitors'. The run aborts rather than reporting a stability figure the Gate-1
+{GATE1_MIN_TOP2_STABILITY} stability threshold could then fire on as a measurement artifact.
+
+### Reseeded stability of `small_nn` — reported, NOT gated
+
+**{nn_reseeded_stability:.3f}** — mean pairwise top-2 Jaccard across
+{len(RESEED_SEEDS)} refits that differ **only** in `random_state`. Compare against its
+gated **{stability["small_nn"]:.3f}**, where the seed is fixed and the training subset
+varies instead.
+
+The two are computed over the same outer folds, the same inner resamples and the
+same test rows, so they differ in **what varies and nothing else** — seed at fixed
+subset here, subset at fixed seed there. That matching is what makes the
+side-by-side reading legitimate: refitting these on the full training partition
+would have been cheaper and would have confounded seed sensitivity with a larger
+training set.
+
+The reseeded number is deliberately kept out of the gate. Folding seed sensitivity
+into it would penalise the network for a property logistic and lightgbm are never
+measured on, and the comparison between models would stop being like-for-like.
+Dropping it would hide a real property of the architecture: how much of a user's
+recommendation depends on where training happened to start.
+
 Additional notes:
 - {len(df[df.profile_source == "real"])} real profiles ride along in the pool; far too few
   for a separate evaluation slice.
@@ -380,12 +576,20 @@ Additional notes:
         "qualifiers": qualifiers,
         "preferred": best_learned if gate1 else None,
         "thresholds": {"max_ece": GATE1_MAX_ECE, "min_top2_stability": GATE1_MIN_TOP2_STABILITY},
-        "metrics": {n: {"ece": results[n]["ece"], "top2_stability": stability[n]} for n in learned},
+        "metrics": {n: {"ece": results[n]["ece"], "top2_stability": stability[n]} for n in LEARNED},
         "dataset_digest": digest,
         # Additive: downstream readers (train_models.py, export_model.py) address
         # known keys, and a verdict with no environment is a verdict nothing can be
         # diffed against when a later run disagrees.
         "environment": env,
+        # Deliberately OUTSIDE "metrics", and named for what it is: nothing may
+        # gate on this. Seed sensitivity is a real property of the network, but it
+        # is one logistic and lightgbm are never measured on, so admitting it into
+        # the gated comparison would stop that comparison being like-for-like.
+        "reported_not_gated": {
+            "small_nn_reseeded_top2_stability": nn_reseeded_stability,
+            "reseed_seeds": list(RESEED_SEEDS),
+        },
         "created_at": datetime.now(timezone.utc).isoformat(),
     }, indent=2), encoding="utf-8")
     print(f"Wrote {OUT_GATE1} (passed={gate1}, qualifiers={qualifiers})")

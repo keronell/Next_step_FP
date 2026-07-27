@@ -4,17 +4,33 @@ Trains three challengers against the Phase 2 baselines, same outer 5-fold protoc
 
     gbt_tuned      LightGBM with per-fold inner 3-fold grid selection (nested CV)
     logistic_tuned logistic regression with inner C selection (nested CV)
-    small_nn       torch MLP 38->64->32->6, soft targets from panel votes,
-                   class-weighted, dropout + weight decay + early stopping
+    small_nn       nn_model.NNClassifier (MLP 84->64->32->16 at features-v4), soft
+                   targets from panel votes, class-weighted, dropout + weight decay
+                   + early stopping
     two_tower      user tower MLP -> 32-dim; career tower = linear map of the mean
                    panel archetype answers; softmax over scaled cosine similarities
+
+`small_nn` is imported from `nn_model`, the same definition Gate 1 scores in
+evaluate_matchers.py — the network used to be declared inline here, so "the NN"
+meant whatever this file happened to do and the two gates could not be talking
+about the same object. The only difference between the two gates' use of it is the
+target: Gate 1 feeds hard labels like every other candidate, Gate 2 additionally
+passes the panel's vote distribution as soft targets.
+
+NOTE (2026-07-27): sharing the module re-seeds the network from `random_state` on
+every fit, where previously each fold inherited whatever state the process-global
+torch RNG had accumulated. `small_nn`'s recorded Gate-2 numbers therefore no longer
+describe this code. They are re-baselined together with the cross-fitted
+temperature fix (plan Step 4.2, execution-order item 5) rather than piecemeal here.
 
 Gate 2: winner by pooled out-of-fold top-2 agreement, tie-broken by ECE after
 temperature scaling. FRAMING: all metrics are agreement with the synthetic LLM
 panel (silver labels), not expert-validated accuracy.
 
 Outputs: data/training/model_selection.md, data/training/gate2_winner.json
-Run from repo root: python data/scripts/train_models.py
+Run from repo root, in the hash-pinned training venv (data/scripts/README.md):
+
+    data/venv-training/bin/python data/scripts/train_models.py
 """
 from __future__ import annotations
 
@@ -36,6 +52,7 @@ from sklearn.preprocessing import StandardScaler
 
 from dataset_guards import assert_min_class_coverage, dataset_digest
 from env_manifest import environment_manifest, manifest_markdown
+from nn_model import NNClassifier, class_weights
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -92,12 +109,6 @@ def load_data():
         for cid in careers
     ])
     return df, X, y, soft, careers, arch_mat, meta
-
-
-def class_weights(y: np.ndarray, n_classes: int) -> np.ndarray:
-    counts = np.bincount(y, minlength=n_classes).astype(float)
-    w = counts.sum() / np.maximum(counts, 1) / n_classes
-    return w
 
 
 # ---------------------------------------------------------------- metrics
@@ -212,63 +223,9 @@ def oof_logistic_tuned(X, y):
     return oof, chosen
 
 
-# ---------------------------------------------------------------- 3b small NN (soft targets)
-class SmallNN(nn.Module):
-    def __init__(self, d_in: int, n_classes: int):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(d_in, 64), nn.ReLU(), nn.Dropout(0.3),
-            nn.Linear(64, 32), nn.ReLU(), nn.Dropout(0.3),
-            nn.Linear(32, n_classes),
-        )
-
-    def forward(self, x):
-        return self.net(x)
-
-
-def train_nn_fold(Xtr, soft_tr, ytr, Xte, n_classes):
-    # Standardize on train stats only.
-    mu, sd = Xtr.mean(0), Xtr.std(0) + 1e-8
-    Xtr_s, Xte_s = (Xtr - mu) / sd, (Xte - mu) / sd
-    itr, ival = train_test_split(
-        np.arange(len(Xtr_s)), test_size=0.15, stratify=ytr, random_state=SEED
-    )
-    w = class_weights(ytr, n_classes)
-    sample_w = torch.tensor(w[ytr], dtype=torch.float32)
-
-    model = SmallNN(Xtr.shape[1], n_classes)
-    opt = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    Xt = torch.tensor(Xtr_s)
-    St = torch.tensor(soft_tr)
-
-    def loss_on(idx, training):
-        model.train(training)
-        logits = model(Xt[idx])
-        logp = torch.log_softmax(logits, dim=1)
-        # soft-target cross-entropy, class-weighted per sample
-        per = -(St[idx] * logp).sum(dim=1) * sample_w[idx]
-        return per.mean()
-
-    best_state, best_val, patience = None, np.inf, 0
-    for epoch in range(400):
-        perm = torch.randperm(len(itr))
-        for b in perm.split(32):
-            opt.zero_grad()
-            loss = loss_on(torch.tensor(itr)[b], training=True)
-            loss.backward()
-            opt.step()
-        with torch.no_grad():
-            val = float(loss_on(torch.tensor(ival), training=False))
-        if val < best_val - 1e-4:
-            best_val, best_state, patience = val, {k: v.clone() for k, v in model.state_dict().items()}, 0
-        else:
-            patience += 1
-            if patience >= 30:
-                break
-    model.load_state_dict(best_state)
-    model.eval()
-    with torch.no_grad():
-        return torch.softmax(model(torch.tensor(Xte_s)), dim=1).numpy()
+# (3b small NN — the network lives in nn_model.py, shared with Gate 1. Its
+# standardization, class weighting, validation split and early stopping moved
+# there with it; the only thing this file supplies is the soft-target matrix.)
 
 
 # ---------------------------------------------------------------- 3c two-tower
@@ -358,7 +315,14 @@ def main() -> None:
     print("3b: small NN (soft targets) ...")
     oof_nn = np.zeros((len(y), n_classes))
     for tr, te in outer.split(X, y):
-        oof_nn[te] = train_nn_fold(X[tr], soft[tr], y[tr], X[te], n_classes)
+        # y[tr] is still required alongside the soft targets: it supplies the class
+        # weights and stratifies the early-stopping split, so this fold differs
+        # from the Gate-1 fit only in what the loss is measured against.
+        oof_nn[te] = (
+            NNClassifier(random_state=SEED)
+            .fit(X[tr], y[tr], soft_targets=soft[tr])
+            .predict_proba(X[te])
+        )
 
     print("3c: two-tower (archetype-seeded) ...")
     oof_tt = np.zeros((len(y), n_classes))

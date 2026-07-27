@@ -5,8 +5,8 @@ All Python scripts for data collection, labeling, annotation, and validation. Ru
 ## Matcher training environment
 
 The Phase 2/3 matcher scripts (`evaluate_matchers.py`, `train_models.py`,
-`export_model.py`) run in a virtualenv of **their own**, built from a hash-pinned
-lockfile:
+`export_model.py`, and the shared `nn_model.py` they both import) run in a
+virtualenv of **their own**, built from a hash-pinned lockfile:
 
 ```bash
 python -m venv data/venv-training
@@ -48,6 +48,22 @@ which proves it adds no dependency to the scripts that import it:
 backend/venv/bin/python -m pytest data/scripts/tests -q
 ```
 
+`test_nn_model.py` needs torch, so it skips there and runs in the training venv
+instead:
+
+```bash
+data/venv-training/bin/python -m pip install pytest   # test tooling, see below
+data/venv-training/bin/python -m pytest data/scripts/tests -q
+```
+
+**pytest is deliberately not in `requirements-training.txt`.** The lockfile's job
+is to make the numbers reproducible, and a test runner is not part of producing
+them — pinning it would put an unrelated dependency tree (and its future
+resolution) inside the guarantee that protects the dataset digest. It is installed
+separately, and installing it moves none of the pinned packages (verified: numpy
+2.4.6, pandas 2.3.3, pyarrow 24.0.0, scikit-learn 1.8.0, lightgbm 4.6.0, torch
+2.12.0 unchanged before and after).
+
 ### Reproduction record (DEV-87, 2026-07-27)
 
 `evaluate_matchers.py` was run **before any manifest wiring existed**, on source
@@ -65,6 +81,40 @@ computation.
 regenerated here**: the Gate-2 re-baseline is sequenced after the cross-fitted
 temperature fix (plan Step 4.2, execution-order item 5), and re-running Phase 3
 now would break the recorded Gate-2 numbers ahead of that deliberate break.
+
+### Reproduction record (DEV-90, 2026-07-27)
+
+Adding the neural matcher to the Gate-1 candidate list must change what is
+*measured*, never what the measurement is computed on. It didn't:
+
+- `dataset_digest` still
+  `2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`.
+- `logistic` ECE `0.034099440082920096` / stability `0.637516702641587` and
+  `lightgbm` `0.128155228434309` / `0.5566450817144618` reproduced to the last
+  digit — the incumbents' entries in `gate1_verdict.json` are bit-identical to the
+  DEV-87 run.
+- `gate1_verdict.json` gained a `small_nn` entry under `metrics` and one additive
+  top-level key, `reported_not_gated`. No key was removed or reshaped.
+
+`small_nn` **qualified**: ECE 0.062 (floor 0.10), top-2 stability 0.615 (floor
+0.60). That is the first time it has been scored by the gate at all rather than
+asserted about in a Phase-3 report — but note it clears stability by 0.015, and it
+is the *ranking* that is the product, so treat the margin as thin until the sweep
+(execution-order item 6) reports seed variance around it. Qualified is also only
+the first of the four states in `CONTEXT.md`: it says nothing about Selected,
+Servable or Deployable.
+
+Its reseeded stability — reported, never gated — is **0.667**, measured on the same
+outer folds, inner resamples and test rows as the gated 0.615 so the two differ in
+what varies and nothing else. Measuring it on the *full* outer training partition
+instead reads 0.706, and that number is wrong to print beside the gated one: the
+0.04 gap is partly the larger training set, not seed robustness. Nearly three times
+the margin by which the model clears the floor.
+
+`small_nn`'s Gate-**2** numbers in `model_selection.md` are now stale: sharing
+`nn_model.py` re-seeds the network per fit, where the inline version inherited
+accumulated process-global torch RNG state. They are re-baselined with the
+cross-fitted temperature, not piecemeal.
 
 ## Pipeline order
 
