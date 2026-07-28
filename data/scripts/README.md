@@ -116,6 +116,60 @@ the margin by which the model clears the floor.
 accumulated process-global torch RNG state. They are re-baselined with the
 cross-fitted temperature, not piecemeal.
 
+### Reproduction record (DEV-91, 2026-07-28)
+
+The cross-fitted-temperature fix and the one-time Gate-2 re-baseline. This is the
+first record here where numbers are *supposed* to move, so it is split in two.
+
+**Unmoved, verified rather than asserted.** `evaluate_matchers.py` was re-run on
+unchanged code before the fix and reproduced everything to the last digit: digest
+`2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`, `logistic`
+ECE `0.034099440082920096` / stability `0.637516702641587`, `lightgbm`
+`0.128155228434309` / `0.5566450817144618`, `small_nn` `0.061831` / `0.615315`,
+reseeded `0.667016`. The regenerated report differed from the committed one by its
+`Generated:` timestamp and nothing else. Gate 1 is unaffected **structurally**, not
+just empirically: it gates on RAW ECE, has never applied a temperature, and
+`evaluate_matchers.py` does not import `train_models.py` in either direction.
+
+**Moved, deliberately.** Every Gate-2 `ece_scaled`/`temperature` in
+`model_selection.md` and `gate2_winner.json`, per ADR 0004. All four models were
+re-baselined in ONE run. Three results worth carrying forward:
+
+- **`gbt_tuned` and `logistic_tuned` reproduce the old protocol exactly.** The new
+  `ECE pooled-T (legacy)` column recomputes what the old code printed: 0.047 and
+  0.103, matching the 2026-07-19 record, with deployment temperatures 1.65 and 1.00
+  also matching. Their raw OOF is untouched, so their entire movement is the
+  protocol. Their top-2 cannot move at all — temperature scaling is monotone within
+  a row.
+- **`small_nn`'s two causes are each ~0.023 and nearly cancel.** Recorded 0.101 ->
+  legacy 0.078 is DEV-90's per-fit re-seeding alone; legacy 0.078 -> cross-fitted
+  0.102 is DEV-91 alone. The net move from the recorded number is ~0.001.
+  Attributing that net to cross-fitting would have been wrong in both magnitude and
+  sign — the trap this ticket was warned about, and it materialised.
+- **The bias has no reliable direction in either metric.** The guarantee is
+  family-relative: a pooled temperature is the argmin of NLL on its own pool *among
+  constant temperatures*, which is what makes the old number a fitted minimum
+  rather than a measurement. Cross-fitting leaves that family — five per-fold
+  constants absorb fold-specific miscalibration one constant cannot — so it can
+  score lower, and here it does: cross-fitted ECE is lower for three of four models
+  and cross-fitted NLL is lower for `logistic_tuned`. ADR 0004's "optimistic" is
+  annotated accordingly. The decision is unaffected: the defect is that the number
+  was never a held-out estimate, which holds whichever way it moves.
+
+`two_tower` moved for a second reason of its own: it seeds from process-global torch
+RNG rather than per fit (unlike `nn_model.NNClassifier`), so the three extra fits
+per fold that cross-fitting inserts shift it. Reproducible from a clean run, but
+order-dependent. Left as-is deliberately — making it deterministic would have been a
+second uncontrolled change to a model's identity inside the run meant to
+re-baseline it. Worth its own ticket.
+
+`export_model.py` now reads `calibration.deployment_temperature` from
+`gate2_winner.json` instead of hardcoding `1.0`, and refuses an older file rather
+than silently defaulting. For the deployable model the fitted value **is** 1.00, so
+re-exporting would change no served `matchPercent` — but that is a fact about this
+dataset, not a property of the code, and DEV-88 made the serving path divide logits
+by that field.
+
 ## Pipeline order
 
 ```

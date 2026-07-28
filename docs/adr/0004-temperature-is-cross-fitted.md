@@ -27,3 +27,26 @@ that fold's test predictions.
 - The shipped artifact's `temperature` field was previously ignored by
   `MatcherModel`. It is now applied at inference — done while the value is still
   1.0 and the change is provably inert.
+
+## Observed on the re-baseline (DEV-91, 2026-07-28)
+
+Two things the decision above got slightly wrong in its reasoning, neither of which
+changes the decision:
+
+- **"Optimistic" is right about the mechanism and wrong as a prediction.** The
+  guarantee is family-relative: a pooled temperature is the argmin of NLL on its
+  own pool *among constant temperatures*, which is what makes the old number a
+  fitted minimum rather than a measurement. But cross-fitting does not stay inside
+  that family — it applies five per-fold constants, which can absorb fold-specific
+  miscalibration a single global constant cannot. That second effect can outweigh
+  the removal of the leak, and on this data it does: cross-fitted ECE is *lower*
+  for three of four models, and cross-fitted NLL is lower for `logistic_tuned`.
+  So the defensible claim is only that the reported number was never a held-out
+  estimate — not that it flattered. The tiebreak should use the honest number
+  regardless of which direction honesty moves it.
+- **The per-fold spread turned out to matter most for the model that ships.**
+  `logistic_tuned`, the deployable selection, produced per-fold temperatures of
+  1.40, 1.40, 1.30, 0.50, 0.85 — folds disagreeing about whether to soften or
+  sharpen at all, and no fold choosing the pooled value that would be exported.
+  Its pooled deployment temperature is 1.00, so nothing served changes today.
+

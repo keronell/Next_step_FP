@@ -2,7 +2,95 @@
   "winner": "gbt_tuned",
   "deployable": "logistic_tuned",
   "deployable_reason": "gate2 winner 'gbt_tuned' has no serving path (matcher_model.py is linear-only with exact attribution \u2014 the Phase-4 explainability requirement); logistic is the Gate-1-qualified deployable selection",
+  "calibration": {
+    "method": "temperature fitted per outer fold on inner-OOF predictions from that fold's training partition only (cross-fitted; ADR 0004)",
+    "reported_metric": "ece_cross_fitted",
+    "tiebreak_metric": "ece_cross_fitted",
+    "break_from_recorded_history": "2026-07-28 (DEV-91)",
+    "per_model": {
+      "gbt_tuned": {
+        "fold_temperatures": [
+          1.9500000000000002,
+          1.7000000000000002,
+          1.75,
+          1.9000000000000001,
+          1.85
+        ],
+        "spread": 0.25,
+        "sd": 0.09273618495495704,
+        "deployment_temperature": 1.6500000000000001,
+        "ece_raw": 0.13477999002388885,
+        "ece_cross_fitted": 0.040377190704083174,
+        "ece_pooled_legacy": 0.047237097248139334
+      },
+      "logistic_tuned": {
+        "fold_temperatures": [
+          1.4000000000000001,
+          1.4000000000000001,
+          1.3,
+          0.5,
+          0.8500000000000001
+        ],
+        "spread": 0.9000000000000001,
+        "sd": 0.35832945734337834,
+        "deployment_temperature": 1.0,
+        "ece_raw": 0.10251566169717065,
+        "ece_cross_fitted": 0.06134246809539425,
+        "ece_pooled_legacy": 0.10251566169717063
+      },
+      "small_nn": {
+        "fold_temperatures": [
+          0.9,
+          0.9,
+          1.05,
+          1.1,
+          1.15
+        ],
+        "spread": 0.2499999999999999,
+        "sd": 0.10295630140986999,
+        "deployment_temperature": 0.9,
+        "ece_raw": 0.09544027108570621,
+        "ece_cross_fitted": 0.10220396305313885,
+        "ece_pooled_legacy": 0.0776213422072012
+      },
+      "two_tower": {
+        "fold_temperatures": [
+          1.3,
+          1.15,
+          1.4500000000000002,
+          1.6,
+          1.4500000000000002
+        ],
+        "spread": 0.4500000000000002,
+        "sd": 0.15297058540778363,
+        "deployment_temperature": 1.4500000000000002,
+        "ece_raw": 0.062376565010897014,
+        "ece_cross_fitted": 0.08124326028186697,
+        "ece_pooled_legacy": 0.08585300643976433
+      }
+    },
+    "deployment_temperature_model": "logistic_tuned",
+    "deployment_temperature": 1.0
+  },
   "dataset_digest": "2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27",
+  "environment": {
+    "python": "3.14.0",
+    "python_full": "3.14.0 (tags/v3.14.0:ebf955d, Oct 7 2025, 10:15:03) [MSC v.1944 64 bit (AMD64)]",
+    "implementation": "cpython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "packages": {
+      "numpy": "2.4.6",
+      "pandas": "2.3.3",
+      "pyarrow": "24.0.0",
+      "scikit-learn": "1.8.0",
+      "scipy": "1.18.0",
+      "joblib": "1.5.3",
+      "threadpoolctl": "3.6.0",
+      "lightgbm": "4.6.0",
+      "torch": "2.12.0"
+    }
+  },
   "dataset_fingerprint": {
     "created_at": "2026-07-18T16:49:38.645980+00:00",
     "n_rows": 232
@@ -10,7 +98,8 @@
   "gate1": {
     "passed": true,
     "qualifiers": [
-      "logistic"
+      "logistic",
+      "small_nn"
     ]
   },
   "metrics": {
@@ -20,8 +109,20 @@
     "mrr": 0.8564314636512913,
     "balanced_top1": 0.7149718303572731,
     "ece_raw": 0.13477999002388885,
-    "ece_scaled": 0.047237097248139334,
-    "temperature": 1.6500000000000001
+    "ece_cross_fitted": 0.040377190704083174,
+    "fold_temperatures": [
+      1.9500000000000002,
+      1.7000000000000002,
+      1.75,
+      1.9000000000000001,
+      1.85
+    ],
+    "temperature_spread": 0.25,
+    "temperature_sd": 0.09273618495495704,
+    "deployment_temperature": 1.6500000000000001,
+    "ece_pooled_legacy": 0.047237097248139334,
+    "nll_cross_fitted": 0.7414642634136254,
+    "nll_pooled_legacy": 0.7381824181744827
   },
   "gbt_params_per_fold": [
     [
@@ -65,5 +166,5 @@
   "feature_version": "features-v4",
   "seed": 42,
   "label_source": "synthetic_llm",
-  "created_at": "2026-07-19T16:03:27.399463+00:00"
+  "created_at": "2026-07-28T15:53:10.787412+00:00"
 }

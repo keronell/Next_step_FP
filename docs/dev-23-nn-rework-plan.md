@@ -225,6 +225,12 @@ Points 4–5 matter: `small_nn` top-2 0.841 vs `logistic_tuned` 0.849 is 0.008 �
 about 2 profiles, and nobody has ever run seed variance on these numbers. **The
 existing "the NN lost" conclusion may be inside noise.** That cuts both ways.
 
+> **Updated by DEV-91 (2026-07-28):** the re-baseline moved `small_nn` to top-2
+> 0.845, so the gap is now **0.004** — one profile, half what this paragraph
+> argues from. The argument gets stronger, not weaker, but the numbers above are
+> the pre-DEV-90/DEV-91 ones. `small_nn`'s move is a DEV-90 re-seeding effect, not
+> a calibration one; see `data/training/model_selection.md`.
+
 ### 2.5 Effect size — a reporting standard, not a gate
 
 Under a hard requirement this no longer authorises anything; it sizes the gap. The
@@ -413,15 +419,21 @@ No NN work addresses this and none is attempted.
 
 ### 4.2 Calibration — a fitting bug, fixable now
 
-`temperature_scale()` (`train_models.py:133`) fits a single temperature on the
-pooled OOF predictions and `:379` scores ECE on those same predictions. Rev 2 filed
-this under "prototype-grade, a gold slice is the fix". **A gold slice would not fix
-it** — you would reproduce the same bug on better labels. Full record in
-[ADR 0004](./adr/0004-temperature-is-cross-fitted.md).
+> **Status: DONE (DEV-91, 2026-07-28).** Implemented as `cross_fitted_oof()` in
+> `train_models.py`, driving all four models; contract held by
+> `data/scripts/tests/test_cross_fitted_temperature.py`. Symbol names, not line
+> numbers, below — every line reference in this plan had drifted by 11–20 lines by
+> the time this step ran, and this step restructured the file again.
+
+`temperature_scale()` in `train_models.py` fitted a single temperature on the
+pooled OOF predictions and the metrics loop scored ECE on those same predictions.
+Rev 2 filed this under "prototype-grade, a gold slice is the fix". **A gold slice
+would not fix it** — you would reproduce the same bug on better labels. Full record
+in [ADR 0004](./adr/0004-temperature-is-cross-fitted.md).
 
 The bias is not uniform across models: a worse-calibrated model gains more from
-fitting T on its own evaluation data, and that quantity is the Gate-2 tiebreaker
-(`:386`), so it can flip a winner.
+fitting T on its own evaluation data, and that quantity is the Gate-2 tiebreaker,
+so it can flip a winner.
 
 Fix — cross-fitted temperature, per outer fold:
 
@@ -434,10 +446,23 @@ for (tr, te) in outer:
 ```
 
 - Both raw and cross-fitted ECE are reported; the tiebreak uses the cross-fitted one.
+  *Added by DEV-91, beyond what this step originally asked for:* a third ECE column
+  (the legacy pooled-T number) and two NLL columns. The legacy column earns its
+  place by separating `small_nn`'s two causes of movement, which is otherwise not
+  recoverable; the NLL columns exist because the direction of the change turned out
+  to be the thing readers assume they already know. Both are reported, neither
+  gates.
 - **The five per-fold `T` values and their spread are reported.** Wide spread means
   a single shipped temperature is not a well-estimated quantity.
-- Gate 1 is unaffected — it gates on raw ECE (`:285`) and never applied a temperature.
+- Gate 1 is unaffected — it gates on raw ECE and never applied a temperature.
+  Verified, not assumed: `evaluate_matchers.py` was re-run and reproduced the
+  digest and every Gate-1 metric to the last digit.
 - The deployment temperature is fitted separately on the full OOF pool for export.
+  `export_model.py` now **reads it from `gate2_winner.json`** instead of hardcoding
+  `1.0`, and refuses a `gate2_winner.json` that predates this change rather than
+  silently defaulting. Since DEV-88 made the serving path divide logits by that
+  field, a non-1.0 deployment temperature changes served `matchPercent` the moment
+  such an artifact is loaded.
 
 **Sequencing, non-negotiable:** reproduce the recorded numbers on unchanged code
 first (Step 1's acceptance test), *then* apply this fix, *then* re-baseline all
@@ -638,7 +663,8 @@ The order is now driven by dependencies alone.
    applied. Zero behaviour change, fully testable today.
 4. **Step 2.1 + Step 3** Gate-1 plumbing, including the **determinism assertion**.
 5. **4.2 cross-fitted temperature** + one-time Gate-2 re-baseline of all four
-   models. Only after step 1 has proven the environment.
+   models. Only after step 1 has proven the environment. — **DONE (DEV-91,
+   2026-07-28).**
 6. **Round 1** — 14 variants, nested, 5 seeds. Evaluate the ship floor.
 7. **Round 2** if warranted (≤6 refinements). Evaluate the ship floor. **No round 3.**
 8. **Learning curve** (2.6) + control curve.

@@ -17,15 +17,29 @@ about the same object. The only difference between the two gates' use of it is t
 target: Gate 1 feeds hard labels like every other candidate, Gate 2 additionally
 passes the panel's vote distribution as soft targets.
 
-NOTE (2026-07-27): sharing the module re-seeds the network from `random_state` on
-every fit, where previously each fold inherited whatever state the process-global
-torch RNG had accumulated. `small_nn`'s recorded Gate-2 numbers therefore no longer
-describe this code. They are re-baselined together with the cross-fitted
-temperature fix (plan Step 4.2, execution-order item 5) rather than piecemeal here.
-
 Gate 2: winner by pooled out-of-fold top-2 agreement, tie-broken by ECE after
 temperature scaling. FRAMING: all metrics are agreement with the synthetic LLM
 panel (silver labels), not expert-validated accuracy.
+
+CALIBRATION IS CROSS-FITTED (2026-07-28, DEV-91, ADR 0004). The temperature used
+for the reported and gating ECE is fitted per outer fold on inner out-of-fold
+predictions drawn only from that fold's TRAINING partition, and then applied to
+that fold's held-out rows. It previously came from one fit on the pooled OOF that
+was then scored on those same predictions — Leakage in the strict sense, and
+differential: a worse-calibrated model gains more from fitting T on its own
+evaluation data, and that number is the tiebreak. `cross_fitted_oof()` owns the
+protocol for all four models so none of them can re-implement it wrongly.
+
+Every Gate-2 calibration number here is therefore NON-COMPARABLE to any recorded
+before that date, including the gbt_tuned ECE 0.047 that won Gate 2. All four
+models were re-baselined together in one run; the report says so in a section that
+cannot be missed. Ranking metrics are unaffected for gbt_tuned and logistic_tuned
+because temperature scaling is monotone within a row. `small_nn` moved for a second
+reason as well — DEV-90 replaced its inline definition with nn_model.NNClassifier,
+which re-seeds torch per fit where the old code inherited accumulated
+process-global RNG state, so its recorded row was already stale. `two_tower` moved
+for a second reason too: it still seeds from process-global torch RNG rather than
+per fit, so the three extra fits per fold that cross-fitting inserts shift it.
 
 Outputs: data/training/model_selection.md, data/training/gate2_winner.json
 Run from repo root, in the hash-pinned training venv (data/scripts/README.md):
@@ -62,6 +76,22 @@ OUT_WINNER = TRAINING_DIR / "gate2_winner.json"
 SEED = 42
 N_FOLDS = 5
 TOP2_VOTE_WEIGHT = 0.4  # a persona's second choice counts this much of a first choice
+
+# When the cross-fitted-temperature re-baseline landed. Printed in the report so a
+# reader holding an older model_selection.md can tell at a glance whether its
+# calibration numbers are comparable to the one in front of them. See ADR 0004.
+BREAK_DATE = "2026-07-28 (DEV-91)"
+
+# The recorded Gate-2 numbers this run breaks from, so the regenerated report can
+# show both sides instead of asking a reader to go find the old file. Source:
+# model_selection.md generated 2026-07-19T16:03:27Z, the last run under the pooled
+# temperature AND the inline pre-DEV-90 network.
+RECORDED_HISTORY = {
+    "gbt_tuned": {"ece_raw": 0.135, "ece_scaled": 0.047, "temperature": 1.65, "top2": 0.892},
+    "logistic_tuned": {"ece_raw": 0.103, "ece_scaled": 0.103, "temperature": 1.00, "top2": 0.849},
+    "small_nn": {"ece_raw": 0.130, "ece_scaled": 0.101, "temperature": 0.90, "top2": 0.841},
+    "two_tower": {"ece_raw": 0.047, "ece_scaled": 0.077, "temperature": 1.30, "top2": 0.746},
+}
 
 # Raw-answer feature names in feature_builder order (q1, q2, …). Derived from the
 # metadata's feature_names so the question set stays a single source of truth —
@@ -142,22 +172,114 @@ def ece(probs: np.ndarray, y: np.ndarray, n_bins: int = 10) -> float:
     return float(out)
 
 
-def temperature_scale(probs: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, float]:
-    """Grid-fit a single temperature on pooled OOF probabilities (prototype-grade:
-    fitted on the same OOF pool it is evaluated on; redo on gold labels later)."""
-    logits = np.log(np.clip(probs, 1e-9, 1.0))
-    best_t, best_nll = 1.0, np.inf
-    for t in np.linspace(0.25, 4.0, 76):
-        z = logits / t
-        z = z - z.max(axis=1, keepdims=True)
-        p = np.exp(z) / np.exp(z).sum(axis=1, keepdims=True)
-        nll = -np.log(np.clip(p[np.arange(len(y)), y], 1e-9, 1)).mean()
-        if nll < best_nll:
-            best_nll, best_t = nll, float(t)
-    z = logits / best_t
+def nll(probs: np.ndarray, y: np.ndarray) -> float:
+    """Mean negative log-likelihood — the objective `fit_temperature` minimises.
+
+    The objective `fit_temperature` minimises, and reported alongside ECE to show
+    that the old protocol's bias has no reliable direction in EITHER metric. The
+    only guarantee is family-relative: a temperature fitted on a pool is the argmin
+    of NLL on that pool *among constant temperatures*, so no other constant beats it
+    there. Cross-fitting does not stay inside that family — it applies five per-fold
+    constants — so it can and does score lower.
+    `test_cross_fitted_temperature.py` holds the guarantee in the form that is
+    actually true."""
+    return float(-np.log(np.clip(probs[np.arange(len(y)), y], 1e-9, 1)).mean())
+
+
+TEMPERATURE_GRID = np.linspace(0.25, 4.0, 76)
+
+
+def apply_temperature(probs: np.ndarray, t: float) -> np.ndarray:
+    """Divide the logits by `t` and renormalize. Monotone per row, so it moves
+    calibration and never the ranking — which is why top-2 (the Gate-2 primary)
+    is identical before and after scaling, and only ECE responds."""
+    z = np.log(np.clip(probs, 1e-9, 1.0)) / t
     z = z - z.max(axis=1, keepdims=True)
-    p = np.exp(z) / np.exp(z).sum(axis=1, keepdims=True)
-    return p, best_t
+    e = np.exp(z)
+    return e / e.sum(axis=1, keepdims=True)
+
+
+def fit_temperature(probs: np.ndarray, y: np.ndarray) -> float:
+    """Grid-fit the temperature that minimises NLL of `y` under `probs`."""
+    best_t, best_nll = 1.0, np.inf
+    for t in TEMPERATURE_GRID:
+        candidate = nll(apply_temperature(probs, t), y)
+        if candidate < best_nll:
+            best_nll, best_t = candidate, float(t)
+    return best_t
+
+
+def temperature_scale(probs: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, float]:
+    """Fit a temperature on `probs` and apply it to `probs`.
+
+    Fitting and scoring on the same pool, which is precisely the defect ADR 0004
+    records — so this is NOT how the reported ECE is computed any more. Two honest
+    callers remain:
+
+    - the **deployment** temperature, fitted on the full pooled OOF for export.
+      There is no held-out set to be honest about when choosing a single constant
+      to ship; the goal there is the best estimate from all available data, not an
+      unbiased error estimate. Reporting and deployment want different things from
+      the same computation.
+    - the **legacy** number reported beside the cross-fitted one, purely to size
+      how optimistic the old protocol was.
+    """
+    t = fit_temperature(probs, y)
+    return apply_temperature(probs, t), t
+
+
+# ------------------------------------------- cross-fitted calibration (Step 4.2)
+INNER_SPLITS = 3
+
+
+def outer_folds(X: np.ndarray, y: np.ndarray):
+    """The one outer partition every model in this file is scored on — same folds
+    as Phase 2, by construction rather than by coincidence."""
+    return StratifiedKFold(N_FOLDS, shuffle=True, random_state=SEED).split(X, y)
+
+
+def cross_fitted_oof(X, y, n_classes, fit_predict, select_config=None):
+    """Pooled OOF probabilities, raw and calibrated, with the temperature fitted
+    per outer fold on data that fold's model has never been scored against.
+
+    `fit_predict(config, train_idx, predict_idx) -> probs` trains on `train_idx`
+    and predicts on `predict_idx`, both absolute row indices. `select_config(tr)`
+    is the plan's `select_by_inner_cv` — real for the two nested-selection models,
+    omitted for `small_nn` and `two_tower`, which have no inner grid.
+
+    Per fold: estimate T from inner-OOF predictions the training partition makes
+    about ITSELF, then apply that T to the held-out rows. `te` is out of scope for
+    every line of the estimation, which is the whole point — the previous protocol
+    fitted one T on the pooled OOF and then scored ECE on those same predictions,
+    flattering worse-calibrated models more than better-calibrated ones and so
+    biasing the Gate-2 tiebreak itself.
+
+    Costs three extra fits per outer fold per model. Returns the per-fold
+    temperatures alongside the probabilities because their SPREAD is a finding: a
+    single shipped temperature is only a well-estimated quantity if the five
+    agree.
+    """
+    oof_raw = np.zeros((len(y), n_classes))
+    oof_calibrated = np.zeros((len(y), n_classes))
+    temperatures: list[float] = []
+    chosen: list = []
+
+    for tr, te in outer_folds(X, y):
+        config = select_config(tr) if select_config is not None else None
+        chosen.append(config)
+
+        inner_oof = np.zeros((len(tr), n_classes))
+        inner = StratifiedKFold(INNER_SPLITS, shuffle=True, random_state=SEED)
+        for itr, ival in inner.split(X[tr], y[tr]):
+            inner_oof[ival] = fit_predict(config, tr[itr], tr[ival])
+        t = fit_temperature(inner_oof, y[tr])
+
+        raw = fit_predict(config, tr, te)
+        oof_raw[te] = raw
+        oof_calibrated[te] = apply_temperature(raw, t)
+        temperatures.append(t)
+
+    return oof_raw, oof_calibrated, temperatures, chosen
 
 
 # ---------------------------------------------------------------- 3a nested-CV tuned models
@@ -176,51 +298,36 @@ def top2_of(model, Xv, yv) -> float:
     return float(np.mean([yv[i] in order[i] for i in range(len(yv))]))
 
 
-def oof_gbt_tuned(X, y):
-    oof = np.zeros((len(y), len(np.unique(y))))
-    chosen = []
-    outer = StratifiedKFold(N_FOLDS, shuffle=True, random_state=SEED)
-    for tr, te in outer.split(X, y):
-        inner = StratifiedKFold(3, shuffle=True, random_state=SEED)
-        best_p, best_s = None, -1.0
-        for params in GBT_GRID:
-            scores = []
-            for itr, ival in inner.split(X[tr], y[tr]):
-                m = fit_gbt(params, X[tr][itr], y[tr][itr])
-                scores.append(top2_of(m, X[tr][ival], y[tr][ival]))
-            s = float(np.mean(scores))
-            if s > best_s:
-                best_s, best_p = s, params
-        chosen.append(best_p)
-        oof[te] = fit_gbt(best_p, X[tr], y[tr]).predict_proba(X[te])
-    return oof, chosen
+def fit_logistic(C, Xtr, ytr):
+    return make_pipeline(
+        StandardScaler(),
+        LogisticRegression(C=C, max_iter=5000, class_weight="balanced", random_state=SEED),
+    ).fit(Xtr, ytr)
 
 
-def oof_logistic_tuned(X, y):
-    oof = np.zeros((len(y), len(np.unique(y))))
-    chosen = []
-    outer = StratifiedKFold(N_FOLDS, shuffle=True, random_state=SEED)
-    for tr, te in outer.split(X, y):
-        inner = StratifiedKFold(3, shuffle=True, random_state=SEED)
-        best_c, best_s = None, -1.0
-        for C in LOGISTIC_C_GRID:
-            scores = []
-            for itr, ival in inner.split(X[tr], y[tr]):
-                m = make_pipeline(
-                    StandardScaler(),
-                    LogisticRegression(C=C, max_iter=5000, class_weight="balanced", random_state=SEED),
-                ).fit(X[tr][itr], y[tr][itr])
-                scores.append(top2_of(m, X[tr][ival], y[tr][ival]))
-            s = float(np.mean(scores))
-            if s > best_s:
-                best_s, best_c = s, C
-        chosen.append(best_c)
-        m = make_pipeline(
-            StandardScaler(),
-            LogisticRegression(C=best_c, max_iter=5000, class_weight="balanced", random_state=SEED),
-        ).fit(X[tr], y[tr])
-        oof[te] = m.predict_proba(X[te])
-    return oof, chosen
+# The plan's `select_by_inner_cv(tr)`: pick a configuration using ONLY the outer
+# fold's training partition. Both are pure functions of `tr`, which is what lets
+# cross_fitted_oof reuse them for the temperature's inner refits without any risk
+# of the selection seeing the rows it will be scored on.
+def select_by_inner_cv(X, y, tr, grid, fit):
+    """The plan's `select_by_inner_cv(tr)`: the grid point with the best inner-CV
+    top-2, chosen using ONLY the outer fold's training partition.
+
+    A pure function of `tr`, which is what lets cross_fitted_oof reuse the selected
+    configuration for the temperature's inner refits with no risk of the selection
+    having seen the rows it will be scored on. `fit(params, Xtr, ytr)` returns a
+    fitted estimator."""
+    inner = StratifiedKFold(INNER_SPLITS, shuffle=True, random_state=SEED)
+    best_params, best_score = None, -1.0
+    for params in grid:
+        scores = []
+        for itr, ival in inner.split(X[tr], y[tr]):
+            m = fit(params, X[tr][itr], y[tr][itr])
+            scores.append(top2_of(m, X[tr][ival], y[tr][ival]))
+        score = float(np.mean(scores))
+        if score > best_score:
+            best_score, best_params = score, params
+    return best_params
 
 
 # (3b small NN — the network lives in nn_model.py, shared with Gate 1. Its
@@ -305,50 +412,87 @@ def main() -> None:
     # across configurations unchecked.
     logistic_qualified = "logistic" in gate1.get("qualifiers", [])
     n_classes = len(careers)
-    outer = StratifiedKFold(N_FOLDS, shuffle=True, random_state=SEED)
 
+    # Every model goes through cross_fitted_oof, so the calibration protocol is a
+    # property of the driver rather than something each model re-implements (and
+    # could re-implement wrongly). The two nested-selection models pass a
+    # select_config; small_nn and two_tower have no inner grid, so for them the
+    # cross-fit is just: inner 3-fold OOF over tr, fit T, apply.
     print("3a: nested-CV tuned LightGBM ...")
-    oof_gbt, gbt_params = oof_gbt_tuned(X, y)
+    oof_gbt, oof_gbt_cal, t_gbt, gbt_params = cross_fitted_oof(
+        X, y, n_classes,
+        fit_predict=lambda p, tr, pr: fit_gbt(p, X[tr], y[tr]).predict_proba(X[pr]),
+        select_config=lambda tr: select_by_inner_cv(X, y, tr, GBT_GRID, fit_gbt),
+    )
     print("3a: nested-CV tuned logistic ...")
-    oof_log, log_params = oof_logistic_tuned(X, y)
+    oof_log, oof_log_cal, t_log, log_params = cross_fitted_oof(
+        X, y, n_classes,
+        fit_predict=lambda c, tr, pr: fit_logistic(c, X[tr], y[tr]).predict_proba(X[pr]),
+        select_config=lambda tr: select_by_inner_cv(X, y, tr, LOGISTIC_C_GRID, fit_logistic),
+    )
 
     print("3b: small NN (soft targets) ...")
-    oof_nn = np.zeros((len(y), n_classes))
-    for tr, te in outer.split(X, y):
-        # y[tr] is still required alongside the soft targets: it supplies the class
-        # weights and stratifies the early-stopping split, so this fold differs
-        # from the Gate-1 fit only in what the loss is measured against.
-        oof_nn[te] = (
+    # y[tr] is still required alongside the soft targets: it supplies the class
+    # weights and stratifies the early-stopping split, so a fold differs from the
+    # Gate-1 fit only in what the loss is measured against.
+    oof_nn, oof_nn_cal, t_nn, _ = cross_fitted_oof(
+        X, y, n_classes,
+        fit_predict=lambda _c, tr, pr: (
             NNClassifier(random_state=SEED)
             .fit(X[tr], y[tr], soft_targets=soft[tr])
-            .predict_proba(X[te])
-        )
+            .predict_proba(X[pr])
+        ),
+    )
 
     print("3c: two-tower (archetype-seeded) ...")
-    oof_tt = np.zeros((len(y), n_classes))
-    for tr, te in outer.split(X, y):
-        oof_tt[te] = train_two_tower_fold(X[tr], y[tr], X[te], arch_mat, n_classes)
+    oof_tt, oof_tt_cal, t_tt, _ = cross_fitted_oof(
+        X, y, n_classes,
+        fit_predict=lambda _c, tr, pr: train_two_tower_fold(
+            X[tr], y[tr], X[pr], arch_mat, n_classes
+        ),
+    )
 
     models = {
-        "gbt_tuned": oof_gbt,
-        "logistic_tuned": oof_log,
-        "small_nn": oof_nn,
-        "two_tower": oof_tt,
+        "gbt_tuned": (oof_gbt, oof_gbt_cal, t_gbt),
+        "logistic_tuned": (oof_log, oof_log_cal, t_log),
+        "small_nn": (oof_nn, oof_nn_cal, t_nn),
+        "two_tower": (oof_tt, oof_tt_cal, t_tt),
     }
 
     results = {}
-    for name, probs in models.items():
+    for name, (probs, calibrated, temps) in models.items():
+        # Ranking metrics come off the RAW probabilities, and would be identical on
+        # the calibrated ones: temperature scaling is monotone within a row. That is
+        # why the Gate-2 primary (top-2) cannot move for this change alone — only
+        # the ECE columns respond.
         m = rank_metrics(probs, y)
         m["ece_raw"] = ece(probs, y)
-        scaled, t = temperature_scale(probs, y)
-        m["ece_scaled"] = ece(scaled, y)
-        m["temperature"] = t
+        m["ece_cross_fitted"] = ece(calibrated, y)
+        m["fold_temperatures"] = temps
+        m["temperature_spread"] = float(max(temps) - min(temps))
+        m["temperature_sd"] = float(np.std(temps))
+        # The single constant an export would ship, fitted on the full OOF pool —
+        # see temperature_scale() on why deployment and reporting want different
+        # things from the same computation.
+        pooled_scaled, m["deployment_temperature"] = temperature_scale(probs, y)
+        # The number the OLD protocol would have printed. Reported beside the
+        # cross-fitted one to size the optimism this ticket removes — and, for
+        # small_nn, to separate this ticket's effect from DEV-90's.
+        m["ece_pooled_legacy"] = ece(pooled_scaled, y)
+        # NLL in both protocols. The pooled temperature is the argmin of NLL on
+        # this pool, so nll_pooled_legacy <= nll_cross_fitted is guaranteed and is
+        # the honest statement of the bias; the ECE columns are not so ordered.
+        m["nll_cross_fitted"] = nll(calibrated, y)
+        m["nll_pooled_legacy"] = nll(pooled_scaled, y)
         results[name] = m
 
-    # Gate 2: top-2 primary, ECE-after-scaling tiebreak (within 0.01 of top-2).
+    # Gate 2: top-2 primary, ECE tiebreak (within 0.01 of top-2). The tiebreak now
+    # reads the CROSS-FITTED ECE — the pooled one is biased in a model-dependent
+    # direction (a worse-calibrated model gains more from fitting T on its own
+    # evaluation data), so using it here could hand the gate to the wrong winner.
     best_top2 = max(r["top2"] for r in results.values())
     contenders = [n for n, r in results.items() if best_top2 - r["top2"] <= 0.01]
-    winner = min(contenders, key=lambda n: results[n]["ece_scaled"])
+    winner = min(contenders, key=lambda n: results[n]["ece_cross_fitted"])
 
     # Deployment selection, explicit: the serving path (matcher_model.py) is
     # dependency-free LINEAR inference with exact attribution, so only logistic is
@@ -387,7 +531,42 @@ def main() -> None:
     def fmt(name, m):
         return (f"| {name} | {m['top1']:.3f} | {m['top2']:.3f} | {m['top3']:.3f} | "
                 f"{m['mrr']:.3f} | {m['balanced_top1']:.3f} | {m['ece_raw']:.3f} | "
-                f"{m['ece_scaled']:.3f} | {m['temperature']:.2f} |")
+                f"{m['ece_cross_fitted']:.3f} | {m['ece_pooled_legacy']:.3f} |")
+
+    # Every claim the prose below makes about this run is COMPUTED here, never
+    # written as a literal. A hardcoded "reproduces exactly" or "improved for three
+    # of four" keeps printing long after it stops being true — which is the failure
+    # mode this ticket exists to remove, so the report must not reintroduce it.
+    reproduced = [
+        n for n in results
+        if abs(RECORDED_HISTORY[n]["ece_raw"] - results[n]["ece_raw"]) < 5e-4
+        and abs(RECORDED_HISTORY[n]["ece_scaled"] - results[n]["ece_pooled_legacy"]) < 5e-4
+    ]
+    ece_improved = [n for n, m in results.items()
+                    if m["ece_cross_fitted"] < m["ece_pooled_legacy"]]
+    log_m = results["logistic_tuned"]
+    ships_widest = (
+        ", and the widest of it is on the model that ships"
+        if log_m["temperature_spread"] == max(m["temperature_spread"] for m in results.values())
+        else ""
+    )
+    no_fold_matches = (
+        f", and **no fold chose the pooled {log_m['deployment_temperature']:.2f} "
+        "that would actually be exported**"
+        if all(abs(t - log_m["deployment_temperature"]) > 1e-9
+               for t in log_m["fold_temperatures"])
+        else ""
+    )
+    runner_up = sorted(
+        (r["top2"] for n, r in results.items() if n != winner), reverse=True)[0]
+    tiebreak_fired = len(contenders) > 1
+    nll_lower_cross = len([n for n, m in results.items()
+                           if m["nll_cross_fitted"] < m["nll_pooled_legacy"]])
+
+    def fmt_temps(name, m):
+        folds = " | ".join(f"{t:.2f}" for t in m["fold_temperatures"])
+        return (f"| {name} | {folds} | {m['temperature_spread']:.2f} | "
+                f"{m['temperature_sd']:.2f} | {m['deployment_temperature']:.2f} |")
 
     per_class = []
     for name, m in results.items():
@@ -397,9 +576,77 @@ def main() -> None:
     report = f"""# Model Selection — Phase 3 / Gate 2
 
 > **All metrics are agreement with the synthetic LLM panel (silver labels), not
-> expert-validated accuracy.** Calibration (temperature) fitted on pooled
-> out-of-fold predictions — prototype-grade; redo on gold labels before trusting
-> displayed percentages.
+> expert-validated accuracy.** Calibration is now **cross-fitted**: the temperature
+> is fitted per outer fold on inner out-of-fold predictions drawn only from that
+> fold's training partition, never from the rows it goes on to score (ADR 0004).
+> Circularity is a separate, untouched defect — better labels would not have fixed
+> this one, and this fix does not make the labels less circular.
+
+## !! DELIBERATE BREAK FROM RECORDED HISTORY !!
+
+**Every Gate-2 calibration number in this report is non-comparable to any version
+generated before {BREAK_DATE}**, including the `gbt_tuned` ECE
+{RECORDED_HISTORY["gbt_tuned"]["ece_scaled"]:.3f} that won it Gate 2 under the old
+protocol. The break was a deliberate one-time re-baseline of all four models in a
+single run, not drift.
+
+This section stays in every future report, because the non-comparability is
+permanent: it describes the boundary, not this particular run. The table further
+down recomputes both sides each time, so it keeps telling the truth as the code
+moves on.
+
+What moved and why:
+
+- **One column only, for `gbt_tuned` and `logistic_tuned`.** Temperature scaling is
+  monotone within a row, so it cannot reorder anything: their top-1/2/3, MRR,
+  balanced top-1 and per-class recall are unchanged, and `ECE raw` is unchanged.
+  Their *deployment* temperatures also reproduce the recorded 1.65 and 1.00
+  exactly, because that number is still fitted on the full pool. What is new for
+  them is the cross-fitted ECE and the five per-fold temperatures behind it.
+- **`small_nn` moved for TWO independent reasons** and the movement must not be
+  attributed to cross-fitting alone. (1) This change. (2) DEV-90 replaced the
+  inline network with the shared `nn_model.NNClassifier`, which re-seeds torch per
+  fit where the old inline code inherited accumulated process-global RNG state. Its
+  recorded row was already stale before this run.
+
+  **The two causes separate exactly, from the table below.** Its recorded
+  `ECE scaled` of 0.101 was the old protocol on the old inline network. The
+  `ECE pooled-T (legacy)` column is the old protocol on DEV-90's shared network, so
+  `0.101 -> legacy` is DEV-90's re-seeding alone and `legacy -> cross-fitted` is
+  this ticket alone. The split is exact here because `NNClassifier` restores global
+  RNG state around every fit, which makes its raw OOF independent of how many fits
+  preceded it. It is **not** exact for `two_tower`, for the reason below.
+- **`two_tower` moved for a second reason too.** Unlike `NNClassifier`, it seeds
+  from process-global torch RNG rather than per fit, so its predictions depend on
+  how many fits preceded them — and cross-fitting inserts three per outer fold.
+  Its numbers are reproducible from a clean run but order-dependent. Left as-is
+  rather than fixed here: making it deterministic would be a second uncontrolled
+  change to a model's identity inside the very run meant to re-baseline it.
+- **Say plainly what that means: for `small_nn` and `two_tower` the RANKING metrics
+  moved, not only the calibration ones** — including top-2, which is the Gate-2
+  *primary*, not a tiebreak input. `small_nn` top-2 {RECORDED_HISTORY["small_nn"]["top2"]:.3f} ->
+  {results["small_nn"]["top2"]:.3f}, `two_tower` {RECORDED_HISTORY["two_tower"]["top2"]:.3f} ->
+  {results["two_tower"]["top2"]:.3f}. This run does not isolate the protocol for
+  those two, and the honest reading is that their rows are a fresh baseline rather
+  than a comparison. The contender set happened to be unaffected — see the verdict
+  — but a larger shift could have changed it.
+
+The dataset is unmoved: digest `{digest}`, the
+same build both gate files were computed on.
+
+**Gate 1 is unaffected, and that was verified rather than assumed.**
+`evaluate_matchers.py` was re-run on unchanged code and reproduced the digest and
+every Gate-1 metric to the last digit. Those metrics, read back from the
+`gate1_verdict.json` this run consumed rather than transcribed:
+
+| model | Gate-1 ECE (raw, never tempered) | top-2 stability |
+|---|---|---|
+{chr(10).join(f"| {n} | {m['ece']!r} | {m['top2_stability']!r} |"
+              for n, m in gate1["metrics"].items())}
+
+Gate 1 is also unaffected structurally, which is the stronger statement: it gates
+on RAW ECE, has never applied a temperature, and `evaluate_matchers.py` does not
+import this module in either direction.
 
 Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 Dataset: {len(df)} rows, feature `{meta["feature_version"]}`, seed {SEED},
@@ -411,12 +658,109 @@ in baseline_evaluation.md.
 {manifest_markdown(env)}
 ## Comparison (pooled out-of-fold)
 
-| model | top-1 | top-2 | top-3 | MRR | balanced top-1 | ECE raw | ECE scaled | T |
+| model | top-1 | top-2 | top-3 | MRR | balanced top-1 | ECE raw | ECE cross-fitted | ECE pooled-T (legacy) |
 |---|---|---|---|---|---|---|---|---|
 {fmt("gbt_tuned (3a)", results["gbt_tuned"])}
 {fmt("logistic_tuned (3a)", results["logistic_tuned"])}
 {fmt("small_nn soft-targets (3b)", results["small_nn"])}
 {fmt("two_tower archetype-seeded (3c)", results["two_tower"])}
+
+**`ECE cross-fitted` is the reported and gating number.** `ECE pooled-T (legacy)`
+is what the old protocol printed — one temperature fitted on the whole OOF pool and
+then scored on that same pool. It is shown to size the defect and to separate
+`small_nn`'s two causes. It is not a metric.
+
+## Break from recorded history, side by side
+
+The last run under the old protocol (2026-07-19) against this one. `legacy`
+columns are computed here, so a matching pair proves the environment and the raw
+predictions are unmoved and isolates the change to the protocol alone.
+
+| model | recorded ECE raw | now | recorded ECE scaled | now (legacy) | reproduces? |
+|---|---|---|---|---|---|
+{chr(10).join(
+    f"| {n} | {RECORDED_HISTORY[n]['ece_raw']:.3f} | {results[n]['ece_raw']:.3f} | "
+    f"{RECORDED_HISTORY[n]['ece_scaled']:.3f} | {results[n]['ece_pooled_legacy']:.3f} | "
+    + ("**exact**" if abs(RECORDED_HISTORY[n]['ece_scaled'] - results[n]['ece_pooled_legacy']) < 5e-4
+       and abs(RECORDED_HISTORY[n]['ece_raw'] - results[n]['ece_raw']) < 5e-4
+       else "no — see causes above") + " |"
+    for n in results
+)}
+
+## What this re-baseline showed
+
+**1. {len(reproduced)} of {len(results)} models reproduce the old protocol exactly**
+({", ".join(f"`{n}`" for n in reproduced) or "none"}). Their `ECE raw` and their
+`legacy` ECE match the 2026-07-19 record to three decimals — same environment, same
+folds, same raw out-of-fold predictions — which isolates the whole of their movement
+to the protocol change. The models absent from that list are the two with a
+documented second cause, above.
+
+**2. `small_nn`'s two causes are each large and nearly cancel.** Recorded 0.101 ->
+legacy {results["small_nn"]["ece_pooled_legacy"]:.3f} is DEV-90's per-fit re-seeding
+alone (a move of
+{abs(RECORDED_HISTORY["small_nn"]["ece_scaled"] - results["small_nn"]["ece_pooled_legacy"]):.3f});
+legacy -> cross-fitted {results["small_nn"]["ece_cross_fitted"]:.3f} is this ticket
+alone (a move of
+{abs(results["small_nn"]["ece_pooled_legacy"] - results["small_nn"]["ece_cross_fitted"]):.3f}).
+They point in opposite directions, so the net move from the recorded number is only
+{abs(RECORDED_HISTORY["small_nn"]["ece_scaled"] - results["small_nn"]["ece_cross_fitted"]):.3f}.
+**Attributing that net to cross-fitting alone would have been wrong in both
+magnitude and sign.**
+
+**3. The old number moves in no predictable direction, and that is not a flaw in
+the fix.** The guarantee is narrower than it first looks, and worth stating
+precisely because two drafts of this report got it wrong.
+
+Within the family of **constant** temperatures, a temperature fitted on a pool is
+the argmin of NLL on that pool: no other constant can score lower there. *That* is
+the leak — the old number was a fitted minimum, not a measurement.
+
+But cross-fitting changes two things at once. It removes the leak, **and** it
+widens the family from one global constant to five per-fold constants, which can
+absorb fold-specific miscalibration a single constant cannot. The second effect
+can outweigh the first, and here it does: cross-fitted ECE is *lower* for
+{len(ece_improved)} of {len(results)}
+({", ".join(f"`{n}`" for n in ece_improved) or "none"}), and cross-fitted NLL is
+lower for {nll_lower_cross} of {len(results)}. So the honest claim is only this: **the old number was never a
+held-out estimate.** Not that it was necessarily flattering. ADR 0004's word
+"optimistic" is right about the mechanism and overstated as a prediction about
+either metric, and is annotated accordingly.
+
+| model | NLL cross-fitted | NLL pooled-T (legacy) | which is lower |
+|---|---|---|---|
+{chr(10).join(
+    f"| {n} | {m['nll_cross_fitted']:.4f} | {m['nll_pooled_legacy']:.4f} | "
+    + ("legacy" if m["nll_pooled_legacy"] < m["nll_cross_fitted"] else "cross-fitted") + " |"
+    for n, m in results.items()
+)}
+
+Neither column is a gate input; both are shown because the direction is the thing
+readers will assume they already know.
+
+## Calibration temperature, per outer fold
+
+| model | fold 1 | 2 | 3 | 4 | 5 | spread | sd | deployment T |
+|---|---|---|---|---|---|---|---|---|
+{fmt_temps("gbt_tuned", results["gbt_tuned"])}
+{fmt_temps("logistic_tuned", results["logistic_tuned"])}
+{fmt_temps("small_nn", results["small_nn"])}
+{fmt_temps("two_tower", results["two_tower"])}
+
+**The spread is itself a finding{ships_widest}.**
+Each fold's temperature is an independent estimate of the same quantity, so a wide
+spread means a single shipped temperature is not a well-estimated quantity — and
+one *does* get exported. `logistic_tuned`, the deployment selection, has a spread of
+{log_m["temperature_spread"]:.2f} across
+{", ".join(f"{t:.2f}" for t in log_m["fold_temperatures"])}: folds disagree about
+whether its probabilities need softening or sharpening at all{no_fold_matches}.
+Read that as a warning about displayed `matchPercent` precision, not about the
+ranking — temperature cannot reorder anything.
+
+The `deployment T` column is fitted separately, on the full pooled OOF: choosing one
+constant to ship wants the best estimate from all available data, whereas reporting
+an error wants an estimate that never saw the rows it scores. Same computation, two
+different jobs, deliberately not shared.
 
 Chosen hyperparameters per outer fold:
 - gbt (n_estimators, lr, num_leaves, min_child_samples): {gbt_params}
@@ -428,9 +772,19 @@ Chosen hyperparameters per outer fold:
 
 ## Gate 2 verdict
 
-**Winner: `{winner}`** — top-2 {results[winner]["top2"]:.3f}, ECE after temperature
-scaling {results[winner]["ece_scaled"]:.3f} (T={results[winner]["temperature"]:.2f}).
-Selection rule: highest top-2; ties within 0.01 broken by scaled ECE.
+**Winner: `{winner}`** — top-2 {results[winner]["top2"]:.3f}, cross-fitted ECE
+{results[winner]["ece_cross_fitted"]:.3f} (per-fold T
+{", ".join(f"{t:.2f}" for t in results[winner]["fold_temperatures"])}).
+Selection rule: highest top-2; ties within 0.01 broken by **cross-fitted** ECE.
+
+**The tiebreak {"fired: " + str(len(contenders)) + " models were within 0.01 on top-2" if tiebreak_fired else "did NOT fire this run"}.**
+{"" if tiebreak_fired else f"`{winner}` wins on top-2 alone ({results[winner]['top2']:.3f} against a runner-up {runner_up:.3f}, outside the 0.01 band), so the ECE column decided nothing."}
+Stated rather than left for the reader to infer, so the calibration figure printed
+beside the verdict is not mistaken for the thing that chose it. What this ticket
+changed is which quantity *would* decide a close call: the legacy
+pooled number's bias is model-dependent — a worse-calibrated model gains more from
+fitting T on its own evaluation data — so the tiebreak was the statistic most
+distorted by the defect, and is now the honest one.
 
 ## Deployment selection
 
@@ -438,6 +792,13 @@ Selection rule: highest top-2; ties within 0.01 broken by scaled ECE.
 export_model.py refuses to export unless this names the architecture it produces
 (and refuses outright when it is NONE), so the served artifact and this report
 cannot silently disagree — and a Gate-1-rejected model can never ship.
+
+The deployment temperature recorded for `{deployable or "NONE"}` is
+{f"{results[deployable]['deployment_temperature']:.2f}" if deployable else "n/a"},
+and export_model.py reads it from gate2_winner.json rather than hardcoding 1.0.
+**DEV-88 made the serving path divide logits by that field**, so it is inert only
+while it equals 1.0; any other value changes served `matchPercent` the moment an
+artifact carrying it is actually loaded.
 
 Notes:
 - The soft-target NN consumes the panel vote distribution (top1=1.0, top2={TOP2_VOTE_WEIGHT});
@@ -450,6 +811,37 @@ Notes:
         "winner": winner,
         "deployable": deployable,
         "deployable_reason": deployable_reason,
+        # Calibration is recorded for EVERY model, not just the winner: the
+        # re-baseline's whole claim is that all four moved together in one run, and
+        # a file carrying only the winner's numbers could not evidence that.
+        "calibration": {
+            "method": (
+                "temperature fitted per outer fold on inner-OOF predictions from that "
+                "fold's training partition only (cross-fitted; ADR 0004)"
+            ),
+            "reported_metric": "ece_cross_fitted",
+            "tiebreak_metric": "ece_cross_fitted",
+            "break_from_recorded_history": BREAK_DATE,
+            "per_model": {
+                n: {
+                    "fold_temperatures": m["fold_temperatures"],
+                    "spread": m["temperature_spread"],
+                    "sd": m["temperature_sd"],
+                    "deployment_temperature": m["deployment_temperature"],
+                    "ece_raw": m["ece_raw"],
+                    "ece_cross_fitted": m["ece_cross_fitted"],
+                    "ece_pooled_legacy": m["ece_pooled_legacy"],
+                }
+                for n, m in results.items()
+            },
+            # What export_model.py ships. Fitted on the full pooled OOF of the
+            # DEPLOYABLE model — deployment wants the best estimate from all data,
+            # not the unbiased-error estimate the report needs.
+            "deployment_temperature_model": deployable,
+            "deployment_temperature": (
+                results[deployable]["deployment_temperature"] if deployable else None
+            ),
+        },
         # Which dataset build this selection was computed on; export_model.py
         # refuses to export against a different build so a regenerated (or
         # hand-edited) train_features.parquet can't be paired with a stale

@@ -94,6 +94,31 @@ def main() -> None:
             "train_features.parquet first."
         )
 
+    # The shipped calibration temperature comes from Phase 3, not from a literal
+    # here. It is fitted on the DEPLOYABLE model's full pooled OOF — deployment
+    # wants the best estimate from all available data, which is a different job
+    # from the cross-fitted number the report gates on (train_models.py,
+    # temperature_scale). Refusing when the key is absent is deliberate: a stale
+    # gate2_winner.json silently defaulting to 1.0 is exactly how a calibration
+    # decision lands without anyone deciding it. DEV-88 made the serving path
+    # divide logits by this field, so it is inert only while it equals 1.0.
+    calibration = gate2.get("calibration") or {}
+    deployment_temperature = calibration.get("deployment_temperature")
+    if deployment_temperature is None:
+        raise SystemExit(
+            "gate2_winner.json records no calibration.deployment_temperature — it "
+            "predates the cross-fitted-temperature re-baseline (DEV-91, ADR 0004). "
+            "Rerun train_models.py; exporting a hardcoded 1.0 would ship an "
+            "uncalibrated artifact that looks deliberately calibrated."
+        )
+    if calibration.get("deployment_temperature_model") != gate2["deployable"]:
+        raise SystemExit(
+            "gate2_winner.json's deployment temperature was fitted for "
+            f"{calibration.get('deployment_temperature_model')!r} but the deployable "
+            f"model is {gate2['deployable']!r} — a temperature does not transfer "
+            "between models; rerun train_models.py."
+        )
+
     X = df[feature_names].to_numpy(dtype=float)
     y = df["label_top1"].map({c: i for i, c in enumerate(careers)}).to_numpy()
 
@@ -156,7 +181,13 @@ def main() -> None:
         "scaler_scale": scaler.scale_.tolist(),
         "coef": clf.coef_.tolist(),
         "intercept": clf.intercept_.tolist(),
-        "temperature": 1.0,  # Gate 2: raw probabilities were best-calibrated
+        # Fitted on the deployable model's pooled OOF in Phase 3 (ADR 0004), not
+        # hardcoded. NOTE: `best_c` above is selected on the full dataset and may
+        # differ from logistic_tuned's per-fold Cs, so this temperature is an
+        # estimate for a neighbouring configuration — the same approximation the
+        # deployment selection already makes, stated rather than hidden. Phase 3
+        # also reports that the per-fold temperatures behind it disagree widely.
+        "temperature": deployment_temperature,
         "label_source": "synthetic_llm (bank-consistent silver labels; see caveats)",
         "caveats": build_caveats(df, careers),
         "selection": {
