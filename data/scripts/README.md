@@ -48,8 +48,9 @@ which proves it adds no dependency to the scripts that import it:
 backend/venv/bin/python -m pytest data/scripts/tests -q
 ```
 
-`test_nn_model.py` needs torch, so it skips there and runs in the training venv
-instead:
+`test_nn_model.py`, `test_cross_fitted_temperature.py` and
+`test_residual_matcher.py` need torch, so all three skip whole there and run in the
+training venv instead:
 
 ```bash
 data/venv-training/bin/python -m pip install pytest   # test tooling, see below
@@ -169,6 +170,66 @@ than silently defaulting. For the deployable model the fitted value **is** 1.00,
 re-exporting would change no served `matchPercent` — but that is a fact about this
 dataset, not a property of the code, and DEV-88 made the serving path divide logits
 by that field.
+
+### Reproduction record (DEV-92, 2026-07-29)
+
+The Residual Matcher (`nn_model.ResidualMatcher`, plan Step 2.3, ADR 0003). Adding
+a model must not perturb the models already scored, and it didn't — **nothing moved
+at all**, in either gate. Both re-runs were made from `data/venv-training` (the
+hash-pinned stack of DEV-87; `Scripts/` on this Windows machine) on the final state
+of the code, not an earlier one:
+
+- `evaluate_matchers.py` re-run: `dataset_digest` still
+  `2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`; `logistic`
+  ECE `0.034099440082920096` / stability `0.637516702641587`, `lightgbm`
+  `0.128155228434309` / `0.5566450817144618`, `small_nn` `0.061831` / `0.615315`,
+  reseeded `0.667016`. `gate1_verdict.json` and `baseline_evaluation.md` came back
+  byte-identical apart from their timestamps, so the regenerated files were
+  reverted rather than committed.
+- `train_models.py` re-run: all four Gate-2 rows identical to the DEV-91
+  re-baseline — `gbt_tuned` 0.892 / 0.040, `logistic_tuned` 0.849 / 0.061,
+  `small_nn` 0.845 / 0.102, `two_tower` 0.763 / 0.081 (top-2 / cross-fitted ECE).
+  `model_selection.md` and `gate2_winner.json` likewise differ only by timestamp
+  and were reverted.
+
+Three reasons that is worth stating rather than assuming, because two changes here
+touched code that produced the recorded numbers:
+
+- **`fit_logistic` now delegates to `nn_model.frozen_logistic`.** The Residual
+  Matcher's paired-comparison argument rests on its frozen base being exactly the
+  Incumbent's configuration, and a comment claiming so enforces nothing — so there
+  is one construction site. The re-run is what shows the delegation is inert.
+- **`NNClassifier.predict_proba`'s standardize-and-forward block moved into
+  `_mlp_output`**, shared with `ResidualMatcher.predict_proba` so the two cannot
+  hold drifting copies of a scaler contract fitted on training rows only. The
+  arithmetic is unchanged, and `small_nn`'s two gate rows reproducing to the last
+  digit is what shows it.
+- **`two_tower` did not move, and that was arranged rather than lucky.** It seeds
+  from process-global torch RNG rather than per fit, so its predictions depend on
+  how many torch fits preceded them (DEV-91 documented this instead of fixing it).
+  The Residual Matcher is deliberately **not** wired into `train_models.main()`, so
+  no torch fit was inserted ahead of `two_tower` and its ordering is untouched.
+  Whoever wires the sweep in must order it after `two_tower` or fix that seeding as
+  a separate, separately-reported change.
+
+Why it is not in `main()`: it is one of the fourteen Variants of the round-1 sweep
+(execution-order item 6). Entering it in Gate 2 now would select its configuration
+under a different protocol than the one every other Variant competes under. What
+landed is the model plus the selection seam the sweep consumes —
+`select_residual_config` (inherits the fold's tuned-logistic `C`, then grid-argmaxes
+`alpha` on inner-CV top-2), `fit_residual`, and `alpha_zero_verdict`, which encodes
+the pre-registered ">= 3 of 5 folds at alpha=0 means no non-linear signal found"
+rule in one place so the sweep reads it rather than restating it.
+
+**No `alpha` has been selected on the real data.** Nothing in this record is
+evidence about whether a non-linear residual helps.
+
+Test counts: `data/scripts/tests` is **41** under the training venv (was 23), and
+**7 passed + 3 skipped** under `backend/venv` (was 7 + 2) — `test_residual_matcher.py`
+is the third module that skips whole there, for the same reason as the other two:
+no torch. The five service suites were re-run and are unchanged at **268**
+(questionnaire 18, matching 108, roadmap 30, auth 31, history 81); no file under
+`services/` is in this change.
 
 ## Pipeline order
 

@@ -146,6 +146,15 @@ explainability.)
 
 ### 2.3 C4 — the Residual Matcher
 
+> **Status: DONE (DEV-92, 2026-07-29).** The model is `nn_model.ResidualMatcher`
+> and its selection wiring is `train_models.select_residual_config` /
+> `fit_residual` / `alpha_zero_verdict`; contract held by
+> `data/scripts/tests/test_residual_matcher.py`. Deliberately **not** wired into
+> `train_models.main()` — it is one of the fourteen Variants of execution-order
+> item 6, and entering it in Gate 2 ahead of that sweep would pick its
+> configuration under a different protocol than the one every other Variant
+> competes under. Symbol names, not line numbers, as in Step 4.2.
+
 **`logits = frozen_logistic_logits + α · MLP(x)`**, with `α` a hyperparameter
 selected by inner CV from `{0, 0.25, 0.5, 1.0}`. Full rationale in
 [ADR 0003](./adr/0003-residual-matcher-freezes-its-linear-branch.md).

@@ -32,3 +32,28 @@ network can and does finish below its own initialisation.
   and integrated gradients cover only `alpha * MLP`.
 - There is no weight-decay parameter-group split to maintain, because the linear
   branch has no parameters to decay.
+
+## Observed on implementation (DEV-92, 2026-07-29)
+
+The decision is unchanged. One claim above needed a specific implementation to be
+literally true rather than approximately true, which is worth recording because
+the obvious alternative looks correct and is not:
+
+- **"With `alpha = 0` the model is *exactly* logistic regression" holds only if the
+  frozen branch contributes `decision_function` values.** For a multiclass problem
+  sklearn's `LogisticRegression.predict_proba` *is* `softmax(decision_function(X))`,
+  so summing decision values with `alpha * MLP` and applying sklearn's own softmax
+  reproduces its output bit for bit. Taking `log(predict_proba)` as the base logits
+  is the natural-looking alternative and is mathematically equivalent — softmax is
+  shift-invariant — but the exponential round-trip loses the last bits: it passes
+  `np.allclose` and fails `np.array_equal`. That is not asserted here but held as a
+  property, by
+  `test_residual_matcher.py::test_taking_log_probabilities_as_the_base_logits_would_lose_the_identity`,
+  so this paragraph fails loudly rather than quietly ageing if the round-trip ever
+  becomes exact. A retreat to the Incumbent that is only approximate is not the
+  safeguard this ADR describes, so the exactness is asserted bit-identically and
+  `predict_proba` carries no branch on `alpha` that could make that assertion
+  circular.
+- Nothing here is evidence about whether the residual helps. No `alpha` has been
+  selected on the real data yet; the pre-registered >=3-of-5 rule is encoded in
+  `train_models.alpha_zero_verdict` and read by the sweep.

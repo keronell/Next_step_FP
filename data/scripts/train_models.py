@@ -59,14 +59,11 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from lightgbm import LGBMClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
 
 from dataset_guards import assert_min_class_coverage, dataset_digest
 from env_manifest import environment_manifest, manifest_markdown
-from nn_model import NNClassifier, class_weights
+from nn_model import NNClassifier, ResidualMatcher, class_weights, frozen_logistic
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = REPO_ROOT / "data" / "training"
@@ -100,6 +97,10 @@ _QID_RE = re.compile(r"q\d+$")
 
 GBT_GRID = list(product([200, 400], [0.03, 0.07], [7, 15], [3, 10]))
 LOGISTIC_C_GRID = [0.05, 0.25, 1.0, 4.0]
+# Pre-registered in ADR 0003 and fixed. Widening it later is a protocol change, not
+# a tuning tweak: alpha=0 is the retreat-to-the-Incumbent point the whole design
+# rests on, and the >=3-of-5 disqualification rule below is stated against this grid.
+RESIDUAL_ALPHA_GRID = (0.0, 0.25, 0.5, 1.0)
 
 rng = np.random.default_rng(SEED)
 torch.manual_seed(SEED)
@@ -299,10 +300,11 @@ def top2_of(model, Xv, yv) -> float:
 
 
 def fit_logistic(C, Xtr, ytr):
-    return make_pipeline(
-        StandardScaler(),
-        LogisticRegression(C=C, max_iter=5000, class_weight="balanced", random_state=SEED),
-    ).fit(Xtr, ytr)
+    """The Incumbent's estimator. Constructed by `nn_model.frozen_logistic` rather than here, so
+    the Residual Matcher's frozen branch is the same estimator by construction and
+    not by a comment claiming it is — ADR 0003's paired comparison depends on that
+    and nothing else enforces it."""
+    return frozen_logistic(C, SEED).fit(Xtr, ytr)
 
 
 # The plan's `select_by_inner_cv(tr)`: pick a configuration using ONLY the outer
@@ -333,6 +335,103 @@ def select_by_inner_cv(X, y, tr, grid, fit):
 # (3b small NN — the network lives in nn_model.py, shared with Gate 1. Its
 # standardization, class weighting, validation split and early stopping moved
 # there with it; the only thing this file supplies is the soft-target matrix.)
+
+
+# ------------------------------------------------- residual matcher (Step 2.3)
+# The Residual Matcher's selection wiring. Deliberately NOT wired into main():
+# it is one of the fourteen Variants of the round-1 sweep, and entering it in
+# Gate 2 ahead of that sweep would pick its configuration by a different protocol
+# than the one every other Variant competes under. The sweep consumes what is
+# below; nothing here changes the four models main() scores today.
+def fit_residual(config, Xtr, ytr, random_state=SEED, **mlp_kwargs):
+    """Fit the Residual Matcher for one `(alpha, C)` configuration on `Xtr`.
+
+    Both halves of the config were chosen on the outer fold's training partition,
+    and the frozen base is refit inside `ResidualMatcher.fit` on exactly the rows
+    handed here — so when `select_by_inner_cv` calls this on an inner-training
+    subset, the base is refit on that subset. That is the plan's "refit on whichever
+    partition the MLP trains on", and it holds structurally: there is no argument
+    through which a caller could pass a base fitted on something wider."""
+    alpha, C = config
+    return ResidualMatcher(
+        random_state=random_state, alpha=alpha, logistic_C=C, **mlp_kwargs
+    ).fit(Xtr, ytr)
+
+
+def select_residual_config(X, y, tr, random_state=SEED, **mlp_kwargs):
+    """The plan's `select_by_inner_cv(tr)` for the Residual Matcher, returning
+    `(alpha, C)`.
+
+    `C` is **inherited** from this outer fold's tuned-logistic selection rather than
+    re-selected at a third nesting level. It was chosen using only outer-training
+    data, so reusing it inside inner splits of the same partition never touches the
+    outer test set — and it makes the frozen base exactly the Incumbent's
+    configuration on this partition, which is what turns "does the residual add
+    anything?" into an exactly paired comparison (ADR 0003). Selecting `C` at a
+    third level is the purist option and does not earn its complexity.
+
+    `alpha` is then a grid-argmax on inner-CV top-2, like every other nested
+    selection in this file. Like them it trains on **hard labels**: the soft-target
+    objective is a Gate-2 challenger property rather than part of choosing a
+    configuration, and keeping selection on one basis is what makes the four models'
+    selections comparable. Whether the sweep goes on to *score* the chosen
+    configuration on soft targets is its decision, not this function's —
+    `ResidualMatcher.fit` takes `soft_targets` like any `NNClassifier`.
+
+    A pure function of `tr` in both halves, which is what lets `cross_fitted_oof`
+    reuse the result for the temperature's inner refits with no risk of the
+    selection having seen the rows it will be scored on.
+    """
+    C = select_by_inner_cv(X, y, tr, LOGISTIC_C_GRID, fit_logistic)
+    return select_by_inner_cv(
+        X, y, tr,
+        [(alpha, C) for alpha in RESIDUAL_ALPHA_GRID],
+        lambda config, Xtr, ytr: fit_residual(
+            config, Xtr, ytr, random_state=random_state, **mlp_kwargs
+        ),
+    )
+
+
+# Pre-registered in ADR 0003, before any alpha was selected on this data.
+ALPHA_ZERO_DISQUALIFIES_AT = 3
+
+
+def alpha_zero_verdict(chosen) -> dict:
+    """Read the pre-registered rule off `cross_fitted_oof`'s per-fold configs.
+
+    `alpha = 0` selected in >= 3 of 5 outer folds is reported as **"no non-linear
+    signal found"** and disqualifies the Residual Matcher from being the shipped
+    neural model — shipping it would be shipping logistic regression in a costume
+    while the project requires a neural network (ADR 0001). The rule lives here, in
+    one function, so the sweep reads it rather than restating it: a pre-registered
+    threshold that gets paraphrased at the point of use is a threshold that can move
+    after somebody has seen the data.
+
+    Reporting only. Nothing here selects, and a disqualified Residual Matcher is
+    still reported in full — the plan's Step 6 table says the shipped model becomes
+    the best genuinely non-linear Variant and the cost of that substitution is
+    stated explicitly.
+    """
+    if len(chosen) != N_FOLDS:
+        raise ValueError(
+            f"the >= {ALPHA_ZERO_DISQUALIFIES_AT}-of-{N_FOLDS} rule was pre-registered "
+            f"against {N_FOLDS} outer folds and got {len(chosen)}. It is a count, not "
+            "a proportion, so it cannot be rescaled onto a different protocol without "
+            "choosing a new threshold after the fact."
+        )
+    per_fold = [float(alpha) for alpha, _ in chosen]
+    n_zero = sum(1 for alpha in per_fold if alpha == 0.0)
+    return {
+        "per_fold_alpha": per_fold,
+        "per_fold_logistic_C": [c for _, c in chosen],
+        "n_folds_at_zero": n_zero,
+        "no_non_linear_signal": n_zero >= ALPHA_ZERO_DISQUALIFIES_AT,
+        "rule": (
+            f"alpha=0 in >= {ALPHA_ZERO_DISQUALIFIES_AT} of {N_FOLDS} outer folds is "
+            "'no non-linear signal found' and disqualifies the Residual Matcher from "
+            "being the shipped neural model (ADR 0003, pre-registered)"
+        ),
+    }
 
 
 # ---------------------------------------------------------------- 3c two-tower

@@ -1,9 +1,14 @@
-"""A neural Learned Matcher variant — one definition, shared by both gates.
+"""Neural Learned Matcher variants — one definition, shared by both gates.
 
 `evaluate_matchers.py` (Gate 1) and `train_models.py` (Gate 2) both import
 `NNClassifier` from here. Before this module existed only Gate 2 had a network,
 defined inline, so "the NN" meant whatever that one function happened to do — and
 Gate 1 could not score the same object Gate 2 selected.
+
+`ResidualMatcher` is the second definition here: the plan's Step 2.3 variant, a
+frozen logistic branch plus a gated MLP correction. It subclasses `NNClassifier`
+through one seam (`_logits`) so the training loop, class weighting, early-stopping
+split and determinism contract are shared rather than copied.
 
 Nothing here is Selected, Servable or Deployable, and clearing Gate 1 makes a
 configuration Qualified and nothing more (see `CONTEXT.md`).
@@ -50,7 +55,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.utils.extmath import softmax as _sklearn_softmax
 
 # V0 in the plan's variant sweep (Step 2.2): the configuration the recorded
 # small_nn numbers were produced with. Kept as defaults so the sweep varies
@@ -221,7 +230,7 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
 
         def loss_on(idx, training: bool):
             model.train(training)
-            logp = torch.log_softmax(model(Xt[idx]), dim=1)
+            logp = torch.log_softmax(self._logits(model, Xt, idx), dim=1)
             # Soft-target cross-entropy, class-weighted per sample. With one-hot
             # targets this reduces exactly to weighted hard-label cross-entropy.
             return (-(Tt[idx] * logp).sum(dim=1) * sample_w[idx]).mean()
@@ -250,13 +259,183 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
         self.n_features_in_ = X.shape[1]
         return self
 
+    def _logits(self, model, Xt, idx):
+        """The logit vector the loss is measured on, for the rows `idx`.
+
+        A seam, not indirection for its own sake: `ResidualMatcher` overrides this
+        one expression to add its frozen linear branch, and everything else about
+        the training loop — the class weights, the stratified early-stopping split,
+        which epoch gets selected — is then shared with this class rather than
+        copied into a second one that could drift. For `NNClassifier` the logits are
+        the MLP's own output, so nothing about `small_nn` changes."""
+        return model(Xt[idx])
+
     # -------------------------------------------------------------- predict
-    def predict_proba(self, X) -> np.ndarray:
+    def _mlp_output(self, X):
+        """The trunk's raw logits for `X`, standardized with the training
+        statistics and with dropout off.
+
+        Shared with `ResidualMatcher`, which needs the same tensor as a correction
+        term rather than as the whole logit vector. Two copies of this would be two
+        copies of the standardization contract — the scaler is fitted on training
+        rows only and kept on the estimator precisely so inference reproduces it,
+        and a second copy that drifted would be silent."""
         Xs = (np.asarray(X, dtype=np.float32) - self.mean_) / self.scale_
         self.model_.eval()  # no dropout at inference — predictions are a function of X alone
         with torch.no_grad():
-            probs = torch.softmax(self.model_(torch.tensor(Xs)), dim=1).numpy()
-        return probs.astype(np.float64)
+            return self.model_(torch.tensor(Xs))
+
+    def predict_proba(self, X) -> np.ndarray:
+        return torch.softmax(self._mlp_output(X), dim=1).numpy().astype(np.float64)
 
     def predict(self, X) -> np.ndarray:
         return self.classes_[self.predict_proba(X).argmax(axis=1)]
+
+
+def frozen_logistic(C: float, random_state: int):
+    """The Residual Matcher's linear branch — and `train_models.fit_logistic`'s
+    estimator, from this one construction site.
+
+    ADR 0003's argument for the Residual Matcher rests on its base being *exactly*
+    the Incumbent's configuration on the same partition, which is what turns "does
+    the residual add anything?" into an exactly paired comparison. A second
+    definition that drifted by one keyword would leave that claim quietly false
+    while every test still passed, so there is only one.
+
+    `random_state` is threaded through for completeness. The lbfgs solver does not
+    consume it, so the fitted base is a function of `C` and the training partition
+    alone — which is why the experiment seed the sweep varies reaches only the MLP
+    branch. `test_residual_matcher.py` holds that.
+    """
+    return make_pipeline(
+        StandardScaler(),
+        LogisticRegression(C=C, max_iter=5000, class_weight="balanced", random_state=random_state),
+    )
+
+
+class ResidualMatcher(NNClassifier):
+    """`logits = frozen_logistic_logits + alpha * MLP(x)`, summed BEFORE the softmax.
+
+    Both branches see the same input and emit a full per-career logit vector. The
+    linear branch is fitted on whatever partition the MLP trains on and then held
+    fixed; `alpha` is a **hyperparameter** selected by inner CV from the grid in
+    `train_models.RESIDUAL_ALPHA_GRID`. Full rationale in ADR 0003; the vocabulary
+    ("Residual Matcher", not "C4" or "hybrid") is `CONTEXT.md`'s.
+
+    ## Three things that are load-bearing, not incidental
+
+    **The linear branch is frozen, and that is the point.** An earlier revision
+    trained both branches jointly, warm-started at the logistic solution, and
+    claimed this made the model structurally never worse than logistic. That claim
+    was false: initialisation constrains only the starting predictions, training
+    minimises soft-target cross-entropy while the reported metric is top-2, and
+    early stopping selects on validation loss — so the net can and does finish below
+    its own initialisation. Do not "fix" this by unfreezing. At n=232 with 84
+    features and 16 classes the binding constraint is variance, not expressiveness,
+    and a trainable linear branch would spend scarce capacity re-learning structure
+    already available in closed form.
+
+    **`alpha` is not learned.** A learnable alpha initialised at zero is pushed off
+    zero immediately, because moving it reduces training loss — which reproduces the
+    retracted claim above with extra steps. It is selected from a fixed grid on
+    inner-CV top-2, the same basis every other nested selection in this pipeline
+    uses.
+
+    **The base is refit inside `fit`, never handed in.** That is what makes "the
+    frozen base is refit on whichever partition the MLP trains on" structural: there
+    is no call site that *could* hoist it to the outer-training partition, which is
+    the plan's named easiest-thing-to-get-subtly-wrong and would be Leakage in the
+    sense `CONTEXT.md` reserves the word for.
+
+    ## Why `alpha = 0` is exactly logistic regression, and not approximately
+
+    For a multiclass problem sklearn's `LogisticRegression.predict_proba` *is*
+    `softmax(decision_function(X))`. So the base branch contributes decision values
+    rather than `log(predict_proba)`, and the same `sklearn.utils.extmath.softmax`
+    is applied to the sum — the identical function sklearn calls, imported rather
+    than reimplemented, so the identity cannot decay into "close" if sklearn's
+    operation order ever changes. At `alpha = 0` the correction term is exactly
+    `0.0`, adding it changes no bit of the base logits, and `predict_proba` returns
+    sklearn's own array. `predict_proba` has **no branch on alpha**: a short-circuit
+    would make the acceptance test assert something about itself.
+
+    The MLP is still trained at `alpha = 0` rather than skipped. The loss's
+    gradient with respect to every MLP parameter is identically zero there — held
+    by `test_at_alpha_zero_the_loss_carries_no_gradient_into_the_mlp` — and the
+    validation loss is therefore constant, so early stopping ends the fit after one
+    patience window. That is the whole cost of not having a branch on `alpha` in the
+    forward pass.
+    """
+
+    def __init__(
+        self,
+        random_state: int,
+        alpha: float,
+        logistic_C: float,
+        hidden_sizes=DEFAULT_HIDDEN_SIZES,
+        dropout: float = DEFAULT_DROPOUT,
+        lr: float = DEFAULT_LR,
+        weight_decay: float = DEFAULT_WEIGHT_DECAY,
+        batch_size: int = DEFAULT_BATCH_SIZE,
+        max_epochs: int = DEFAULT_MAX_EPOCHS,
+        patience: int = DEFAULT_PATIENCE,
+        val_fraction: float = DEFAULT_VAL_FRACTION,
+    ):
+        super().__init__(
+            random_state=random_state,
+            hidden_sizes=hidden_sizes,
+            dropout=dropout,
+            lr=lr,
+            weight_decay=weight_decay,
+            batch_size=batch_size,
+            max_epochs=max_epochs,
+            patience=patience,
+            val_fraction=val_fraction,
+        )
+        self.alpha = alpha
+        self.logistic_C = logistic_C
+
+    # ------------------------------------------------------------------ fit
+    def _fit(self, X, y, soft_targets):
+        Xb = np.asarray(X)
+        if len(np.unique(y)) < 3:
+            raise ValueError(
+                "ResidualMatcher needs more than two classes: sklearn's "
+                "LogisticRegression.predict_proba takes a sigmoid path rather than "
+                "a multiclass softmax one at two classes, so the additive-logit "
+                "form would not collapse to it at alpha=0 and would be scoring "
+                "something other than what it claims."
+            )
+
+        # Fitted here rather than accepted as an argument — see the class docstring.
+        # Inside `fit`'s deterministic context, so the base cannot leave a trace on
+        # the process-global generators either.
+        self.base_ = frozen_logistic(self.logistic_C, self.random_state).fit(Xb, y)
+        # float32 to match the MLP branch it is summed with during training.
+        # `predict_proba` deliberately re-reads the base in float64 instead: that is
+        # where the bit-identity with sklearn has to hold, and sklearn works in
+        # float64.
+        self._base_logits_t = torch.tensor(
+            self.base_.decision_function(Xb), dtype=torch.float32
+        )
+        try:
+            return super()._fit(Xb, y, soft_targets)
+        finally:
+            # Only the training loop indexes it, and it is sized to the training
+            # rows; keeping it on the fitted object would be a stale array shaped
+            # like a live one.
+            del self._base_logits_t
+
+    def _logits(self, model, Xt, idx):
+        """The model equation, and the one place the two branches meet: summed here,
+        *before* the `log_softmax` the caller applies. The base tensor carries no
+        `requires_grad`, so the frozen branch contributes to the loss without
+        appearing in it."""
+        return self._base_logits_t[idx] + self.alpha * model(Xt[idx])
+
+    # -------------------------------------------------------------- predict
+    def predict_proba(self, X) -> np.ndarray:
+        Xb = np.asarray(X)
+        base = self.base_.decision_function(Xb)
+        correction = self._mlp_output(Xb).numpy().astype(np.float64)
+        return _sklearn_softmax(base + self.alpha * correction, copy=False)
