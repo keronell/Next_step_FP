@@ -26,3 +26,9 @@ data/jobs/chroma/
 
 # Local scratch / PR-review temp (zips, extracted PRs, pytest temp dirs)
 .tmp/
+
+# Resume artifact for the DEV-93 Variant sweep. Holds per-profile indicator arrays
+# for every (seed, model) so a killed run resumes instead of restarting — an
+# intermediate, not a deliverable. The deliverables are round1_results.json and
+# nn_rework.md, which are tracked.
+data/training/round1_checkpoint.json

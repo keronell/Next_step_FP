@@ -74,7 +74,7 @@ Gate 1 is also unaffected structurally, which is the stronger statement: it gate
 on RAW ECE, has never applied a temperature, and `evaluate_matchers.py` does not
 import this module in either direction.
 
-Generated: 2026-07-28T15:53:10Z
+Generated: 2026-07-29T16:47:04Z
 Dataset: 232 rows, feature `features-v4`, seed 42,
 outer 5-fold stratified CV (same folds as Phase 2).
 Phase 2 reference (recomputed on THIS dataset, not hardcoded from a previous run):
@@ -111,6 +111,7 @@ recorded history (see docs/dev-23-nn-rework-plan.md Step 1).
 | logistic_tuned (3a) | 0.724 | 0.849 | 0.931 | 0.826 | 0.679 | 0.103 | 0.061 | 0.103 |
 | small_nn soft-targets (3b) | 0.603 | 0.845 | 0.918 | 0.765 | 0.528 | 0.095 | 0.102 | 0.078 |
 | two_tower archetype-seeded (3c) | 0.638 | 0.763 | 0.828 | 0.753 | 0.562 | 0.062 | 0.081 | 0.086 |
+| residual_matcher hard-labels (3d) | 0.724 | 0.849 | 0.931 | 0.826 | 0.679 | 0.103 | 0.061 | 0.103 |
 
 **`ECE cross-fitted` is the reported and gating number.** `ECE pooled-T (legacy)`
 is what the old protocol printed — one temperature fitted on the whole OOF pool and
@@ -130,9 +131,13 @@ predictions are unmoved and isolates the change to the protocol alone.
 | small_nn | 0.130 | 0.095 | 0.101 | 0.078 | no — see causes above |
 | two_tower | 0.047 | 0.062 | 0.077 | 0.086 | no — see causes above |
 
+`residual_matcher` is absent from that table by construction: it is new in DEV-93,
+was never scored under the old protocol, and a model with no recorded row can
+neither reproduce nor fail to reproduce one.
+
 ## What this re-baseline showed
 
-**1. 2 of 4 models reproduce the old protocol exactly**
+**1. 2 of 4 models with recorded history reproduce the old protocol exactly**
 (`gbt_tuned`, `logistic_tuned`). Their `ECE raw` and their
 `legacy` ECE match the 2026-07-19 record to three decimals — same environment, same
 folds, same raw out-of-fold predictions — which isolates the whole of their movement
@@ -163,9 +168,9 @@ But cross-fitting changes two things at once. It removes the leak, **and** it
 widens the family from one global constant to five per-fold constants, which can
 absorb fold-specific miscalibration a single constant cannot. The second effect
 can outweigh the first, and here it does: cross-fitted ECE is *lower* for
-3 of 4
-(`gbt_tuned`, `logistic_tuned`, `two_tower`), and cross-fitted NLL is
-lower for 1 of 4. So the honest claim is only this: **the old number was never a
+4 of 5
+(`gbt_tuned`, `logistic_tuned`, `two_tower`, `residual_matcher`), and cross-fitted NLL is
+lower for 2 of 5. So the honest claim is only this: **the old number was never a
 held-out estimate.** Not that it was necessarily flattering. ADR 0004's word
 "optimistic" is right about the mechanism and overstated as a prediction about
 either metric, and is annotated accordingly.
@@ -176,6 +181,7 @@ either metric, and is annotated accordingly.
 | logistic_tuned | 0.9096 | 0.9685 | cross-fitted |
 | small_nn | 1.1304 | 1.1256 | legacy |
 | two_tower | 1.2979 | 1.2754 | legacy |
+| residual_matcher | 0.9096 | 0.9685 | cross-fitted |
 
 Neither column is a gate input; both are shown because the direction is the thing
 readers will assume they already know.
@@ -188,6 +194,7 @@ readers will assume they already know.
 | logistic_tuned | 1.40 | 1.40 | 1.30 | 0.50 | 0.85 | 0.90 | 0.36 | 1.00 |
 | small_nn | 0.90 | 0.90 | 1.05 | 1.10 | 1.15 | 0.25 | 0.10 | 0.90 |
 | two_tower | 1.30 | 1.15 | 1.45 | 1.60 | 1.45 | 0.45 | 0.15 | 1.45 |
+| residual_matcher | 1.40 | 1.40 | 1.30 | 0.50 | 0.85 | 0.90 | 0.36 | 1.00 |
 
 **The spread is itself a finding, and the widest of it is on the model that ships.**
 Each fold's temperature is an independent estimate of the same quantity, so a wide
@@ -207,6 +214,31 @@ OOF predictions from that exact configuration.
 Chosen hyperparameters per outer fold:
 - gbt (n_estimators, lr, num_leaves, min_child_samples): [(200, 0.07, 7, 3), (200, 0.03, 7, 3), (200, 0.03, 15, 3), (200, 0.07, 7, 10), (200, 0.07, 15, 3)]
 - logistic C: [4.0, 4.0, 4.0, 0.05, 0.25]
+- residual (alpha, inherited logistic C): [(0.0, 4.0), (0.0, 4.0), (0.0, 4.0), (0.0, 0.05), (0.0, 0.25)]
+
+## Residual Matcher: the pre-registered alpha=0 rule
+
+`alpha` is a hyperparameter selected by inner CV from [0.0, 0.25, 0.5, 1.0], and at
+`alpha = 0` the model is *exactly* logistic regression. ADR 0003 pre-registered,
+before any alpha was selected on this data, that **alpha=0 in >= 3
+of 5 outer folds is reported as "no non-linear signal found"** and disqualifies the
+Residual Matcher from being the shipped neural model — shipping it would be
+shipping logistic regression in a costume while the project requires a neural
+network (ADR 0001).
+
+Per-fold alpha: [0.0, 0.0, 0.0, 0.0, 0.0] — 5 of 5 at zero.
+**Verdict: NO NON-LINEAR SIGNAL FOUND — disqualified from being the shipped neural model.**
+The inherited logistic C per fold: [4.0, 4.0, 4.0, 0.05, 0.25]. Reporting only —
+nothing here selects, and a disqualified Residual Matcher is still reported in full.
+
+**Its row in the comparison table above is identical to `logistic_tuned`'s in every column, and that is a consequence rather than a coincidence.**
+At `alpha = 0` the Residual Matcher is exactly logistic regression at its inherited `C`, and that `C` comes from the same `select_by_inner_cv` call `logistic_tuned` uses — verified here, not assumed: the per-fold `C` lists match. With every fold at `alpha = 0` the two are therefore the same estimator, fold for fold, and no arithmetic could separate them. Read the two rows as one measurement printed twice.
+
+What this does NOT establish: that a non-linear residual could never help on these
+features. It establishes that inner CV, given the choice on this dataset under this
+protocol, declined it in every fold — which is evidence about this feature set and
+this sample size, not a theorem. The 5-seed sweep in `nn_rework.md` is the wider
+test, and it reaches the same verdict.
 
 ## Per-class top-1 recall
 
@@ -290,6 +322,26 @@ Chosen hyperparameters per outer fold:
 | game-dev | 0.00 |
 | technical-writer | 0.00 |
 | software-architect | 0.50 |
+### residual_matcher
+
+| career | top-1 recall |
+|---|---|
+| frontend | 0.79 |
+| backend | 0.73 |
+| data-science | 0.67 |
+| devops | 0.94 |
+| product-manager | 0.33 |
+| ux-designer | 0.67 |
+| fullstack | 0.85 |
+| mobile | 0.75 |
+| data-analyst | 0.76 |
+| machine-learning | 0.87 |
+| ai-engineer | 1.00 |
+| cyber-security | 0.73 |
+| qa-engineer | 0.69 |
+| game-dev | 0.20 |
+| technical-writer | 0.45 |
+| software-architect | 0.43 |
 
 ## Gate 2 verdict
 

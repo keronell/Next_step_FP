@@ -10,6 +10,15 @@ frozen logistic branch plus a gated MLP correction. It subclasses `NNClassifier`
 through one seam (`_logits`) so the training loop, class weighting, early-stopping
 split and determinism contract are shared rather than copied.
 
+`SeedEnsemble` is the third: the sweep's protocol Variant C3, `n_members` networks
+differing only in seed and averaged in probability. It stays a Variant in its own
+right and is never fused into `ResidualMatcher` — fusing would confound "does a
+non-linear residual help" with "does seed-averaging help" (plan Step 2.2).
+
+The Round-1 sweep (DEV-93) varies **arguments** to these classes rather than
+editing them; `input_noise`, `optimizer`, `lr_schedule` and `momentum` were added
+for exactly that reason, and their defaults are inert so V0 is unchanged.
+
 Nothing here is Selected, Servable or Deployable, and clearing Gate 1 makes a
 configuration Qualified and nothing more (see `CONTEXT.md`).
 
@@ -72,6 +81,15 @@ DEFAULT_BATCH_SIZE = 32
 DEFAULT_MAX_EPOCHS = 400
 DEFAULT_PATIENCE = 30
 DEFAULT_VAL_FRACTION = 0.15
+# Added for the Round-1 sweep (DEV-93), which needs Gaussian input noise and an
+# SGD+momentum/cosine protocol as Variants. Their defaults are the inert ones: at
+# `input_noise = 0.0` no generator is drawn from at all, and "adam"/None is the
+# optimizer V0 was always trained with, so the control Variant stays bit-identical
+# to the estimator `small_nn`'s recorded numbers came from.
+DEFAULT_INPUT_NOISE = 0.0
+DEFAULT_OPTIMIZER = "adam"
+DEFAULT_LR_SCHEDULE = None
+DEFAULT_MOMENTUM = 0.9
 
 
 @contextmanager
@@ -169,6 +187,10 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
         max_epochs: int = DEFAULT_MAX_EPOCHS,
         patience: int = DEFAULT_PATIENCE,
         val_fraction: float = DEFAULT_VAL_FRACTION,
+        input_noise: float = DEFAULT_INPUT_NOISE,
+        optimizer: str = DEFAULT_OPTIMIZER,
+        lr_schedule: str | None = DEFAULT_LR_SCHEDULE,
+        momentum: float = DEFAULT_MOMENTUM,
     ):
         self.random_state = random_state
         self.hidden_sizes = hidden_sizes
@@ -179,6 +201,10 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
         self.max_epochs = max_epochs
         self.patience = patience
         self.val_fraction = val_fraction
+        self.input_noise = input_noise
+        self.optimizer = optimizer
+        self.lr_schedule = lr_schedule
+        self.momentum = momentum
 
     # ------------------------------------------------------------------ fit
     def fit(self, X, y, soft_targets: np.ndarray | None = None) -> "NNClassifier":
@@ -222,7 +248,11 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
         sample_w = torch.tensor(class_weights(y_idx, n_classes)[y_idx], dtype=torch.float32)
 
         model = _MLP(X.shape[1], n_classes, tuple(self.hidden_sizes), self.dropout)
-        opt = torch.optim.Adam(model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        opt = self._build_optimizer(model)
+        scheduler = (
+            torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.max_epochs)
+            if self.lr_schedule == "cosine" else None
+        )
         Xt = torch.tensor(Xs)
         Tt = torch.tensor(targets)
         train_t = torch.tensor(train_idx)
@@ -241,6 +271,8 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
                 opt.zero_grad()
                 loss_on(train_t[batch], training=True).backward()
                 opt.step()
+            if scheduler is not None:
+                scheduler.step()
             with torch.no_grad():
                 val = float(loss_on(val_t, training=False))
             if val < best_val - 1e-4:
@@ -259,6 +291,37 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
         self.n_features_in_ = X.shape[1]
         return self
 
+    def _build_optimizer(self, model):
+        """Adam by default; SGD+momentum for the sweep's protocol Variant.
+
+        Weight decay goes to the optimizer in both cases, so the regularization
+        axis means the same thing whichever protocol is selected."""
+        if self.optimizer == "adam":
+            return torch.optim.Adam(
+                model.parameters(), lr=self.lr, weight_decay=self.weight_decay
+            )
+        if self.optimizer == "sgd":
+            return torch.optim.SGD(
+                model.parameters(), lr=self.lr, momentum=self.momentum,
+                weight_decay=self.weight_decay,
+            )
+        raise ValueError(f"unknown optimizer {self.optimizer!r}, expected 'adam' or 'sgd'")
+
+    def _noisy(self, model, x):
+        """Gaussian input noise, training only — the sweep's regularization Variant.
+
+        Returns `x` untouched at the default `input_noise = 0.0`, and draws from no
+        generator in that case. That is what keeps V0 bit-identical: an
+        unconditional `randn_like` scaled by zero would still advance torch's RNG
+        and shift every subsequent dropout mask and batch permutation.
+
+        `model.training` rather than a flag of our own, because the caller has
+        already set it and two sources of truth for "is this a training pass" is
+        exactly how noise ends up leaking into inference."""
+        if self.input_noise <= 0.0 or not model.training:
+            return x
+        return x + torch.randn_like(x) * self.input_noise
+
     def _logits(self, model, Xt, idx):
         """The logit vector the loss is measured on, for the rows `idx`.
 
@@ -268,7 +331,7 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
         which epoch gets selected — is then shared with this class rather than
         copied into a second one that could drift. For `NNClassifier` the logits are
         the MLP's own output, so nothing about `small_nn` changes."""
-        return model(Xt[idx])
+        return model(self._noisy(model, Xt[idx]))
 
     # -------------------------------------------------------------- predict
     def _mlp_output(self, X):
@@ -287,6 +350,61 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
 
     def predict_proba(self, X) -> np.ndarray:
         return torch.softmax(self._mlp_output(X), dim=1).numpy().astype(np.float64)
+
+    def predict(self, X) -> np.ndarray:
+        return self.classes_[self.predict_proba(X).argmax(axis=1)]
+
+
+class SeedEnsemble(BaseEstimator, ClassifierMixin):
+    """`n_members` `NNClassifier`s differing only in seed, averaged in PROBABILITY.
+
+    The sweep's protocol Variant C3. Averaging probabilities rather than logits is
+    the choice that keeps the result a distribution without a renormalisation step,
+    and it is the form the plan costed: integrated gradients is linear in the model
+    function, so attribution over a probability-averaged ensemble is just the
+    average of the members' attributions — ensembling costs artifact size and
+    serve-time compute, not explainability.
+
+    **It stays a separate Variant and is never fused into the Residual Matcher.**
+    Fusing would confound "does a non-linear residual help" with "does
+    seed-averaging help", and a fused winner could not be attributed to either
+    (plan Step 2.2). Round 2 may test ensembling on top of a Round-1 winner; that is
+    a different question asked after this one is answered.
+
+    Deterministic on the same terms as its members: seeds are `random_state + i`,
+    fixed by construction, and each member restores the global generators it
+    touched. So `assert_deterministic` holds for the ensemble exactly when it holds
+    for one member, and Gate 1's stability number stays interpretable.
+
+    **Not `sklearn.clone`-safe**, and deliberately not made so. `member_kwargs` is
+    collected with `**`, which `BaseEstimator.get_params` cannot see, so a `clone()`
+    would silently return an ensemble of DEFAULT members — a wrong model that still
+    runs. Nothing in this pipeline clones: `cv_oof_and_stability`,
+    `assert_deterministic` and the sweep all construct through factories that call
+    the constructor directly. Spelling the parameters out to satisfy `get_params`
+    would mean restating every `NNClassifier` argument here and keeping the two lists
+    in sync forever, which is a larger and more silent failure mode than the one it
+    removes. If a caller ever needs `clone`, give this class explicit parameters
+    then — and know that is what changed.
+    """
+
+    def __init__(self, random_state: int, n_members: int = 5, **member_kwargs):
+        self.random_state = random_state
+        self.n_members = n_members
+        self.member_kwargs = member_kwargs
+
+    def fit(self, X, y, soft_targets: np.ndarray | None = None) -> "SeedEnsemble":
+        self.members_ = [
+            NNClassifier(random_state=self.random_state + i, **self.member_kwargs)
+            .fit(X, y, soft_targets=soft_targets)
+            for i in range(self.n_members)
+        ]
+        self.classes_ = self.members_[0].classes_
+        self.n_features_in_ = self.members_[0].n_features_in_
+        return self
+
+    def predict_proba(self, X) -> np.ndarray:
+        return np.mean([m.predict_proba(X) for m in self.members_], axis=0)
 
     def predict(self, X) -> np.ndarray:
         return self.classes_[self.predict_proba(X).argmax(axis=1)]
@@ -380,6 +498,10 @@ class ResidualMatcher(NNClassifier):
         max_epochs: int = DEFAULT_MAX_EPOCHS,
         patience: int = DEFAULT_PATIENCE,
         val_fraction: float = DEFAULT_VAL_FRACTION,
+        input_noise: float = DEFAULT_INPUT_NOISE,
+        optimizer: str = DEFAULT_OPTIMIZER,
+        lr_schedule: str | None = DEFAULT_LR_SCHEDULE,
+        momentum: float = DEFAULT_MOMENTUM,
     ):
         super().__init__(
             random_state=random_state,
@@ -391,6 +513,10 @@ class ResidualMatcher(NNClassifier):
             max_epochs=max_epochs,
             patience=patience,
             val_fraction=val_fraction,
+            input_noise=input_noise,
+            optimizer=optimizer,
+            lr_schedule=lr_schedule,
+            momentum=momentum,
         )
         self.alpha = alpha
         self.logistic_C = logistic_C
@@ -431,7 +557,7 @@ class ResidualMatcher(NNClassifier):
         *before* the `log_softmax` the caller applies. The base tensor carries no
         `requires_grad`, so the frozen branch contributes to the loss without
         appearing in it."""
-        return self._base_logits_t[idx] + self.alpha * model(Xt[idx])
+        return self._base_logits_t[idx] + self.alpha * model(self._noisy(model, Xt[idx]))
 
     # -------------------------------------------------------------- predict
     def predict_proba(self, X) -> np.ndarray:

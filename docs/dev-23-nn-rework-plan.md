@@ -119,6 +119,17 @@ docstring is corrected.
 
 ### 2.2 Variant sweep — 14 variants
 
+> **Status: DONE (DEV-93, 2026-07-29).** Implemented as `sweep_variants.VARIANTS`,
+> a registry of 14 frozen `Variant` records built by `sweep_variants.build_variant`.
+> The sweep varies **arguments** to `nn_model.NNClassifier`; expressing Gaussian
+> input noise and the SGD+cosine protocol required two additive constructor
+> arguments (`input_noise`, `optimizer`/`lr_schedule`/`momentum`), whose defaults
+> are inert — `test_variant_registry.py` requires the control Variant's predictions
+> to be **bit-identical** to `NNClassifier(random_state=...)`, so `small_nn`'s
+> recorded Gate-1 numbers still describe the same estimator. The 5-seed ensemble is
+> `nn_model.SeedEnsemble`, its own Variant, never fused into the Residual Matcher.
+> Symbol names, not line numbers.
+
 Control: **V0** = current config (84→64→32→16, dropout 0.3, wd 1e-4, lr 1e-3, bs 32).
 
 *Axis A — capacity* (4). Hypothesis: the current net is too large for 232 rows.
@@ -149,11 +160,20 @@ explainability.)
 > **Status: DONE (DEV-92, 2026-07-29).** The model is `nn_model.ResidualMatcher`
 > and its selection wiring is `train_models.select_residual_config` /
 > `fit_residual` / `alpha_zero_verdict`; contract held by
-> `data/scripts/tests/test_residual_matcher.py`. Deliberately **not** wired into
-> `train_models.main()` — it is one of the fourteen Variants of execution-order
-> item 6, and entering it in Gate 2 ahead of that sweep would pick its
-> configuration under a different protocol than the one every other Variant
-> competes under. Symbol names, not line numbers, as in Step 4.2.
+> `data/scripts/tests/test_residual_matcher.py`. Symbol names, not line numbers, as
+> in Step 4.2.
+>
+> **Wired into `train_models.main()` by DEV-93 (2026-07-29)** as a fifth Gate-2
+> model, `residual_matcher`. DEV-92 deliberately held it out so its configuration
+> would not be picked under a different protocol than the one every other Variant
+> competes under; the round-1 sweep has now run, so that reason has expired. It is
+> placed **after** `two_tower` in `main()` — `two_tower` seeds from process-global
+> torch RNG rather than per fit, and running the new model last means "two_tower did
+> not move" does not depend on `NNClassifier`'s state-restoration reasoning being
+> right. It trains on **hard labels**, unlike `small_nn`: ADR 0003's paired
+> comparison against `logistic_tuned` only holds while both optimise the same
+> targets. `gate2_winner.json` now carries `residual_alpha_verdict`, the per-fold
+> alpha record the ≥3-of-5 rule reads.
 
 **`logits = frozen_logistic_logits + α · MLP(x)`**, with `α` a hyperparameter
 selected by inner CV from `{0, 0.25, 0.5, 1.0}`. Full rationale in
@@ -199,6 +219,18 @@ the right shape to capture it.
 
 ### 2.4 Search protocol — nested, unpruned, and paired
 
+> **Status: DONE (DEV-93, 2026-07-29).** Variant selection is
+> `sweep_variants.select_variant`, which delegates to the existing
+> `train_models.select_by_inner_cv` rather than adding a second grid-argmax — so
+> "no separate selection stage exists" is a property of the code, not only of the
+> plan. `outer_folds`, `cross_fitted_oof`, `select_by_inner_cv` and
+> `select_residual_config` gained a `random_state` for the 5-seed protocol; **every
+> default is the single-seed path**, so the DEV-91 Gate-2 re-baseline stays
+> reproducible. `test_variant_selection.py` holds the no-leak contract the way
+> `test_cross_fitted_temperature.py` holds the calibration one: it poisons every row
+> outside the training partition and requires the selection not to move. Two errors
+> in this section were corrected by that ticket — see the call-outs below.
+
 **Rev 2's pruning pass is deleted.** It scored variants on the outer-fold-1
 training partition — which, under 5-fold CV, is *precisely the union of the test
 sets of folds 2–5*. Variant selection would have seen 100% of the evaluation data
@@ -207,10 +239,22 @@ OOF number 80% contaminated.
 
 1. **All 14 variants compete inside every outer fold's inner 3-fold CV.** No
    separate selection stage exists, so there is no stage that can leak.
-2. **This is less search than the Incumbent already gets.** `gbt_tuned` selects
-   from a 32-point grid (`train_models.py:53`) nested in every outer fold;
-   `logistic_tuned` from 4. A 14-point nested grid for the NN simultaneously
-   defeats "the NN was tuned harder" and "the NN wasn't tried hard enough".
+2. **This is comparable search to what the Incumbent already gets — not
+   dramatically less.** `gbt_tuned` selects from `GBT_GRID`, a `product` of four
+   2-element lists, nested in every outer fold; `logistic_tuned` from
+   `LOGISTIC_C_GRID`, 4 points.
+
+   > **Corrected by DEV-93.** Rev 3 claimed a "32-point grid" at
+   > `train_models.py:53`. Both halves were wrong: `GBT_GRID` is
+   > 2×2×2×2 = **16** points, and it is not at line 53. The
+   > "less search than the Incumbent already gets" argument was overstated by 2×.
+   > **The honest version:** 14 NN Variants against gbt's 16 is *approximately the
+   > same* search budget, not a fraction of it. That still defeats "the NN was
+   > tuned harder than the Incumbent" — it is not tuned harder — but it no longer
+   > supports a claim of restraint, and it is a weaker rebuttal to "the NN wasn't
+   > tried hard enough" than rev 3 implied. Round 2's ≤6 refinements would put the
+   > NN's total ahead of gbt's; that is a real cost of the second round and should
+   > be stated when it is spent. Cite symbols, not line numbers.
 3. **Seeds sit outside selection.** Inner CV runs single-seed; each of the 5
    experiment seeds gets its own complete nested run. The experiment seed varies
    **both the fold partition and initialisation** — 5 repeats of the entire nested
@@ -230,17 +274,32 @@ OOF number 80% contaminated.
    two-way bootstrap over 5 seeds would be hopelessly underpowered on the seed
    dimension. Per-seed paired results are reported as a table instead.
 
-Points 4–5 matter: `small_nn` top-2 0.841 vs `logistic_tuned` 0.849 is 0.008 —
-about 2 profiles, and nobody has ever run seed variance on these numbers. **The
-existing "the NN lost" conclusion may be inside noise.** That cuts both ways.
+Points 4–5 matter: `small_nn` top-2 **0.845** vs `logistic_tuned` **0.849** is
+**0.004** — *one* profile out of 232, and nobody has ever run seed variance on
+these numbers. **The existing "the NN lost" conclusion may be inside noise.** That
+cuts both ways: it is equally unsafe to conclude the NN is competitive.
 
-> **Updated by DEV-91 (2026-07-28):** the re-baseline moved `small_nn` to top-2
-> 0.845, so the gap is now **0.004** — one profile, half what this paragraph
-> argues from. The argument gets stronger, not weaker, but the numbers above are
-> the pre-DEV-90/DEV-91 ones. `small_nn`'s move is a DEV-90 re-seeding effect, not
-> a calibration one; see `data/training/model_selection.md`.
+> **Corrected by DEV-93.** Rev 3 argued from the pre-DEV-90/DEV-91 pair
+> (0.841 vs 0.849 = 0.008, "about 2 profiles") and carried DEV-91's correction as
+> a trailing annotation, so the *argument* still ran on the stale number while the
+> footnote disagreed with it. The corrected figures are now in the paragraph
+> itself. The argument gets **stronger**: a one-profile gap is even more clearly
+> inside the noise a 5-seed protocol is built to measure. `small_nn`'s move from
+> 0.841 to 0.845 is a DEV-90 re-seeding effect, not a calibration one — see
+> `data/training/model_selection.md`.
+>
+> Knock-on for 2.5's materiality marker: 0.02 is **5×** the disputed 0.004, not
+> the 2.5× rev 3 computed against 0.008.
 
 ### 2.5 Effect size — a reporting standard, not a gate
+
+> **Status: DONE (DEV-93, 2026-07-29).** `sweep_variants.paired_bootstrap`. The
+> sampling unit is the **profile**: each profile's top-2 hit indicator is averaged
+> across the 5 seeds *first*, then differenced, then the 232 profile ids are
+> resampled. `test_paired_bootstrap.py` pins that with a property a row-resampling
+> implementation cannot satisfy — five identical replicate seeds carry no
+> information and must not move the interval at all — and it was verified to fail
+> 5/5 against such an implementation before being kept.
 
 Under a hard requirement this no longer authorises anything; it sizes the gap. The
 machinery is kept because "how far behind is the shipped model?" is the most
@@ -250,8 +309,9 @@ Reported for the shipped NN against `logistic_tuned` and `gbt_tuned`:
 
 - **δ on pooled OOF top-2**, with the 95% paired-bootstrap CI from 2.4.
 - Whether δ ≥ 0.02 — the threshold rev 2 pre-registered for displacement, retained
-  as a **materiality marker**. 0.02 ≈ 1 profile per outer fold and 2.5× the
-  disputed 0.008.
+  as a **materiality marker**. 0.02 ≈ 1 profile per outer fold, ≈ 4.6 profiles
+  overall, and **5×** the disputed 0.004 gap (corrected in 2.4; rev 3 said 2.5×
+  against the stale 0.008).
 - **Seed stability:** whether the sign of δ holds in ≥3 of 5 individual seeds. A
   result that flips across seeds is reported as unstable, and instability is
   itself a finding about the architecture.
@@ -332,6 +392,14 @@ explicitly a **two-point sanity check, not a trend**, and is barred from carryin
 any interpretive weight beyond that.
 
 ### 2.7 Ship floor — replacing the kill criteria
+
+> **Status: round 1 evaluated (DEV-93, 2026-07-29).** `sweep_variants.evaluate_ship_floor`
+> scores **one exact configuration** — the modal Variant across all 25 (seed, outer
+> fold) selections — because Qualified is a property of a configuration and is never
+> inherited by a reconfigured model (`CONTEXT.md`). The ordering constraint is
+> enforced rather than remembered: `assert_deterministic` raises `SystemExit`, so
+> there is no code path that produces a stability number without it having passed
+> first. Verdict for round 1: `data/training/nn_rework.md`.
 
 Rev 2's kill criteria assumed abandoning the NN was possible. It is not, so
 "budget kill, no round 3" is not a criterion but a dead end with nothing behind it.
@@ -678,6 +746,9 @@ The order is now driven by dependencies alone.
    models. Only after step 1 has proven the environment. — **DONE (DEV-91,
    2026-07-28).**
 6. **Round 1** — 14 variants, nested, 5 seeds. Evaluate the ship floor.
+   — **DONE (DEV-93, 2026-07-29):** `data/scripts/sweep_variants.py`,
+   report `data/training/nn_rework.md`. The same ticket wired the Residual Matcher
+   into the Gate-2 run as a fifth model with its pre-registered alpha record.
 7. **Round 2** if warranted (≤6 refinements). Evaluate the ship floor. **No round 3.**
 8. **Learning curve** (2.6) + control curve.
 9. **`matcher_nn.py`, `export_nn_model.py`**, parity and IG-completeness tests.

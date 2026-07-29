@@ -9,6 +9,13 @@ Trains three challengers against the Phase 2 baselines, same outer 5-fold protoc
                    + early stopping
     two_tower      user tower MLP -> 32-dim; career tower = linear map of the mean
                    panel archetype answers; softmax over scaled cosine similarities
+    residual_matcher  nn_model.ResidualMatcher (DEV-92, ADR 0003): frozen logistic
+                   branch plus alpha-gated MLP correction, alpha selected by inner CV
+                   and C inherited from that fold's tuned-logistic selection. Hard
+                   labels, unlike small_nn — the paired comparison against
+                   logistic_tuned only holds while both optimise the same targets.
+                   Wired in by DEV-93, which also records the pre-registered
+                   alpha=0 >=3-of-5 verdict.
 
 `small_nn` is imported from `nn_model`, the same definition Gate 1 scores in
 evaluate_matchers.py — the network used to be declared inline here, so "the NN"
@@ -232,13 +239,21 @@ def temperature_scale(probs: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, flo
 INNER_SPLITS = 3
 
 
-def outer_folds(X: np.ndarray, y: np.ndarray):
+def outer_folds(X: np.ndarray, y: np.ndarray, random_state: int = SEED):
     """The one outer partition every model in this file is scored on — same folds
-    as Phase 2, by construction rather than by coincidence."""
-    return StratifiedKFold(N_FOLDS, shuffle=True, random_state=SEED).split(X, y)
+    as Phase 2, by construction rather than by coincidence.
+
+    `random_state` exists for the Round-1 sweep's 5-seed protocol (DEV-93), where an
+    experiment seed varies the fold partition as well as the initialisation. **The
+    default is the single-seed path**, so everything this file reports today is
+    unchanged; within one seed all models still share folds, which is what keeps the
+    paired comparison paired.
+    """
+    return StratifiedKFold(N_FOLDS, shuffle=True, random_state=random_state).split(X, y)
 
 
-def cross_fitted_oof(X, y, n_classes, fit_predict, select_config=None):
+def cross_fitted_oof(X, y, n_classes, fit_predict, select_config=None,
+                     random_state: int = SEED):
     """Pooled OOF probabilities, raw and calibrated, with the temperature fitted
     per outer fold on data that fold's model has never been scored against.
 
@@ -264,12 +279,12 @@ def cross_fitted_oof(X, y, n_classes, fit_predict, select_config=None):
     temperatures: list[float] = []
     chosen: list = []
 
-    for tr, te in outer_folds(X, y):
+    for tr, te in outer_folds(X, y, random_state=random_state):
         config = select_config(tr) if select_config is not None else None
         chosen.append(config)
 
         inner_oof = np.zeros((len(tr), n_classes))
-        inner = StratifiedKFold(INNER_SPLITS, shuffle=True, random_state=SEED)
+        inner = StratifiedKFold(INNER_SPLITS, shuffle=True, random_state=random_state)
         for itr, ival in inner.split(X[tr], y[tr]):
             inner_oof[ival] = fit_predict(config, tr[itr], tr[ival])
         t = fit_temperature(inner_oof, y[tr])
@@ -310,15 +325,20 @@ def fit_logistic(C, Xtr, ytr):
 # fold's training partition. Both are pure functions of `tr`, which is what lets
 # cross_fitted_oof reuse them for the temperature's inner refits without any risk
 # of the selection seeing the rows it will be scored on.
-def select_by_inner_cv(X, y, tr, grid, fit):
+def select_by_inner_cv(X, y, tr, grid, fit, random_state: int = SEED):
     """The plan's `select_by_inner_cv(tr)`: the grid point with the best inner-CV
     top-2, chosen using ONLY the outer fold's training partition.
 
     A pure function of `tr`, which is what lets cross_fitted_oof reuse the selected
     configuration for the temperature's inner refits with no risk of the selection
     having seen the rows it will be scored on. `fit(params, Xtr, ytr)` returns a
-    fitted estimator."""
-    inner = StratifiedKFold(INNER_SPLITS, shuffle=True, random_state=SEED)
+    fitted estimator.
+
+    The Round-1 sweep (DEV-93) reuses this for its 14-Variant contest rather than
+    writing a second grid-argmax, so "no separate selection stage exists" is true of
+    the code and not only of the plan. `random_state` defaults to the single-seed
+    path."""
+    inner = StratifiedKFold(INNER_SPLITS, shuffle=True, random_state=random_state)
     best_params, best_score = None, -1.0
     for params in grid:
         scores = []
@@ -381,13 +401,16 @@ def select_residual_config(X, y, tr, random_state=SEED, **mlp_kwargs):
     reuse the result for the temperature's inner refits with no risk of the
     selection having seen the rows it will be scored on.
     """
-    C = select_by_inner_cv(X, y, tr, LOGISTIC_C_GRID, fit_logistic)
+    C = select_by_inner_cv(
+        X, y, tr, LOGISTIC_C_GRID, fit_logistic, random_state=random_state
+    )
     return select_by_inner_cv(
         X, y, tr,
         [(alpha, C) for alpha in RESIDUAL_ALPHA_GRID],
         lambda config, Xtr, ytr: fit_residual(
             config, Xtr, ytr, random_state=random_state, **mlp_kwargs
         ),
+        random_state=random_state,
     )
 
 
@@ -550,11 +573,33 @@ def main() -> None:
         ),
     )
 
+    # AFTER two_tower, and that ordering is load-bearing rather than cosmetic.
+    # two_tower seeds from PROCESS-GLOBAL torch RNG rather than per fit, so its
+    # predictions depend on how many torch fits preceded them (DEV-91 documented
+    # this rather than fixing it). `ResidualMatcher` inherits `NNClassifier.fit`,
+    # which restores every global generator it touches, so in principle it could sit
+    # anywhere; running it last means the claim "two_tower did not move" does not
+    # rest on that reasoning being right. It is verified against the recorded row
+    # either way — see the report's reproduction table.
+    print("3d: residual matcher (frozen logistic + gated MLP) ...")
+    oof_res, oof_res_cal, t_res, res_configs = cross_fitted_oof(
+        X, y, n_classes,
+        # Hard labels, unlike small_nn. ADR 0003's whole argument is that the frozen
+        # base is exactly the Incumbent's configuration on the same partition, which
+        # makes "does the residual add anything?" an exactly paired comparison
+        # against `logistic_tuned` — and that pairing only holds while both optimise
+        # against the same targets.
+        fit_predict=lambda cfg, tr, pr: fit_residual(cfg, X[tr], y[tr]).predict_proba(X[pr]),
+        select_config=lambda tr: select_residual_config(X, y, tr),
+    )
+    residual_verdict = alpha_zero_verdict(res_configs)
+
     models = {
         "gbt_tuned": (oof_gbt, oof_gbt_cal, t_gbt),
         "logistic_tuned": (oof_log, oof_log_cal, t_log),
         "small_nn": (oof_nn, oof_nn_cal, t_nn),
         "two_tower": (oof_tt, oof_tt_cal, t_tt),
+        "residual_matcher": (oof_res, oof_res_cal, t_res),
     }
 
     results = {}
@@ -635,14 +680,33 @@ def main() -> None:
     # written as a literal. A hardcoded "reproduces exactly" or "improved for three
     # of four" keeps printing long after it stops being true — which is the failure
     # mode this ticket exists to remove, so the report must not reintroduce it.
+    # `residual_matcher` has no recorded history — it is new in DEV-93 and was never
+    # scored under the old protocol — so it is excluded from every reproduction
+    # claim rather than compared against a number that does not exist. A model with
+    # no prior row cannot "reproduce" or "fail to reproduce" anything.
+    with_history = [n for n in results if n in RECORDED_HISTORY]
     reproduced = [
-        n for n in results
+        n for n in with_history
         if abs(RECORDED_HISTORY[n]["ece_raw"] - results[n]["ece_raw"]) < 5e-4
         and abs(RECORDED_HISTORY[n]["ece_scaled"] - results[n]["ece_pooled_legacy"]) < 5e-4
     ]
     ece_improved = [n for n, m in results.items()
                     if m["ece_cross_fitted"] < m["ece_pooled_legacy"]]
     log_m = results["logistic_tuned"]
+    # Whether the Residual Matcher collapsed onto the Incumbent, COMPUTED by
+    # comparing the two rows rather than left for a reader to notice that two lines
+    # of the table happen to match. At alpha=0 the model is exactly logistic at its
+    # inherited C, and that C comes from the same select_by_inner_cv call
+    # logistic_tuned uses — so when every fold picks alpha=0 the two are the same
+    # estimator and identical rows are a consequence, not a coincidence.
+    _row_keys = ["top1", "top2", "top3", "mrr", "balanced_top1",
+                 "ece_raw", "ece_cross_fitted", "ece_pooled_legacy"]
+    residual_row_identical = all(
+        results["residual_matcher"][k] == log_m[k] for k in _row_keys
+    )
+    residual_inherits_same_C = (
+        list(residual_verdict["per_fold_logistic_C"]) == list(log_params)
+    )
     ships_widest = (
         ", and the widest of it is on the model that ships"
         if log_m["temperature_spread"] == max(m["temperature_spread"] for m in results.values())
@@ -762,6 +826,7 @@ in baseline_evaluation.md.
 {fmt("logistic_tuned (3a)", results["logistic_tuned"])}
 {fmt("small_nn soft-targets (3b)", results["small_nn"])}
 {fmt("two_tower archetype-seeded (3c)", results["two_tower"])}
+{fmt("residual_matcher hard-labels (3d)", results["residual_matcher"])}
 
 **`ECE cross-fitted` is the reported and gating number.** `ECE pooled-T (legacy)`
 is what the old protocol printed — one temperature fitted on the whole OOF pool and
@@ -782,12 +847,16 @@ predictions are unmoved and isolates the change to the protocol alone.
     + ("**exact**" if abs(RECORDED_HISTORY[n]['ece_scaled'] - results[n]['ece_pooled_legacy']) < 5e-4
        and abs(RECORDED_HISTORY[n]['ece_raw'] - results[n]['ece_raw']) < 5e-4
        else "no — see causes above") + " |"
-    for n in results
+    for n in with_history
 )}
+
+`residual_matcher` is absent from that table by construction: it is new in DEV-93,
+was never scored under the old protocol, and a model with no recorded row can
+neither reproduce nor fail to reproduce one.
 
 ## What this re-baseline showed
 
-**1. {len(reproduced)} of {len(results)} models reproduce the old protocol exactly**
+**1. {len(reproduced)} of {len(with_history)} models with recorded history reproduce the old protocol exactly**
 ({", ".join(f"`{n}`" for n in reproduced) or "none"}). Their `ECE raw` and their
 `legacy` ECE match the 2026-07-19 record to three decimals — same environment, same
 folds, same raw out-of-fold predictions — which isolates the whole of their movement
@@ -844,6 +913,7 @@ readers will assume they already know.
 {fmt_temps("logistic_tuned", results["logistic_tuned"])}
 {fmt_temps("small_nn", results["small_nn"])}
 {fmt_temps("two_tower", results["two_tower"])}
+{fmt_temps("residual_matcher", results["residual_matcher"])}
 
 **The spread is itself a finding{ships_widest}.**
 Each fold's temperature is an independent estimate of the same quantity, so a wide
@@ -863,6 +933,31 @@ OOF predictions from that exact configuration.
 Chosen hyperparameters per outer fold:
 - gbt (n_estimators, lr, num_leaves, min_child_samples): {gbt_params}
 - logistic C: {log_params}
+- residual (alpha, inherited logistic C): {res_configs}
+
+## Residual Matcher: the pre-registered alpha=0 rule
+
+`alpha` is a hyperparameter selected by inner CV from {list(RESIDUAL_ALPHA_GRID)}, and at
+`alpha = 0` the model is *exactly* logistic regression. ADR 0003 pre-registered,
+before any alpha was selected on this data, that **alpha=0 in >= {ALPHA_ZERO_DISQUALIFIES_AT}
+of {N_FOLDS} outer folds is reported as "no non-linear signal found"** and disqualifies the
+Residual Matcher from being the shipped neural model — shipping it would be
+shipping logistic regression in a costume while the project requires a neural
+network (ADR 0001).
+
+Per-fold alpha: {residual_verdict["per_fold_alpha"]} — {residual_verdict["n_folds_at_zero"]} of {N_FOLDS} at zero.
+**Verdict: {"NO NON-LINEAR SIGNAL FOUND — disqualified from being the shipped neural model" if residual_verdict["no_non_linear_signal"] else "the rule did not fire; a non-zero residual was selected in a majority of folds"}.**
+The inherited logistic C per fold: {residual_verdict["per_fold_logistic_C"]}. Reporting only —
+nothing here selects, and a disqualified Residual Matcher is still reported in full.
+
+**Its row in the comparison table above is {"identical to `logistic_tuned`'s in every column, and that is a consequence rather than a coincidence" if residual_row_identical else "NOT identical to `logistic_tuned`'s"}.**
+{"At `alpha = 0` the Residual Matcher is exactly logistic regression at its inherited `C`, and that `C` comes from the same `select_by_inner_cv` call `logistic_tuned` uses — verified here, not assumed: the per-fold `C` lists " + ("match" if residual_inherits_same_C else "DO NOT match") + ". With every fold at `alpha = 0` the two are therefore the same estimator, fold for fold, and no arithmetic could separate them. Read the two rows as one measurement printed twice." if residual_row_identical else "Some fold selected a non-zero `alpha`, so the two models are not the same estimator and the rows are genuinely different measurements."}
+
+What this does NOT establish: that a non-linear residual could never help on these
+features. It establishes that inner CV, given the choice on this dataset under this
+protocol, declined it in every fold — which is evidence about this feature set and
+this sample size, not a theorem. The 5-seed sweep in `nn_rework.md` is the wider
+test, and it reaches the same verdict.
 
 ## Per-class top-1 recall
 
@@ -953,6 +1048,11 @@ Notes:
         "metrics": {k: v for k, v in results[winner].items() if k != "per_class"},
         "gbt_params_per_fold": gbt_params,
         "logistic_C_per_fold": log_params,
+        # The per-fold alpha record the pre-registered >=3-of-5 rule reads. Recorded
+        # whether or not the Residual Matcher wins: the rule is about whether a
+        # non-linear signal exists in these features at all, which is information
+        # the decision document needs either way.
+        "residual_alpha_verdict": residual_verdict,
         "feature_version": meta["feature_version"],
         "seed": SEED,
         "label_source": "synthetic_llm",

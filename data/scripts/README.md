@@ -232,6 +232,127 @@ no torch. The five service suites were re-run and are unchanged at **268**
 (questionnaire 18, matching 108, roadmap 30, auth 31, history 81); no file under
 `services/` is in this change.
 
+### Reproduction record (DEV-93, 2026-07-29)
+
+Round 1 of the neural rework: the nested 14-Variant sweep
+(`sweep_variants.py`, plan Steps 2.2/2.4/2.5/2.7), plus wiring the Residual Matcher
+into the Gate-2 run. Split like the DEV-91 record, because some numbers were
+supposed to move and most were not.
+
+**Unmoved, verified rather than asserted.** `train_models.py` was re-run on the
+final state of the code and **all four DEV-91 Gate-2 rows came back to the digit** —
+`gbt_tuned` 0.892 / 0.040, `logistic_tuned` 0.849 / 0.061, `small_nn` 0.845 / 0.102,
+`two_tower` 0.763 / 0.081 (top-2 / cross-fitted ECE). `dataset_digest` still
+`2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`. Gate 1 was not
+re-run and `gate1_verdict.json` is untouched; the sweep *reads* it for the Ship
+Floor thresholds and quotes its numbers back rather than transcribing them.
+
+**`two_tower` did not move, and that was arranged rather than lucky** — the trap the
+DEV-92 record warned the next ticket about. It seeds from process-global torch RNG
+rather than per fit, so its predictions depend on how many torch fits precede them,
+and this ticket adds a fifth model that fits torch. The Residual Matcher is
+therefore scored **after** `two_tower` in `main()`. `NNClassifier.fit` restores
+every global generator it touches, so in principle position should not matter;
+ordering it last means the claim does not have to rest on that reasoning being
+right. Its seeding is still unfixed and still worth its own ticket.
+
+**Moved, deliberately.** `model_selection.md` and `gate2_winner.json` gain a fifth
+model, `residual_matcher`, and a `residual_alpha_verdict` key. The Gate-2 winner
+(`gbt_tuned`) and the deployable selection (`logistic_tuned`) are unchanged, so
+`export_model.py` is unaffected.
+
+**The finding, and it is negative.** `alpha = 0` was selected in **5 of 5** outer
+folds, so the pre-registered ADR 0003 rule fires: *no non-linear signal found*, and
+the Residual Matcher is disqualified from being the shipped neural model. Its row is
+identical to `logistic_tuned`'s in every column — which the report now *computes*
+and explains rather than leaving two matching lines for a reader to puzzle over. At
+`alpha = 0` the model is exactly logistic at its inherited `C`, and that `C` comes
+from the same `select_by_inner_cv` call `logistic_tuned` uses (per-fold `C`
+`[4.0, 4.0, 4.0, 0.05, 0.25]` for both), so the two are the same estimator fold for
+fold. The rows are one measurement printed twice.
+
+**New, and NOT comparable to any of the above.** `data/training/nn_rework.md` and
+`round1_results.json` come from a **5-seed protocol** where each experiment seed is a
+complete nested run varying fold partition *and* initialisation. They are a
+different measurement from the single-seed Gate-2 path, not a later reading of it.
+The sweep also trains on hard labels throughout, so its control Variant is the
+*Gate-1* `small_nn` configuration, not the soft-target Gate-2 row. Headline results:
+
+- **18 of 25 (seed, outer fold) selections resolved to the Residual Matcher at
+  `alpha = 0`**, i.e. to exactly logistic regression. The 12 pure-MLP Variants —
+  every capacity and regularization Variant, three protocol ones, and the V0 control
+  — were selected **0 times between them**. On seed 45 the selected "neural" matcher
+  and `logistic_tuned` disagree on **0 of 232** profiles.
+- The alpha=0 rule fired in **4 of 5 seeds**.
+- Paired bootstrap, **profile as the sampling unit**: vs `logistic_tuned`
+  delta −0.0026, CI [−0.0095, +0.0043], sign holding in 2 of 5 seeds. vs `gbt_tuned`
+  delta −0.0284, sign holding in 5 of 5, CI [−0.0595, +0.0026] — per-seed
+  consistency and the interval disagree in flavour, which is why both are reported.
+- **Ship Floor at the gated partition: the hard half clears, the mitigable half
+  fails.** Stability 0.655 (floor 0.60, determinism assertion passed first); raw ECE
+  0.122 (floor 0.10).
+- **Re-measured under all 5 experiment seeds, the two halves are not equally solid.**
+  Stability clears in **5 of 5** (mean 0.666 +/- 0.009, min 0.655), so the hard floor
+  is not an artifact of the partition that happened to be gated. Raw ECE clears in
+  **4 of 5** — the gated seed 42 is the only one that fails it (0.084 to 0.122, mean
+  0.100). The gated verdict stands, because Gate 1's convention is one fixed
+  partition and changing it after seeing the data would be moving a threshold; but
+  reading it as "this configuration is miscalibrated" would be wrong. This check was
+  added after code review pointed out that a hard, unmitigable floor was resting on a
+  single draw while every other number in the deliverable was a 5-seed measurement.
+
+**The ECE failure is about `C`, not about neural capacity, and that was checked
+rather than reasoned.** The evaluated configuration contains no neural parameters,
+and raw ECE is strongly sensitive to the inherited `C`: 0.290 at `C=0.05`, 0.122 at
+`C=0.25`, **0.034 at `C=1.0`**, 0.098 at `C=4.0` — the identical estimator, through
+the same `cv_oof_and_stability` path. Inner CV selected every value in the grid
+across the 25 folds. So the floor is failed at the modal `C` and comfortably cleared
+at another value of the same grid.
+
+**Two plan errors were corrected in `docs/dev-23-nn-rework-plan.md`, not patched
+around.** `GBT_GRID` is a `product` of four 2-element lists — **16** points, not the
+"32-point grid" rev 3 claimed (and not at `train_models.py:53`), so the "less search
+than the Incumbent" argument was overstated by 2x; 14 Variants against 16 is
+*comparable* search, which still defeats "the NN was tuned harder" but supports no
+claim of restraint. And Step 2.4 was still arguing from the pre-DEV-91 gap of 0.008
+while a footnote contradicted it; the real gap is **0.004**, one profile, and the
+corrected figures are now in the argument itself.
+
+**Two biases in the contest, pointing in opposite directions, both disclosed.**
+Inner-CV ties break by registry order, which favours the earliest-declared
+(lower-capacity) Variants — they won 0 selections, so that one demonstrably decided
+nothing. The second is more serious and the report states it plainly after code
+review sharpened it: the Residual Matcher's `alpha` is resolved by argmax over 4
+values **on the same inner splits that then rank all 14 Variants**, so it enters the
+contest carrying a maximum over 4 configurations while each pure-MLP Variant
+contributes a single score. That is optimistically biased in its favour and
+mechanically helps explain 23/25. It is **not Leakage** in `CONTEXT.md`'s sense — no
+held-out row is touched — but selection optimism inside the training partition, and
+calling it merely "one extra search" (as an earlier draft did) understated it. It is
+left in place because removing it means selecting `alpha` at a third nesting level,
+which ADR 0003 considered and declined. It does not change the direction of the
+finding: the Residual Matcher won mostly *at `alpha = 0`*, so the extra freedom it
+enjoyed was the freedom to switch its neural branch off.
+
+`evaluate_matchers.cv_oof_and_stability` gained a `random_state` parameter for the
+across-seed Ship Floor measurement. **The default is the Gate-1 partition and every
+recorded Gate-1 metric was verified to reproduce to the last digit through it** —
+`logistic` ECE `0.034099440082920096` / stability `0.637516702641587`, `lightgbm`
+`0.128155228434309` / `0.5566450817144618`, `small_nn` `0.06183095636038942` /
+`0.6153150375167026`. Verified by calling the function directly rather than by
+regenerating `gate1_verdict.json`, which is byte-unchanged by this ticket.
+
+The sweep **checkpoints per experiment seed** to
+`data/training/round1_checkpoint.json` (gitignored). Re-running after all seeds are
+complete regenerates the report without refitting anything.
+
+Test counts: `data/scripts/tests` is **55** under the training venv (was 42), and
+**7 passed + 6 skipped** under `backend/venv` (was 7 + 3) — the three new modules all
+skip whole there for the usual reason, no torch. `test_paired_bootstrap.py` was
+verified to fail **5/5** against a row-resampling implementation before being kept.
+The five service suites are unchanged at **268** (questionnaire 18, matching 108,
+roadmap 30, auth 31, history 81); no file under `services/` is in this change.
+
 ## Pipeline order
 
 ```

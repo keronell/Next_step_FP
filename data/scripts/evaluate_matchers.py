@@ -224,7 +224,7 @@ def assert_deterministic(name: str, estimator_factory, X, y) -> None:
         )
 
 
-def cv_oof_and_stability(X, y, estimator_factory, n_classes):
+def cv_oof_and_stability(X, y, estimator_factory, n_classes, random_state: int = SEED):
     """Pooled OOF probabilities + leakage-free top-2 stability for ONE trained
     scorer configuration. Stability sub-models train on inner resamples of each
     outer training partition and are compared only on that fold's test rows.
@@ -236,13 +236,19 @@ def cv_oof_and_stability(X, y, estimator_factory, n_classes):
     identical data agree; it reads ALL sub-model disagreement as training-subset
     variation. main() establishes that with assert_deterministic() before calling
     this. A new caller must do the same — the precondition belongs to the number,
-    not to this function's implementation."""
-    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
+    not to this function's implementation.
+
+    `random_state` exists so the Round-1 sweep (DEV-93) can measure how far the
+    stability number moves with the fold partition. It gates a HARD, unmitigable
+    floor, and a single draw is thin evidence for that. **The default is the Gate-1
+    partition**, so every recorded Gate-1 number is untouched and the default call
+    still reproduces `gate1_verdict.json`."""
+    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=random_state)
     oof = np.zeros((len(y), n_classes))
     pair_scores: list[float] = []
     for tr_idx, te_idx in skf.split(X, y):
         oof[te_idx] = estimator_factory().fit(X[tr_idx], y[tr_idx]).predict_proba(X[te_idx])
-        inner = StratifiedKFold(n_splits=INNER_SPLITS, shuffle=True, random_state=SEED)
+        inner = StratifiedKFold(n_splits=INNER_SPLITS, shuffle=True, random_state=random_state)
         sub_top2 = []
         for sub_tr, _ in inner.split(X[tr_idx], y[tr_idx]):
             idx = tr_idx[sub_tr]
