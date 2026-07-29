@@ -1674,7 +1674,7 @@
     0.5319509616997004,
     0.6861159975714196
   ],
-  "temperature": 1.0,
+  "temperature": 1.05,
   "label_source": "synthetic_llm (bank-consistent silver labels; see caveats)",
   "caveats": [
     "Labels are bank-consistent, not independently validated: silver labels come from an LLM panel whose stage-2 vote follows the answer key derived from careers.json bonuses ~94% of the time it speaks. Panel-agreement metrics measure fidelity to the hand-authored bonus table, not real-world accuracy.",
@@ -1688,7 +1688,8 @@
     "gate1": {
       "passed": true,
       "qualifiers": [
-        "logistic"
+        "logistic",
+        "small_nn"
       ]
     },
     "exported_config_gate1": {
@@ -1743,6 +1744,6 @@
     "silver_prompt_versions": [
       "panel-v2.1.0"
     ],
-    "trained_at": "2026-07-19T16:36:39.315105+00:00"
+    "trained_at": "2026-07-29T14:58:48.865201+00:00"
   }
 }

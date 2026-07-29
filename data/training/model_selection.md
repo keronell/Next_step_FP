@@ -182,7 +182,7 @@ readers will assume they already know.
 
 ## Calibration temperature, per outer fold
 
-| model | fold 1 | 2 | 3 | 4 | 5 | spread | sd | deployment T |
+| model | fold 1 | 2 | 3 | 4 | 5 | spread | sd | Phase-3 pooled T |
 |---|---|---|---|---|---|---|---|---|
 | gbt_tuned | 1.95 | 1.70 | 1.75 | 1.90 | 1.85 | 0.25 | 0.09 | 1.65 |
 | logistic_tuned | 1.40 | 1.40 | 1.30 | 0.50 | 0.85 | 0.90 | 0.36 | 1.00 |
@@ -191,18 +191,18 @@ readers will assume they already know.
 
 **The spread is itself a finding, and the widest of it is on the model that ships.**
 Each fold's temperature is an independent estimate of the same quantity, so a wide
-spread means a single shipped temperature is not a well-estimated quantity — and
-one *does* get exported. `logistic_tuned`, the deployment selection, has a spread of
+spread means a single temperature is not a well-estimated quantity.
+`logistic_tuned`, the deployment architecture, has a spread of
 0.90 across
 1.40, 1.40, 1.30, 0.50, 0.85: folds disagree about
-whether its probabilities need softening or sharpening at all, and **no fold chose the pooled 1.00 that would actually be exported**.
+whether its probabilities need softening or sharpening at all, and **no fold chose the pooled 1.00 Phase-3 reference**.
 Read that as a warning about displayed `matchPercent` precision, not about the
 ranking — temperature cannot reorder anything.
 
-The `deployment T` column is fitted separately, on the full pooled OOF: choosing one
-constant to ship wants the best estimate from all available data, whereas reporting
-an error wants an estimate that never saw the rows it scores. Same computation, two
-different jobs, deliberately not shared.
+The `Phase-3 pooled T` column is fitted separately on each model's full pooled OOF.
+It is a reference for the evaluated configuration, not a transferable artifact
+field. Export selects a fixed C and independently fits the one shipped constant on
+OOF predictions from that exact configuration.
 
 Chosen hyperparameters per outer fold:
 - gbt (n_estimators, lr, num_leaves, min_child_samples): [(200, 0.07, 7, 3), (200, 0.03, 7, 3), (200, 0.03, 15, 3), (200, 0.07, 7, 10), (200, 0.07, 15, 3)]
@@ -316,10 +316,11 @@ cannot silently disagree — and a Gate-1-rejected model can never ship.
 
 The deployment temperature recorded for `logistic_tuned` is
 1.00,
-and export_model.py reads it from gate2_winner.json rather than hardcoding 1.0.
-**DEV-88 made the serving path divide logits by that field**, so it is inert only
-while it equals 1.0; any other value changes served `matchPercent` the moment an
-artifact carrying it is actually loaded.
+for Phase 3's per-fold-selected configuration. export_model.py requires this
+calibration record as provenance but does not transfer its temperature when
+serializing a different configuration: it selects one fixed C and refits on OOF
+predictions from that exact C. **DEV-88 made the serving path divide logits by the
+artifact's refitted field**, so any non-1.0 value changes served `matchPercent`.
 
 Notes:
 - The soft-target NN consumes the panel vote distribution (top1=1.0, top2=0.4);

@@ -120,4 +120,6 @@ def test_shipped_artifact_loads_through_the_factory():
     assert isinstance(matcher, MatcherModel)  # the shipped family, today
     assert matcher.version == "matcher-logistic-v2"
     assert matcher.caveats
-    assert matcher.temperature == 1.0  # inert today; DEV-91 may change it
+    # Fitted on OOF predictions from the artifact's exact fixed C=1.0
+    # configuration; Phase 3's heterogeneous per-fold-Cs model produced 1.0.
+    assert matcher.temperature == 1.05

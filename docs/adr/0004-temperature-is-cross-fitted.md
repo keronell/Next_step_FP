@@ -47,6 +47,8 @@ changes the decision:
 - **The per-fold spread turned out to matter most for the model that ships.**
   `logistic_tuned`, the deployable selection, produced per-fold temperatures of
   1.40, 1.40, 1.30, 0.50, 0.85 — folds disagreeing about whether to soften or
-  sharpen at all, and no fold choosing the pooled value that would be exported.
-  Its pooled deployment temperature is 1.00, so nothing served changes today.
-
+  sharpen at all, and no fold choosing the pooled Phase-3 reference.
+  Its pooled Phase-3 temperature is 1.00, but that value does not transfer to the
+  fixed-configuration artifact: export selects `C=1.0`, refits temperature on OOF
+  predictions from that exact C, and reproduces 1.05. Served probabilities
+  therefore soften slightly.

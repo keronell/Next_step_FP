@@ -21,6 +21,7 @@ as everywhere in data/scripts/README.md):
 
 Under the service-test venv this module skips whole, like `test_nn_model.py`.
 """
+import json
 import sys
 from pathlib import Path
 
@@ -29,11 +30,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 np = pytest.importorskip("numpy")
+pd = pytest.importorskip("pandas")
 pytest.importorskip("sklearn")
 pytest.importorskip("torch")
 pytest.importorskip("lightgbm")
 
 from sklearn.linear_model import LogisticRegression  # noqa: E402
+from sklearn.model_selection import StratifiedKFold  # noqa: E402
 from sklearn.pipeline import make_pipeline  # noqa: E402
 from sklearn.preprocessing import StandardScaler  # noqa: E402
 
@@ -120,6 +123,79 @@ def test_temperature_scale_agrees_with_fit_then_apply():
     scaled, t = temperature_scale(probs, y)
     assert scaled == pytest.approx(apply_temperature(probs, t))
     assert t == pytest.approx(fit_temperature(probs, y))
+
+
+def test_export_refits_temperature_for_its_selected_fixed_c(tmp_path, monkeypatch):
+    """The Gate-2 temperature belongs to nested-CV ``logistic_tuned``, whose C can
+    differ by outer fold. Export selects one C for the final artifact, so it must
+    fit the shipped temperature on OOF predictions from that exact fixed-C
+    configuration rather than transfer the neighbouring model's temperature."""
+    import evaluate_matchers
+    import export_model
+    from dataset_guards import dataset_digest
+
+    X, y = make_dataset()
+    careers = [f"career_{i}" for i in range(5)]
+    feature_names = [f"{career}_fit" for career in careers]
+    feature_names += [f"signal_{i}" for i in range(X.shape[1] - len(careers))]
+    df = pd.DataFrame(X, columns=feature_names)
+    df["label_top1"] = [careers[i] for i in y]
+    df["profile_id"] = [f"profile-{i:03d}" for i in range(len(df))]
+
+    metadata = {
+        "feature_names": feature_names,
+        "feature_version": export_model.FEATURE_VERSION,
+        "chroma_snapshot": "test-snapshot",
+        "silver_prompt_versions": ["test-v1"],
+    }
+    (tmp_path / "dataset_metadata.json").write_text(
+        json.dumps(metadata), encoding="utf-8"
+    )
+
+    stale_temperature = 99.0
+    gate2 = {
+        "winner": "gbt_tuned",
+        "deployable": "logistic_tuned",
+        "deployable_reason": "synthetic regression fixture",
+        "dataset_digest": dataset_digest(df, feature_names),
+        "gate1": {"passed": True, "qualifiers": ["logistic"]},
+        "calibration": {
+            "deployment_temperature_model": "logistic_tuned",
+            # The pre-fix exporter copied this value into the artifact.
+            "deployment_temperature": stale_temperature,
+        },
+    }
+    (tmp_path / "gate2_winner.json").write_text(json.dumps(gate2), encoding="utf-8")
+
+    out_path = tmp_path / "matcher.json"
+    monkeypatch.setattr(export_model, "TRAINING_DIR", tmp_path)
+    monkeypatch.setattr(export_model, "OUT_PATH", out_path)
+    monkeypatch.setattr(export_model.pd, "read_parquet", lambda _: df)
+    # This test isolates calibration wiring; Gate-1 threshold behaviour has its
+    # own coverage and is still calculated through the real implementation.
+    monkeypatch.setattr(evaluate_matchers, "GATE1_MAX_ECE", 1.0)
+    monkeypatch.setattr(evaluate_matchers, "GATE1_MIN_TOP2_STABILITY", 0.0)
+
+    export_model.main()
+    artifact = json.loads(out_path.read_text(encoding="utf-8"))
+
+    selected_c = artifact["training"]["C"]
+    expected_oof = np.zeros((len(y), len(careers)))
+    folds = StratifiedKFold(5, shuffle=True, random_state=export_model.SEED)
+    for train_idx, test_idx in folds.split(X, y):
+        model = make_pipeline(
+            StandardScaler(),
+            LogisticRegression(
+                C=selected_c,
+                max_iter=5000,
+                class_weight="balanced",
+                random_state=export_model.SEED,
+            ),
+        ).fit(X[train_idx], y[train_idx])
+        expected_oof[test_idx] = model.predict_proba(X[test_idx])
+
+    assert artifact["temperature"] == fit_temperature(expected_oof, y)
+    assert artifact["temperature"] != stale_temperature
 
 
 # ------------------------------------------------------- the leakage contract

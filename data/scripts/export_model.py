@@ -94,22 +94,16 @@ def main() -> None:
             "train_features.parquet first."
         )
 
-    # The shipped calibration temperature comes from Phase 3, not from a literal
-    # here. It is fitted on the DEPLOYABLE model's full pooled OOF — deployment
-    # wants the best estimate from all available data, which is a different job
-    # from the cross-fitted number the report gates on (train_models.py,
-    # temperature_scale). Refusing when the key is absent is deliberate: a stale
-    # gate2_winner.json silently defaulting to 1.0 is exactly how a calibration
-    # decision lands without anyone deciding it. DEV-88 made the serving path
-    # divide logits by this field, so it is inert only while it equals 1.0.
+    # Require Phase 3's calibration record so export cannot proceed from a verdict
+    # that predates DEV-91. Its deployment temperature belongs to nested-CV
+    # `logistic_tuned`, however, and is provenance only: export selects one fixed C
+    # below and must fit a fresh temperature for that exact configuration.
     calibration = gate2.get("calibration") or {}
-    deployment_temperature = calibration.get("deployment_temperature")
-    if deployment_temperature is None:
+    if calibration.get("deployment_temperature") is None:
         raise SystemExit(
             "gate2_winner.json records no calibration.deployment_temperature — it "
             "predates the cross-fitted-temperature re-baseline (DEV-91, ADR 0004). "
-            "Rerun train_models.py; exporting a hardcoded 1.0 would ship an "
-            "uncalibrated artifact that looks deliberately calibrated."
+            "Rerun train_models.py before exporting."
         )
     if calibration.get("deployment_temperature_model") != gate2["deployable"]:
         raise SystemExit(
@@ -144,6 +138,7 @@ def main() -> None:
     from evaluate_matchers import (  # noqa: E402  (sibling script, sys.path[0])
         GATE1_MAX_ECE, GATE1_MIN_TOP2_STABILITY, cv_oof_and_stability, rank_metrics,
     )
+    from train_models import fit_temperature  # noqa: E402
 
     def exported_config():
         return make_pipeline(
@@ -153,6 +148,11 @@ def main() -> None:
 
     oof, config_stability = cv_oof_and_stability(X, y, exported_config, len(careers))
     config_ece = rank_metrics(oof, y, oof, len(careers))["ece"]
+    # Deployment wants one constant estimated from all available held-out
+    # predictions. These OOF probabilities come from the exact fixed-C estimator
+    # serialized below; the Phase-3 temperature cannot be transferred because its
+    # OOF folds independently selected heterogeneous Cs.
+    deployment_temperature = fit_temperature(oof, y)
     if config_ece > GATE1_MAX_ECE or config_stability < GATE1_MIN_TOP2_STABILITY:
         raise SystemExit(
             f"exported configuration C={best_c} violates the Gate-1 thresholds "
@@ -162,7 +162,9 @@ def main() -> None:
             "grid or revisit the gate before exporting."
         )
     print(f"exported config C={best_c}: ECE {config_ece:.3f}, "
-          f"top-2 stability {config_stability:.3f} — Gate-1 thresholds satisfied")
+          f"top-2 stability {config_stability:.3f}, "
+          f"deployment T {deployment_temperature:.2f} "
+          "— Gate-1 thresholds satisfied")
 
     pipe = make_pipeline(
         StandardScaler(),
@@ -181,12 +183,9 @@ def main() -> None:
         "scaler_scale": scaler.scale_.tolist(),
         "coef": clf.coef_.tolist(),
         "intercept": clf.intercept_.tolist(),
-        # Fitted on the deployable model's pooled OOF in Phase 3 (ADR 0004), not
-        # hardcoded. NOTE: `best_c` above is selected on the full dataset and may
-        # differ from logistic_tuned's per-fold Cs, so this temperature is an
-        # estimate for a neighbouring configuration — the same approximation the
-        # deployment selection already makes, stated rather than hidden. Phase 3
-        # also reports that the per-fold temperatures behind it disagree widely.
+        # Fitted on pooled OOF from the exact fixed-C configuration serialized in
+        # this artifact, rather than transferred from Phase 3's heterogeneous
+        # per-fold logistic configurations.
         "temperature": deployment_temperature,
         "label_source": "synthetic_llm (bank-consistent silver labels; see caveats)",
         "caveats": build_caveats(df, careers),

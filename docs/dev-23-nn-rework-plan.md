@@ -462,16 +462,18 @@ for (tr, te) in outer:
   to be the thing readers assume they already know. Both are reported, neither
   gates.
 - **The five per-fold `T` values and their spread are reported.** Wide spread means
-  a single shipped temperature is not a well-estimated quantity.
+  any single pooled temperature for that evaluated configuration is not a
+  well-estimated quantity.
 - Gate 1 is unaffected — it gates on raw ECE and never applied a temperature.
   Verified, not assumed: `evaluate_matchers.py` was re-run and reproduced the
   digest and every Gate-1 metric to the last digit.
-- The deployment temperature is fitted separately on the full OOF pool for export.
-  `export_model.py` now **reads it from `gate2_winner.json`** instead of hardcoding
-  `1.0`, and refuses a `gate2_winner.json` that predates this change rather than
-  silently defaulting. Since DEV-88 made the serving path divide logits by that
-  field, a non-1.0 deployment temperature changes served `matchPercent` the moment
-  such an artifact is loaded.
+- Phase 3 records a pooled temperature for each evaluated configuration.
+  `export_model.py` requires that calibration record rather than silently
+  defaulting, but cannot transfer the value when its selected fixed C differs from
+  Phase 3's heterogeneous per-fold Cs. It refits on pooled OOF predictions from
+  the exact fixed-C configuration and writes that result. Since DEV-88 made the
+  serving path divide logits by this field, a non-1.0 value changes served
+  `matchPercent` the moment such an artifact is loaded.
 
 **Sequencing, non-negotiable:** reproduce the recorded numbers on unchanged code
 first (Step 1's acceptance test), *then* apply this fix, *then* re-baseline all
@@ -539,9 +541,10 @@ a structural refactor in the same change as new inference code.
 
 **The `temperature` field starts being applied**, in the same change. The artifact
 has carried it since `export_model.py:159` and `MatcherModel.__init__` has never
-read it. Today it is `1.0`, so applying it is provably inert — and it stops being
-inert the moment 4.2's cross-fitting produces a deployment T that is not 1.0. Do it
-while it is free.
+read it. At the DEV-88 landing it was `1.0`, so applying it was provably inert. A
+later exact-configuration export fit can produce a non-1.0 value (the fixed-C
+artifact now reproduces 1.05), at which point this path deliberately changes
+served probabilities.
 
 **`services/matching/app/services/matcher_nn.py`** — forward pass in **numpy**, no
 torch. Rev 2 specified stdlib-only, mirroring `matcher_model.py`'s posture; but

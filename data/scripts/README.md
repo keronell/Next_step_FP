@@ -138,8 +138,8 @@ re-baselined in ONE run. Three results worth carrying forward:
 
 - **`gbt_tuned` and `logistic_tuned` reproduce the old protocol exactly.** The new
   `ECE pooled-T (legacy)` column recomputes what the old code printed: 0.047 and
-  0.103, matching the 2026-07-19 record, with deployment temperatures 1.65 and 1.00
-  also matching. Their raw OOF is untouched, so their entire movement is the
+  0.103, matching the 2026-07-19 record, with pooled Phase-3 temperatures 1.65 and
+  1.00 also matching. Their raw OOF is untouched, so their entire movement is the
   protocol. Their top-2 cannot move at all — temperature scaling is monotone within
   a row.
 - **`small_nn`'s two causes are each ~0.023 and nearly cancel.** Recorded 0.101 ->
@@ -164,12 +164,13 @@ order-dependent. Left as-is deliberately — making it deterministic would have 
 second uncontrolled change to a model's identity inside the run meant to
 re-baseline it. Worth its own ticket.
 
-`export_model.py` now reads `calibration.deployment_temperature` from
-`gate2_winner.json` instead of hardcoding `1.0`, and refuses an older file rather
-than silently defaulting. For the deployable model the fitted value **is** 1.00, so
-re-exporting would change no served `matchPercent` — but that is a fact about this
-dataset, not a property of the code, and DEV-88 made the serving path divide logits
-by that field.
+`export_model.py` requires the Phase-3 calibration record rather than silently
+defaulting, but does not transfer its temperature: `logistic_tuned` selected
+heterogeneous Cs across folds, while the artifact serializes one fixed C. The
+exporter therefore refits on pooled OOF predictions from the exact selected
+configuration. On this dataset Phase 3 records **1.00**, while fixed `C=1.0`
+reproduces **1.05**; the regenerated artifact now slightly softens served
+`matchPercent` values through the DEV-88 inference path.
 
 ### Reproduction record (DEV-92, 2026-07-29)
 

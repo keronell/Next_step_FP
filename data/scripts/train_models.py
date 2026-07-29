@@ -215,13 +215,12 @@ def temperature_scale(probs: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, flo
 
     Fitting and scoring on the same pool, which is precisely the defect ADR 0004
     records — so this is NOT how the reported ECE is computed any more. Two honest
-    callers remain:
+    uses remain:
 
-    - the **deployment** temperature, fitted on the full pooled OOF for export.
-      There is no held-out set to be honest about when choosing a single constant
-      to ship; the goal there is the best estimate from all available data, not an
-      unbiased error estimate. Reporting and deployment want different things from
-      the same computation.
+    - a **deployment** temperature, when `probs` are OOF predictions from the exact
+      configuration being serialized. export_model.py does this after selecting
+      its fixed C; there is no held-out set to preserve when choosing the one
+      constant to ship.
     - the **legacy** number reported beside the cross-fitted one, purely to size
       how optimistic the old protocol was.
     """
@@ -257,8 +256,8 @@ def cross_fitted_oof(X, y, n_classes, fit_predict, select_config=None):
 
     Costs three extra fits per outer fold per model. Returns the per-fold
     temperatures alongside the probabilities because their SPREAD is a finding: a
-    single shipped temperature is only a well-estimated quantity if the five
-    agree.
+    single pooled temperature for this evaluated configuration is only a
+    well-estimated quantity if the five agree.
     """
     oof_raw = np.zeros((len(y), n_classes))
     oof_calibrated = np.zeros((len(y), n_classes))
@@ -570,9 +569,9 @@ def main() -> None:
         m["fold_temperatures"] = temps
         m["temperature_spread"] = float(max(temps) - min(temps))
         m["temperature_sd"] = float(np.std(temps))
-        # The single constant an export would ship, fitted on the full OOF pool —
-        # see temperature_scale() on why deployment and reporting want different
-        # things from the same computation.
+        # Phase 3's pooled constant for this evaluated configuration. It remains a
+        # useful reference and calibration-provenance record, but export cannot
+        # transfer it when the serialized fixed configuration differs.
         pooled_scaled, m["deployment_temperature"] = temperature_scale(probs, y)
         # The number the OLD protocol would have printed. Reported beside the
         # cross-fitted one to size the optimism this ticket removes — and, for
@@ -651,7 +650,7 @@ def main() -> None:
     )
     no_fold_matches = (
         f", and **no fold chose the pooled {log_m['deployment_temperature']:.2f} "
-        "that would actually be exported**"
+        "Phase-3 reference**"
         if all(abs(t - log_m["deployment_temperature"]) > 1e-9
                for t in log_m["fold_temperatures"])
         else ""
@@ -839,7 +838,7 @@ readers will assume they already know.
 
 ## Calibration temperature, per outer fold
 
-| model | fold 1 | 2 | 3 | 4 | 5 | spread | sd | deployment T |
+| model | fold 1 | 2 | 3 | 4 | 5 | spread | sd | Phase-3 pooled T |
 |---|---|---|---|---|---|---|---|---|
 {fmt_temps("gbt_tuned", results["gbt_tuned"])}
 {fmt_temps("logistic_tuned", results["logistic_tuned"])}
@@ -848,18 +847,18 @@ readers will assume they already know.
 
 **The spread is itself a finding{ships_widest}.**
 Each fold's temperature is an independent estimate of the same quantity, so a wide
-spread means a single shipped temperature is not a well-estimated quantity — and
-one *does* get exported. `logistic_tuned`, the deployment selection, has a spread of
+spread means a single temperature is not a well-estimated quantity.
+`logistic_tuned`, the deployment architecture, has a spread of
 {log_m["temperature_spread"]:.2f} across
 {", ".join(f"{t:.2f}" for t in log_m["fold_temperatures"])}: folds disagree about
 whether its probabilities need softening or sharpening at all{no_fold_matches}.
 Read that as a warning about displayed `matchPercent` precision, not about the
 ranking — temperature cannot reorder anything.
 
-The `deployment T` column is fitted separately, on the full pooled OOF: choosing one
-constant to ship wants the best estimate from all available data, whereas reporting
-an error wants an estimate that never saw the rows it scores. Same computation, two
-different jobs, deliberately not shared.
+The `Phase-3 pooled T` column is fitted separately on each model's full pooled OOF.
+It is a reference for the evaluated configuration, not a transferable artifact
+field. Export selects a fixed C and independently fits the one shipped constant on
+OOF predictions from that exact configuration.
 
 Chosen hyperparameters per outer fold:
 - gbt (n_estimators, lr, num_leaves, min_child_samples): {gbt_params}
@@ -894,10 +893,11 @@ cannot silently disagree — and a Gate-1-rejected model can never ship.
 
 The deployment temperature recorded for `{deployable or "NONE"}` is
 {f"{results[deployable]['deployment_temperature']:.2f}" if deployable else "n/a"},
-and export_model.py reads it from gate2_winner.json rather than hardcoding 1.0.
-**DEV-88 made the serving path divide logits by that field**, so it is inert only
-while it equals 1.0; any other value changes served `matchPercent` the moment an
-artifact carrying it is actually loaded.
+for Phase 3's per-fold-selected configuration. export_model.py requires this
+calibration record as provenance but does not transfer its temperature when
+serializing a different configuration: it selects one fixed C and refits on OOF
+predictions from that exact C. **DEV-88 made the serving path divide logits by the
+artifact's refitted field**, so any non-1.0 value changes served `matchPercent`.
 
 Notes:
 - The soft-target NN consumes the panel vote distribution (top1=1.0, top2={TOP2_VOTE_WEIGHT});
@@ -933,9 +933,9 @@ Notes:
                 }
                 for n, m in results.items()
             },
-            # What export_model.py ships. Fitted on the full pooled OOF of the
-            # DEPLOYABLE model — deployment wants the best estimate from all data,
-            # not the unbiased-error estimate the report needs.
+            # Phase 3's pooled estimate for the DEPLOYABLE configuration. Export
+            # requires it as calibration provenance, but must refit rather than
+            # transfer it if the serialized fixed configuration differs.
             "deployment_temperature_model": deployable,
             "deployment_temperature": (
                 results[deployable]["deployment_temperature"] if deployable else None
