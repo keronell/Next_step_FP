@@ -353,6 +353,151 @@ verified to fail **5/5** against a row-resampling implementation before being ke
 The five service suites are unchanged at **268** (questionnaire 18, matching 108,
 roadmap 30, auth 31, history 81); no file under `services/` is in this change.
 
+### Reproduction record (DEV-95, 2026-07-30)
+
+Round 2 of the neural rework and the **final** Ship Floor verdict (`sweep_round2.py`,
+plan Step 2.7). Split like the DEV-91 and DEV-93 records: one number was supposed to
+move and a great many were not.
+
+**Unmoved, verified rather than asserted.** This ticket edits `select_by_inner_cv`,
+which every nested selection in the pipeline goes through, so "inert" had to be shown
+three ways rather than argued once:
+
+- **The six Gate-1 metrics**, recomputed by calling `cv_oof_and_stability` and
+  `reseeded_stability` **directly** rather than by regenerating `gate1_verdict.json`,
+  which this ticket leaves byte-unchanged: `logistic` ECE `0.034099440082920096` /
+  stability `0.637516702641587`, `lightgbm` `0.128155228434309` /
+  `0.5566450817144618`, `small_nn` `0.06183095636038942` / `0.6153150375167026`,
+  reseeded `0.6670161373214101`. All six to the last digit. (Build `X` with
+  `dtype=float` as `evaluate_matchers.main()` does; `train_models.load_data()` uses
+  float32 and the wrong one moves Gate-1 ECE by ~2.6e-8, which looks like a
+  regression and is not.)
+- **The five Gate-2 rows.** `train_models.py` re-run: `model_selection.md` and
+  `gate2_winner.json` came back differing **only** in their timestamps, so
+  `gbt_tuned` 0.892 / 0.040, `logistic_tuned` 0.849 / 0.061, `small_nn` 0.845 / 0.102,
+  `two_tower` 0.763 / 0.081 and `residual_matcher` 0.849 / 0.061 all reproduce. The
+  regenerated files were reverted rather than committed.
+- **Round 1's entire deliverable.** `sweep_variants.py` re-run: `nn_rework.md` and
+  `round1_results.json` came back byte-identical apart from their timestamps —
+  including the Ship Floor and C-sensitivity tables, which that script *recomputes*
+  rather than reading from its checkpoint. Reverted. `dataset_digest` still
+  `2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27` throughout.
+- **`two_tower`'s ordering is untouched** — `train_models.main()` is not modified, so
+  the Residual Matcher still runs after it and the process-global-torch-RNG hazard the
+  DEV-92 record raised is unchanged. Still unfixed, still worth its own ticket.
+
+**The instrumentation, and why it is an out-parameter.** Round 1 computed a 14-way
+inner-CV contest 25 times and kept only the argmax, so when ADR 0003's rule
+disqualified the winner its own output could not name the replacement the rule owes.
+`select_by_inner_cv` gained `scores_out=`, an optional list receiving `(params, score)`
+for every grid point. It has six call sites and `test_residual_matcher.py` asserts on
+its return value directly against an inherited `C`; widening the return type would have
+changed what four callers receive to serve a need only one of them has.
+`test_variant_scoreboard.py` pins both halves — the vector is recorded, and the answer
+does not move when the channel is absent.
+
+**New, and NOT comparable to Round 1's headline row.** `data/training/nn_rework_round2.md`,
+`round2_results.json` and `round2_scoreboard.json`. Round 2's candidate set **excludes**
+the Residual Matcher, so its `sweep_nn` column describes a different set of eligible
+models; the two rounds share protocol, folds, seeds and comparators and nothing else.
+Round 1's numbers stand unchanged.
+
+- **The recovered scoreboard reproduces Round 1 exactly**: all 25 per-fold selections
+  identical, which is the gate on every other number in the round.
+- **The best genuinely non-linear Variant is `C3_seed_ensemble`** (mean inner-CV top-2
+  0.7991 +/- 0.0236). That is the substitution ADR 0003 owed. Its cost, paired per
+  contest: the disqualified Residual Matcher scored **+0.0280** above it on the
+  selection metric, level in 2 of 25 contests.
+- **The finding Round 1's selection counts could not express:** ensembling V0 is worth
+  **+0.0353** against the same base — larger than that substitution cost, and larger
+  than the whole capacity-plus-regularization spread. Seed-averaging was the only lever
+  Round 1 moved, which is why all six refinements sit on it.
+- **Round 2 earned its budget:** refinements took **22 of 25** selections. Selected:
+  **`D5_ensemble_dropout_0.5_wd_1e-2`** — 5 `NNClassifier` members at dropout 0.5 and
+  weight decay 1e-2, seeds `random_state + i`, everything else V0. Full specification
+  (defaults included, read from the constructor signature) is in the report and
+  `round2_results.json`, because DEV-97 exports it and a Variant name is not a
+  specification. **It is 5 networks, not one**, and DEV-97 inherits that cost;
+  explainability is unaffected, since IG over a probability-averaged ensemble is the
+  average of the members' attributions.
+- **That selection was a tie on count, and the tie-break is disclosed rather than
+  buried.** `D5` and `D2_ensemble_dropout_0.5` each took 7 of 25, and `max()` over the
+  counts would have resolved it by **registry order** — declaration order in a Python
+  dict deciding which model gets exported. It is instead resolved on the contest's own
+  metric (mean inner-CV top-2: D5 0.8110 with 7 contests won outright, D2 0.8065 with
+  4), and **both arms are Ship-Floor-scored** so the choice hides nothing. No rule for
+  aggregating per-fold winners into one configuration had been pre-registered, so this
+  resolves a tie rather than moving a threshold. Both reach the same verdict.
+- **Effect size, profile as the sampling unit:** vs `logistic_tuned` delta −0.0181,
+  CI [−0.0440, +0.0060], sign in 4 of 5 seeds, materiality marker NOT cleared. vs
+  `gbt_tuned` delta −0.0440, CI [−0.0750, −0.0138] (excludes zero), sign in 5 of 5.
+- **The substitution priced on the deliverable's own metric, not just the selection
+  one.** ADR 0003 asks for the cost explicitly, and the inner-CV margin is the quantity
+  the choice was made on rather than the one a model is read by. Round-2 selected minus
+  Round-1 selected, exactly paired over the same seeds and partitions and refitting
+  nothing: delta **−0.0155** on pooled OOF top-2, CI [−0.0388, +0.0060] — 3.6 profiles
+  of 232. That is not the two rounds as a series; it is the price of a candidate set
+  that excludes the Residual Matcher against one that included it.
+- **FINAL Ship Floor: the hard half clears, the mitigable half fails.** Stability
+  **0.735** at the gated partition and **5 of 5** seeds (mean 0.716 +/- 0.011, min
+  0.703) — a wider margin than Round 1's 0.666 and than the Incumbent `logistic`'s
+  0.6375. Raw ECE **0.139**, clearing on only **1 of 5** partitions. So it ships as the
+  **ranking** source with displayed percentages falling back to the formula's (ADR
+  0002).
+- **That ECE failure differs from Round 1's in kind, not degree.** Round 1's cleared on
+  4 of 5 partitions, so its gated failure was a partition effect and reading it as
+  "this model is miscalibrated" would have been wrong. Four of five fail here. The
+  mitigation is what makes this model shippable, not an argument that the number is
+  unrepresentative.
+
+**Three disclosures the report carries, all counted rather than argued.** (1) The
+per-contest registry-order tie-break decided **5 of 25** contests and the selected
+Variant appears in tied groups, so for those contests the record cannot distinguish a
+tie-broken pick from a decisive one — Round 1 could disclose the same bias and then
+show it decided nothing, and that reassurance does not transfer. (2) The selection did
+not converge: 8 different Variants won contests and the top count was 7 of 25 (28%),
+against Round 1's 23 of 25, so "the selected configuration" is the modal answer of an
+unstable selection. (3) The neural search total is now 20 configurations against
+`gbt_tuned`'s 16 — "the NN was not tuned harder than the alternatives" was true after
+Round 1 and is no longer true.
+
+**The comparator legs are Round 1's, reused and verified rather than assumed.**
+`gbt_tuned` and `logistic_tuned` do not depend on the Variant registry and the fold
+partition is a function of the seed alone, so recomputing all five seeds would be an
+hour of LightGBM nested CV reproducing a file this tree holds. Seed 42 was recomputed
+from scratch anyway: identical top-2 and **0 of 232 profiles disagreeing** for both.
+`--recompute-comparators` refits all five on a tree without the checkpoint.
+
+**`sweep_round2.py --stage report`** re-renders the report from `round2_results.json`
+alone — not from the gitignored checkpoint — refitting nothing, and refreshes the keys
+derived from the per-fold scoreboard so the JSON and the report cannot carry different
+versions of one derivation. It is not a convenience: Round 2's expensive tail (Ship
+Floor evaluations of 5-member ensembles, twice over once the count tie was resolved
+honestly) runs *after* the checkpointed seed loop, so a wording change would otherwise
+be paid for in compute — and this run needed it twice, once because the first render
+crashed on a bug already fixed in the working tree that the long-running process had
+loaded before the fix.
+
+**A code review changed the deliverable, and that is recorded rather than smoothed
+over.** It caught that `D2` and `D5` were tied at 7 selections each and that `max()`
+was resolving the shipped configuration by registry order, while `D5` led the contest
+on the metric — and that the report's headline claimed the selected Variant "leads the
+contest" by testing whether *any* refinement led it. The tie-break, the headline
+derivation, and the ship-floor scoring of both arms are the fix. It also caught two
+paths that read the gitignored `round1_checkpoint.json` unconditionally, which made
+`--recompute-comparators` and `--stage report` fail on exactly the tree they were built
+for.
+
+**THERE IS NO ROUND 3.** The budget was fixed in advance so that "keep tuning until it
+wins" is unavailable, and it is spent.
+
+Test counts: `data/scripts/tests` is **71** under the training venv (was 55), and
+**7 passed + 8 skipped** under `backend/venv` (was 7 + 6) — the two new modules skip
+whole there for the usual reason, no torch, which is what shows they add no dependency
+to the service-test venv. The five service suites are unchanged at **268**
+(questionnaire 18, matching 108, roadmap 30, auth 31, history 81); no file under
+`services/` is in this change.
+
 ## Pipeline order
 
 ```

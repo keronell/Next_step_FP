@@ -29,7 +29,7 @@ pytest.importorskip("sklearn")
 pytest.importorskip("lightgbm")
 
 from evaluate_matchers import assert_deterministic  # noqa: E402
-from nn_model import NNClassifier  # noqa: E402
+from nn_model import NNClassifier, SeedEnsemble  # noqa: E402
 
 
 def make_dataset(n_rows: int = 90, n_features: int = 12, n_classes: int = 6, seed: int = 0):
@@ -136,3 +136,39 @@ def test_determinism_assertion_rejects_a_candidate_that_varies_between_refits():
     with pytest.raises(SystemExit) as excinfo:
         assert_deterministic("stub", _NondeterministicStub, X, y)
     assert "stub" in str(excinfo.value)
+
+
+# ------------------------------------------------------------------- the ensemble
+
+
+def test_the_seed_ensemble_inherits_the_determinism_contract():
+    """The ensemble carries the contract too, and DEV-95 put it on the critical path.
+
+    Every Round-2 candidate is Ship-Floor-eligible, and most of them are seed
+    ensembles. The stability half of that floor is hard and unmitigable: it reads all
+    sub-model disagreement as training-subset variation, which is only valid for an
+    estimator whose refits on identical data agree. Members are seeded
+    `random_state + i` and each restores the global generators it touched, so the
+    property follows from theirs — asserted rather than deduced because the deduction
+    has two steps and the failure would look like a stability wobble rather than
+    like a bug."""
+    X, y = make_dataset()
+    assert_deterministic(
+        "seed_ensemble",
+        lambda: SeedEnsemble(random_state=42, n_members=3, hidden_sizes=(8,), max_epochs=10),
+        X, y,
+    )
+
+
+def test_the_ensemble_is_not_one_member_wearing_a_hat():
+    """Guards the test above from passing for the wrong reason: an ensemble that
+    built its members with one seed, or returned the first member's probabilities,
+    would be bit-identically deterministic and would also be pointless."""
+    X, y = make_dataset()
+    fast = {"hidden_sizes": (8,), "max_epochs": 10}
+
+    ensemble = SeedEnsemble(random_state=42, n_members=3, **fast).fit(X, y).predict_proba(X)
+    member = NNClassifier(random_state=42, **fast).fit(X, y).predict_proba(X)
+
+    assert not np.array_equal(ensemble, member)
+    assert np.allclose(ensemble.sum(axis=1), 1.0)

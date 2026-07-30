@@ -393,6 +393,30 @@ any interpretive weight beyond that.
 
 ### 2.7 Ship floor — replacing the kill criteria
 
+> **Status: round 2 evaluated, budget spent (DEV-95, 2026-07-30).**
+> `data/scripts/sweep_round2.py`, report `data/training/nn_rework_round2.md`. **There
+> is no round 3.** Three things this step did not anticipate, recorded here rather
+> than left in the ticket:
+>
+> 1. **"≤6 refinements around the round-1 best" stopped parsing, and was
+>    reinterpreted openly.** The round-1 best is the Residual Matcher at `α = 0`,
+>    which is bit-identical to logistic regression; refining around it means either
+>    tuning logistic regression or widening the `α` grid, and ADR 0003 calls the
+>    latter a protocol change rather than a tuning tweak. Round 2 reads "the round-1
+>    best" as **the best of the models still eligible to be the deliverable** — the
+>    best genuinely non-linear Variant — because ADR 0003's disqualification clause
+>    makes that the model which actually ships.
+> 2. **Round 1 could not name that Variant, because the evidence had been thrown
+>    away.** `select_by_inner_cv` returned the argmax and discarded the other
+>    thirteen scores, so the ranking among the never-selected Variants was computed
+>    25 times and lost 25 times. DEV-95 added an additive out-channel
+>    (`select_by_inner_cv(..., scores_out=)`) and re-ran the contest; all 25 Round-1
+>    selections reproduced.
+> 3. **The Residual Matcher does not compete in round 2.** A contest selects the
+>    model that ships, and ADR 0003 has ruled that it may not be that model. Its
+>    round-1 numbers stand and its per-contest counterfactual score is reported as
+>    the substitution cost the ADR requires.
+>
 > **Status: round 1 evaluated (DEV-93, 2026-07-29).** `sweep_variants.evaluate_ship_floor`
 > scores **one exact configuration** — the modal Variant across all 25 (seed, outer
 > fold) selections — because Qualified is a property of a configuration and is never
@@ -718,6 +742,8 @@ why the "nothing is deployable" impression persisted.
 | `data/training/gate1_verdict.json`, `gate2_winner.json` | regenerated |
 | `data/training/baseline_evaluation.md`, `model_selection.md` | regenerated (Gate-2 re-baseline) |
 | `data/training/nn_rework.md` | new — sweep, seed variance, paired CIs, floor trace |
+| `data/scripts/sweep_round2.py` | new — round-2 refinements, the recovered per-Variant scoreboard, final floor |
+| `data/training/nn_rework_round2.md`, `round2_scoreboard.json` | new — round 2 and the substitution evidence |
 | `data/training/learning_curve.md` | new |
 | `services/matching/app/services/matcher.py` | new — `Matcher` protocol + `load_matcher()` |
 | `services/matching/app/services/matcher_model.py` | implements protocol; applies `temperature` |
@@ -750,6 +776,8 @@ The order is now driven by dependencies alone.
    report `data/training/nn_rework.md`. The same ticket wired the Residual Matcher
    into the Gate-2 run as a fifth model with its pre-registered alpha record.
 7. **Round 2** if warranted (≤6 refinements). Evaluate the ship floor. **No round 3.**
+   — **DONE (DEV-95, 2026-07-30):** `data/scripts/sweep_round2.py`, report
+   `data/training/nn_rework_round2.md`. The search budget is now spent.
 8. **Learning curve** (2.6) + control curve.
 9. **`matcher_nn.py`, `export_nn_model.py`**, parity and IG-completeness tests.
    *Merges after the q11–q18 branch.*

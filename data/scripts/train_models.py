@@ -325,7 +325,7 @@ def fit_logistic(C, Xtr, ytr):
 # fold's training partition. Both are pure functions of `tr`, which is what lets
 # cross_fitted_oof reuse them for the temperature's inner refits without any risk
 # of the selection seeing the rows it will be scored on.
-def select_by_inner_cv(X, y, tr, grid, fit, random_state: int = SEED):
+def select_by_inner_cv(X, y, tr, grid, fit, random_state: int = SEED, scores_out=None):
     """The plan's `select_by_inner_cv(tr)`: the grid point with the best inner-CV
     top-2, chosen using ONLY the outer fold's training partition.
 
@@ -337,7 +337,21 @@ def select_by_inner_cv(X, y, tr, grid, fit, random_state: int = SEED):
     The Round-1 sweep (DEV-93) reuses this for its 14-Variant contest rather than
     writing a second grid-argmax, so "no separate selection stage exists" is true of
     the code and not only of the plan. `random_state` defaults to the single-seed
-    path."""
+    path.
+
+    `scores_out` is an optional list that receives `(params, score)` for every grid
+    point in grid order — the losers as well as the winner. Added by DEV-95 because
+    Round 1 computed a 14-way contest 25 times and kept only the argmax, and ADR
+    0003's disqualification clause then required naming "the best genuinely
+    non-linear Variant" from evidence that had already been discarded.
+
+    **It is an out-parameter rather than a second return value deliberately.** This
+    function has six call sites and one test asserts on its return value directly
+    against an inherited `C`; widening the return type would change what four callers
+    receive to fix a need only one of them has. The channel is invisible to a caller
+    that does not pass it, the grid is walked in the same order either way, and each
+    point is fitted the same number of times — so no RNG consumption moves.
+    """
     inner = StratifiedKFold(INNER_SPLITS, shuffle=True, random_state=random_state)
     best_params, best_score = None, -1.0
     for params in grid:
@@ -346,6 +360,10 @@ def select_by_inner_cv(X, y, tr, grid, fit, random_state: int = SEED):
             m = fit(params, X[tr][itr], y[tr][itr])
             scores.append(top2_of(m, X[tr][ival], y[tr][ival]))
         score = float(np.mean(scores))
+        if scores_out is not None:
+            scores_out.append((params, score))
+        # Strictly greater: ties keep the EARLIER grid point. The sweep's registry
+        # order is therefore its tie-break, which `nn_rework.md` discloses.
         if score > best_score:
             best_score, best_params = score, params
     return best_params

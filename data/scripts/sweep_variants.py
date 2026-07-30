@@ -149,7 +149,7 @@ def build_variant(variant: Variant, random_state: int, config=None):
 
 
 # ------------------------------------------------- the 14-way contest (2.4)
-def select_variant(X, y, tr, random_state: int, variants=None):
+def select_variant(X, y, tr, random_state: int, variants=None, scores_out=None):
     """Pick the Variant with the best inner-CV top-2, using ONLY `tr`.
 
     This is `train_models.select_by_inner_cv` — the same grid-argmax every other
@@ -182,6 +182,14 @@ def select_variant(X, y, tr, random_state: int, variants=None):
     holes in it — "this fold did not pick the Residual Matcher" is not the same
     finding as "this fold picked alpha=0", and conflating them would let the rule
     fire, or fail to fire, on the wrong evidence.
+
+    `scores_out` is an optional dict that receives `{variant_name: inner-CV top-2}`
+    for **all** of them, winner and losers alike (DEV-95). Round 1 kept only the
+    argmax, and when ADR 0003's rule disqualified the winner its own output could not
+    name the replacement the rule owes — the ranking among the Variants that were
+    never selected had been computed 25 times and discarded each time. It is an
+    out-parameter for the reason `train_models.select_by_inner_cv` documents: the
+    return value has existing callers and a test asserting on it directly.
 
     A pure function of `tr` — held by `test_variant_selection.py`, which poisons
     every row outside `tr` and requires the answer not to move.
@@ -216,13 +224,17 @@ def select_variant(X, y, tr, random_state: int, variants=None):
         for name, variant in variants.items() if variant.kind == "residual"
     }
 
+    scored: list = []
     chosen = train_models.select_by_inner_cv(
         X, y, tr, list(variants),
         lambda name, Xtr, ytr: build_variant(
             variants[name], random_state=random_state, config=residual_config.get(name)
         ).fit(Xtr, ytr),
         random_state=random_state,
+        scores_out=scored,
     )
+    if scores_out is not None:
+        scores_out.update(scored)
     return chosen, residual_config
 
 
@@ -283,53 +295,96 @@ def paired_bootstrap(
 
 
 # ------------------------------------------------------------- one nested run
-def run_one_seed(X, y, n_classes, experiment_seed: int) -> dict:
-    """One complete nested run: the sweep's NN, plus the two Gate-2 comparators,
-    all on the SAME outer folds.
+def fold_record(winner: str, scores: dict, residual_config: dict) -> dict:
+    """One outer fold's contest result: who won, and what every Variant scored.
 
-    Sharing folds within a seed is what makes the comparison paired — the bootstrap
-    differences per-profile indicators, which means nothing if the models were
-    scored on different partitions.
+    One builder because there are two producers — this module's `sweep_leg` and
+    `sweep_round2.scoreboard_one_seed` — and two consumers that read the result by key
+    (`sweep_round2.rank_variants` and `tie_break_incidence`). Two hand-built copies of
+    the same shape is how a producer quietly stops emitting `scores` and a consumer
+    starts ranking a subset of the contests.
+    """
+    return {
+        "winner": winner,
+        "scores": {name: float(s) for name, s in scores.items()},
+        "residual_config": {n: list(c) for n, c in residual_config.items()},
+    }
+
+
+def sweep_leg(X, y, n_classes, experiment_seed: int, variants=None,
+              scoreboard_out=None) -> dict:
+    """The contest leg of one nested run: select a Variant per outer fold, refit it,
+    and score the pooled OOF — for whichever registry is passed.
+
+    Extracted from `run_one_seed` by DEV-95 so Round 2 can run the identical protocol
+    over a different Variant set without a second copy of this wiring. `variants`
+    defaults to Round 1's fourteen, so `run_one_seed` is unchanged by the extraction.
 
     Every model goes through `train_models.cross_fitted_oof`, so the calibration
     protocol stays a property of that driver rather than something this file
-    re-implements (and could re-implement wrongly). The sweep's Variant selection is
-    its `select_config` argument, exactly where the plan puts it.
+    re-implements (and could re-implement wrongly). Variant selection is its
+    `select_config` argument, exactly where the plan puts it.
+
+    `scoreboard_out` optionally collects the full per-Variant inner-CV score vector
+    for each outer fold (DEV-95), the evidence Round 1 discarded.
     """
     import train_models as tm
 
+    variants = VARIANTS if variants is None else variants
     per_fold_variants: list[str] = []
     per_fold_residual: list = []
 
     def select_sweep_variant(tr):
-        name, residual_configs = select_variant(X, y, tr, random_state=experiment_seed)
+        scores: dict = {}
+        name, residual_configs = select_variant(
+            X, y, tr, random_state=experiment_seed, variants=variants, scores_out=scores,
+        )
         per_fold_variants.append(name)
         # Recorded for EVERY fold, not only the folds the residual won — see
         # select_variant on why the >=3-of-5 rule needs a record without holes.
         per_fold_residual.append(residual_configs)
+        if scoreboard_out is not None:
+            scoreboard_out.append(fold_record(name, scores, residual_configs))
         return (name, residual_configs.get(name))
 
     def fit_sweep(config, tr, pr):
         name, residual_config = config
         return build_variant(
-            VARIANTS[name], random_state=experiment_seed, config=residual_config
+            variants[name], random_state=experiment_seed, config=residual_config
         ).fit(X[tr], y[tr]).predict_proba(X[pr])
 
-    out = {}
-    print(f"  seed {experiment_seed}: nested 14-Variant sweep ...", flush=True)
+    print(f"  seed {experiment_seed}: nested {len(variants)}-Variant sweep ...", flush=True)
     oof, oof_cal, temps, _ = tm.cross_fitted_oof(
         X, y, n_classes, fit_predict=fit_sweep, select_config=select_sweep_variant,
         random_state=experiment_seed,
     )
-    out["sweep_nn"] = _summarize(oof, oof_cal, temps, y)
-    out["sweep_nn"]["per_fold_variant"] = per_fold_variants
+    leg = _summarize(oof, oof_cal, temps, y)
+    leg["per_fold_variant"] = per_fold_variants
     # {residual variant name: [(alpha, C) per outer fold]} — complete, so the
-    # pre-registered rule reads what inner CV actually chose in all 5 folds.
-    out["sweep_nn"]["per_fold_residual_config"] = {
+    # pre-registered rule reads what inner CV actually chose in all 5 folds. Empty
+    # when the registry holds no residual Variant, which is Round 2's case: ADR 0003
+    # disqualified it, so it no longer competes for a place that it may not take.
+    leg["per_fold_residual_config"] = {
         name: [list(fold[name]) for fold in per_fold_residual]
         for name in per_fold_residual[0]
     }
+    return leg
 
+
+def comparator_legs(X, y, n_classes, experiment_seed: int) -> dict:
+    """The two Gate-2 comparators under this seed's nested protocol.
+
+    Extracted from `run_one_seed` by DEV-95 for the same reason `sweep_leg` was: Round
+    2 needs to be able to recompute exactly these numbers — to verify the ones it
+    reuses from Round 1's checkpoint — and a second copy of this wiring could differ
+    from the one that produced them without anything failing.
+
+    Nothing here depends on the Variant registry, which is why reuse across rounds is
+    sound at all: within a seed the fold partition is a function of the seed alone.
+    """
+    import train_models as tm
+
+    out = {}
     print(f"  seed {experiment_seed}: nested-CV tuned logistic ...", flush=True)
     oof, oof_cal, temps, log_cs = tm.cross_fitted_oof(
         X, y, n_classes,
@@ -355,6 +410,20 @@ def run_one_seed(X, y, n_classes, experiment_seed: int) -> dict:
     out["gbt_tuned"]["per_fold_config"] = [list(p) for p in gbt_ps]
 
     return out
+
+
+def run_one_seed(X, y, n_classes, experiment_seed: int) -> dict:
+    """One complete nested run: the sweep's NN, plus the two Gate-2 comparators,
+    all on the SAME outer folds.
+
+    Sharing folds within a seed is what makes the comparison paired — the bootstrap
+    differences per-profile indicators, which means nothing if the models were
+    scored on different partitions.
+    """
+    return {
+        "sweep_nn": sweep_leg(X, y, n_classes, experiment_seed),
+        **comparator_legs(X, y, n_classes, experiment_seed),
+    }
 
 
 def _summarize(oof, oof_calibrated, temperatures, y) -> dict:

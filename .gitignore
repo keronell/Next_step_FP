@@ -32,3 +32,5 @@ data/jobs/chroma/
 # intermediate, not a deliverable. The deliverables are round1_results.json and
 # nn_rework.md, which are tracked.
 data/training/round1_checkpoint.json
+data/training/round2_scoreboard_checkpoint.json
+data/training/round2_checkpoint.json
