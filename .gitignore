@@ -34,3 +34,8 @@ data/jobs/chroma/
 data/training/round1_checkpoint.json
 data/training/round2_scoreboard_checkpoint.json
 data/training/round2_checkpoint.json
+# Same role for the DEV-96 learning curve: one (point, seed) unit per entry, so a
+# killed run resumes instead of refitting the nested comparator legs. The
+# deliverables are learning_curve_results.json and learning_curve.md, both tracked,
+# and `--stage report` reads only those.
+data/training/learning_curve_checkpoint.json

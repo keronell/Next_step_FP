@@ -318,6 +318,43 @@ Reported for the shipped NN against `logistic_tuned` and `gbt_tuned`:
 
 ### 2.6 Learning curve
 
+> **Status: DONE (DEV-96, 2026-07-31).** `data/scripts/learning_curve.py`, report
+> `data/training/learning_curve.md`. Five things this step did not settle, decided
+> here and stated in the report rather than applied quietly:
+>
+> 1. **The frozen configuration is a five-member ensemble.** "Architecture and
+>    hyperparameters frozen at the selected configuration" resolves to
+>    `SeedEnsemble(n_members=5, dropout=0.5, weight_decay=1e-2)`, so every neural fit
+>    on the curve is five fits and the curve measures an *ensemble*. Read from
+>    `selected_specification` in `round2_results.json` and checked field-by-field
+>    against the registry entry, so the curve cannot measure a later edit of it.
+> 2. **The validation rule is an additive absolute-size argument**,
+>    `NNClassifier(val_size=)`, not a per-point `val_fraction`. That float is handed
+>    to `train_test_split`, which takes `⌈fraction·n⌉`, and `n_val/n_train` is not
+>    guaranteed to round back to the integer it came from. `None` is inert, so
+>    `test_variant_registry.py`'s bit-identity contract still holds.
+> 3. **The comparators are NESTED at every point, not frozen.** Rejected on
+>    correctness, not budget: freezing means either an arbitrary configuration, which
+>    is no longer the `gbt_tuned` this deliverable reports a gap against, or one
+>    selected on all 232 rows — which would have seen data outside every subsample
+>    below 232, i.e. Leakage at four of the five points.
+> 4. **Comparator selection runs under 2 inner folds, at every point.** At n=48 an
+>    outer training partition holds two rows of the rarest classes; a 3-fold inner
+>    split loses a class, sklearn warns rather than raises, and the selection metric
+>    would then read top-2 indices meaning different careers. One rule everywhere, not
+>    a per-point accommodation — and one more reason these numbers are not comparable
+>    to a gate number.
+> 5. **The subsample is a function of the curve point alone and does not vary with
+>    the experiment seed.** "The 80 profiles common to both points" is one set only if
+>    every seed cuts the same subsample. The cost — every number is conditional on one
+>    subsample draw — is disclosed in the report.
+>
+> Nesting is by construction rather than by apportionment: one global ordering of the
+> surplus rows, every point a prefix of it, so proportional rounding cannot hand a
+> class fewer rows at a larger `n`. `test_learning_curve.py` pins nesting, the class
+> floor, the balance table, the validation rule, `val_size`'s inertness and the
+> Δgap contrast's algebra.
+
 Its job has changed and grown. Rev 2 wanted it as insurance against "you didn't
 try hard enough" if the NN lost. It is now the evidence for **how far behind the
 shipped model is and whether more data would close the gap** — the most actionable
@@ -779,6 +816,11 @@ The order is now driven by dependencies alone.
    — **DONE (DEV-95, 2026-07-30):** `data/scripts/sweep_round2.py`, report
    `data/training/nn_rework_round2.md`. The search budget is now spent.
 8. **Learning curve** (2.6) + control curve.
+   — **DONE (DEV-96, 2026-07-31):** `data/scripts/learning_curve.py`, report
+   `data/training/learning_curve.md`. The comparator legs are computed **fresh**:
+   Rounds 1 and 2 could reuse each other's because within a seed the fold partition
+   is a function of the seed alone *under the same protocol*, and the curve is a
+   different protocol.
 9. **`matcher_nn.py`, `export_nn_model.py`**, parity and IG-completeness tests.
    *Merges after the q11–q18 branch.*
 10. **Steps 4 + 6 writeups** with real numbers; `docs/dev-23-nn-decision.md`.

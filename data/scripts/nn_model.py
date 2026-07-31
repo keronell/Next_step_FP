@@ -17,7 +17,10 @@ non-linear residual help" with "does seed-averaging help" (plan Step 2.2).
 
 The Round-1 sweep (DEV-93) varies **arguments** to these classes rather than
 editing them; `input_noise`, `optimizer`, `lr_schedule` and `momentum` were added
-for exactly that reason, and their defaults are inert so V0 is unchanged.
+for exactly that reason, and their defaults are inert so V0 is unchanged. The
+learning curve (DEV-96) added `val_size` on the same terms — it needs an ABSOLUTE
+early-stopping split size, `val_fraction` is a float, and `None` leaves the
+`val_fraction` call untouched rather than re-deriving the same number.
 
 Nothing here is Selected, Servable or Deployable, and clearing Gate 1 makes a
 configuration Qualified and nothing more (see `CONTEXT.md`).
@@ -90,6 +93,14 @@ DEFAULT_INPUT_NOISE = 0.0
 DEFAULT_OPTIMIZER = "adam"
 DEFAULT_LR_SCHEDULE = None
 DEFAULT_MOMENTUM = 0.9
+# Added for the learning curve (DEV-96), which applies one validation rule at every
+# curve point: `n_val = max(n_classes, ceil(0.15 * n_train))`. That is an absolute
+# size, and `val_fraction` is a float handed to `train_test_split` -- which takes
+# `ceil(fraction * n)`, so `n_val / n_train` is not guaranteed to come back on the
+# integer it was built from. `None` is the inert default: the `val_fraction` path is
+# then the identical call it has always been, which is what keeps the control Variant
+# bit-identical and `small_nn`'s recorded Gate-1 numbers describing this estimator.
+DEFAULT_VAL_SIZE = None
 
 
 @contextmanager
@@ -191,6 +202,7 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
         optimizer: str = DEFAULT_OPTIMIZER,
         lr_schedule: str | None = DEFAULT_LR_SCHEDULE,
         momentum: float = DEFAULT_MOMENTUM,
+        val_size: int | None = DEFAULT_VAL_SIZE,
     ):
         self.random_state = random_state
         self.hidden_sizes = hidden_sizes
@@ -205,6 +217,7 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
         self.optimizer = optimizer
         self.lr_schedule = lr_schedule
         self.momentum = momentum
+        self.val_size = val_size
 
     # ------------------------------------------------------------------ fit
     def fit(self, X, y, soft_targets: np.ndarray | None = None) -> "NNClassifier":
@@ -239,12 +252,20 @@ class NNClassifier(BaseEstimator, ClassifierMixin):
         self.scale_ = X.std(axis=0) + 1e-8
         Xs = (X - self.mean_) / self.scale_
 
+        # An int `test_size` is taken literally by train_test_split; a float is
+        # `ceil(fraction * n)`. Passing `val_fraction` unless an absolute size was
+        # asked for keeps the default path the identical call it has always been --
+        # `val_size=None` must not so much as re-derive the number.
         train_idx, val_idx = train_test_split(
             np.arange(len(Xs)),
-            test_size=self.val_fraction,
+            test_size=self.val_fraction if self.val_size is None else self.val_size,
             stratify=y_idx,
             random_state=self.random_state,
         )
+        # What the split ACTUALLY held out, not what was requested. The learning
+        # curve reports this per point: "the rounding landed where the rule says" is
+        # a claim about a number, and the number has to be readable to make it.
+        self.n_val_ = int(len(val_idx))
         sample_w = torch.tensor(class_weights(y_idx, n_classes)[y_idx], dtype=torch.float32)
 
         model = _MLP(X.shape[1], n_classes, tuple(self.hidden_sizes), self.dropout)
@@ -502,6 +523,7 @@ class ResidualMatcher(NNClassifier):
         optimizer: str = DEFAULT_OPTIMIZER,
         lr_schedule: str | None = DEFAULT_LR_SCHEDULE,
         momentum: float = DEFAULT_MOMENTUM,
+        val_size: int | None = DEFAULT_VAL_SIZE,
     ):
         super().__init__(
             random_state=random_state,
@@ -517,6 +539,7 @@ class ResidualMatcher(NNClassifier):
             optimizer=optimizer,
             lr_schedule=lr_schedule,
             momentum=momentum,
+            val_size=val_size,
         )
         self.alpha = alpha
         self.logistic_C = logistic_C

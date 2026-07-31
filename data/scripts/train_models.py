@@ -325,7 +325,8 @@ def fit_logistic(C, Xtr, ytr):
 # fold's training partition. Both are pure functions of `tr`, which is what lets
 # cross_fitted_oof reuse them for the temperature's inner refits without any risk
 # of the selection seeing the rows it will be scored on.
-def select_by_inner_cv(X, y, tr, grid, fit, random_state: int = SEED, scores_out=None):
+def select_by_inner_cv(X, y, tr, grid, fit, random_state: int = SEED, scores_out=None,
+                       inner_splits: int = INNER_SPLITS):
     """The plan's `select_by_inner_cv(tr)`: the grid point with the best inner-CV
     top-2, chosen using ONLY the outer fold's training partition.
 
@@ -351,8 +352,16 @@ def select_by_inner_cv(X, y, tr, grid, fit, random_state: int = SEED, scores_out
     receive to fix a need only one of them has. The channel is invisible to a caller
     that does not pass it, the grid is walked in the same order either way, and each
     point is fitted the same number of times — so no RNG consumption moves.
+
+    `inner_splits` defaults to the pipeline's 3 and exists for the learning curve
+    (DEV-96), whose smallest point leaves **two** rows of the rarest class in an outer
+    training partition. A 3-fold inner split of that drops a class from an inner
+    training subset, sklearn warns rather than raises, and the fitted estimator then
+    emits fewer probability columns — so `top2_of` would read column indices that mean
+    different careers. The curve therefore selects under 2 inner folds at EVERY point,
+    identically; it is not a per-point protocol change.
     """
-    inner = StratifiedKFold(INNER_SPLITS, shuffle=True, random_state=random_state)
+    inner = StratifiedKFold(inner_splits, shuffle=True, random_state=random_state)
     best_params, best_score = None, -1.0
     for params in grid:
         scores = []

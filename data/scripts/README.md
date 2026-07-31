@@ -498,6 +498,205 @@ to the service-test venv. The five service suites are unchanged at **268**
 (questionnaire 18, matching 108, roadmap 30, auth 31, history 81); no file under
 `services/` is in this change.
 
+### Reproduction record (DEV-96, 2026-07-31)
+
+The learning curve and the balance-controlled control curve (`learning_curve.py`,
+plan Step 2.6). Split like the DEV-91/93/95 records: this ticket edits `nn_model.py`
+and `select_by_inner_cv`, which every nested selection in the pipeline goes through,
+so almost nothing was supposed to move and "inert" had to be shown rather than argued.
+
+**Unmoved, verified rather than asserted — four ways.**
+
+- **The six Gate-1 metrics**, recomputed by calling `cv_oof_and_stability` and
+  `reseeded_stability` **directly** rather than by regenerating `gate1_verdict.json`,
+  which this ticket leaves byte-unchanged: `logistic` ECE `0.034099440082920096` /
+  stability `0.637516702641587`, `lightgbm` `0.128155228434309` /
+  `0.5566450817144618`, `small_nn` `0.06183095636038942` / `0.6153150375167026`,
+  reseeded `0.6670161373214101`. All six to the last digit. (Build `X` with
+  `dtype=float` as `evaluate_matchers.main()` does — the float32 of
+  `train_models.load_data()` moves Gate-1 ECE by ~2.6e-8 and looks like a regression.)
+- **The five Gate-2 rows.** `train_models.py` re-run: `model_selection.md` and
+  `gate2_winner.json` came back differing **only** in their timestamps, so `gbt_tuned`
+  0.892 / 0.040, `logistic_tuned` 0.849 / 0.061, `small_nn` 0.845 / 0.102,
+  `two_tower` 0.763 / 0.081 and `residual_matcher` 0.849 / 0.061 all reproduce. This
+  is the check that matters most here, because `select_by_inner_cv` gained a
+  parameter and four of those five rows are selected through it.
+- **Round 1's entire deliverable.** `sweep_variants.py` re-run: `nn_rework.md` and
+  `round1_results.json` byte-identical apart from their timestamps — including the
+  Ship Floor and C-sensitivity tables, which that script *recomputes* rather than
+  reading from its checkpoint.
+- **Round 2's report.** `sweep_round2.py --stage report`: `round2_results.json` came
+  back **byte-unchanged** and `nn_rework_round2.md` differed only in `Generated:`.
+  Worth stating because `full_specification` reads `inspect.signature`, so the new
+  `val_size` argument *would* appear in a freshly computed specification —
+  `rebuild_report` does not recompute that key, and the recorded one is what the curve
+  freezes against.
+
+All regenerated files were reverted rather than committed. `dataset_digest` still
+`2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27` throughout, and
+`two_tower`'s ordering in `train_models.main()` is untouched — the process-global
+torch-RNG hazard is unchanged and still DEV-100's.
+
+**The two additive arguments, and why each is additive.** `NNClassifier(val_size=)`
+is an absolute early-stopping split size; the curve's rule
+`n_val = max(n_classes, ceil(0.15 * n_train))` cannot go through `val_fraction`,
+which is a float handed to `train_test_split` and therefore `ceil(fraction * n)` —
+`n_val / n_train` is not guaranteed to round back to the integer it came from. `None`
+leaves the `val_fraction` call untouched rather than re-deriving the same number, and
+`test_learning_curve.py` pins bit-identity at the default the way
+`test_variant_registry.py` does for DEV-93's four arguments. `NNClassifier` also now
+records `n_val_`, what the split *actually* held out, so "the rounding landed on the
+rule" is checkable from the report rather than only from the code. And
+`select_by_inner_cv(..., inner_splits=)` defaults to the pipeline's 3; the curve needs
+2 because at n=48 an outer training partition holds two rows of the rarest classes, a
+3-fold inner split loses a class, sklearn **warns rather than raises**, and the
+estimator then emits fewer probability columns — so the selection metric would read
+top-2 indices meaning different careers.
+
+**New, and NOT comparable to any gate number.** `data/training/learning_curve.md` and
+`learning_curve_results.json` come from a dedicated **3-fold** protocol on
+**subsampled** data with **2** inner selection folds. Gate 1, Gate 2, Round 1 and
+Round 2 all use 5 outer and 3 inner folds on all 232 rows. The report says so in a
+section that cannot be missed; the Round-2 effect sizes remain the deliverable's
+statement of where the neural matcher stands, and this only says how that standing
+moves with n.
+
+**Five decisions plan Step 2.6 left open, decided and stated rather than applied
+quietly.**
+
+1. **The frozen configuration is a five-member ensemble** —
+   `SeedEnsemble(n_members=5, dropout=0.5, weight_decay=1e-2)` — so every neural fit
+   on the curve is five fits and the curve measures an *ensemble*. Read from
+   `selected_specification` in `round2_results.json` and checked field by field
+   against the registry entry, so it cannot quietly measure a later edit of what
+   DEV-95 chose. A field the record does not carry is allowed (that is how the new
+   `val_size` passes); a field it carries with a different value raises.
+2. **The validation rule is an absolute-size argument**, not a per-point fraction —
+   see above.
+3. **The comparators are NESTED at every point, not frozen**, and that was decided on
+   correctness rather than budget. Freezing means either an arbitrary configuration,
+   which is no longer the `gbt_tuned` the rest of DEV-23 reports a gap against, or one
+   selected on all 232 rows — which would have seen data outside every subsample below
+   232, i.e. **Leakage** at four of the five points. It costs 33x on the GBT leg —
+   16 grid points × 2 inner folds plus the refit, against one fit.
+4. **The comparator legs are computed fresh.** Rounds 1 and 2 could legitimately reuse
+   each other's because within a seed the fold partition is a function of the seed
+   alone *under the same protocol*; this is a different protocol, so a reused leg
+   would be a model scored on a different partition and nothing would have failed.
+5. **The subsample is a function of the curve point alone and does not vary with the
+   experiment seed.** "The 80 profiles common to both points" is one set only if every
+   seed cuts the same subsample. The cost — every number is conditional on ONE
+   subsample draw at each point — is disclosed in the report rather than buried.
+
+**Nesting is a property of the construction, not of the arithmetic.** The Delta-gap CI
+is computed over the profiles common to n=80 and n=232, which exist only if the
+smaller subsample is a subset of the larger. So the subsampler does not apportion
+seats independently per point — proportional rounding can hand a class *fewer* seats
+at a larger house size (the Alabama paradox) and nesting would break silently. It
+fixes one global ordering of the 184 surplus rows (232 minus the floor of 3 per class
+times 16 classes) and every point is a **prefix** of it. The ordering key is the
+divisor form `(rank + 0.5) / class_surplus`, which cuts at `round(t * surplus)`; the
+obvious `(rank + 1) / surplus` cuts at `floor(...)`, over-serves the largest class,
+and put the n=80 skew at 4.0 against the **3.7 plan Step 2.6 pre-registered**. With
+the divisor key the balance table comes out as the plan states it — skew 1.0 / 3.67 /
+4.75 / 8.25 / 9.40 and frontend at 13.8% of n=80 — which is the check that the
+construction is the one the plan costed.
+
+**The finding, and it is not the one the ticket was hoping for.**
+
+- **Delta-gap vs `logistic_tuned` = −0.0425**, 95% paired-bootstrap CI
+  [−0.0975, +0.0125] over the 80 common profiles. **Flat / inconclusive.**
+- **Delta-gap vs `gbt_tuned` = +0.0025**, CI [−0.0800, +0.0850]. **Flat /
+  inconclusive.**
+- Read as: **at these sizes, more data of this kind is not measurably closing the
+  gap** — which is a direct input to DEV-98 and to whether funding more labels is
+  worth it. It is *not* evidence the gap is fixed: an interval covering zero covers
+  useful narrowing as well as none.
+- **The model itself improves steeply with n** — 0.600 top-2 at n=48 to 0.820 at
+  n=232 — and so do the comparators (`logistic_tuned` 0.725 → 0.850, `gbt_tuned`
+  0.617 → 0.866). More data plainly helps the model; what it does not measurably do is
+  help it *faster* than it helps the alternatives, and the report separates those two
+  claims because conflating them is the easy misreading.
+- **Whether there IS a gap is a different question from whether it moves**, and the
+  report answers both: the per-point gap CI excludes zero at 3 of 5 points against
+  `logistic_tuned` and 1 of 5 against `gbt_tuned`, and at n=232 the gaps are
+  +0.0302 [+0.0026, +0.0595] and +0.0466 [+0.0155, +0.0793]. A reader who took "flat /
+  inconclusive" for "no gap" would have it backwards.
+
+**The verdict vocabulary is the plan's two values and not three.** An earlier draft
+returned "widening" when the interval excluded zero on the far side. Plan Step 2.6
+pre-registers "narrowing" and, for *anything else*, "flat / inconclusive" — a
+category invented after seeing the data is not a pre-registered rule. Widening is
+recorded on its own key and printed as a disclosure beside the verdict instead. It did
+not arise on this data; the mechanism is there so it cannot be quietly absorbed if it
+ever does.
+
+**The control curve, and the thing it produced that was not designed.** Two points,
+uniform k=4 and k=5 per class (`game-dev`'s 5 labels are the cap), explicitly barred
+from carrying trend weight — two points cannot distinguish a trend from a pair of
+draws. Its sign comparison against the main curve turned out to carry no information
+here, because the main Delta-gap CIs both cover zero, and the report says that rather
+than reading a direction out of an interval that does not have one. What it did
+produce is an accident worth keeping: **the uniform k=5 point and the main n=80 point
+hold the same 80 rows' worth of data at skew 1.00 and 3.67**, so the pair isolates
+balance at fixed n. Both gaps are *wider* at the uniform point (+0.1475 vs +0.0900
+against logistic, +0.0750 vs +0.0250 against gbt). That is the opposite of the
+direction plan Step 2.6 assumed when it warned an observed narrowing might be a
+balance effect — though the uniform point also changes the TEST rows, and top-2
+agreement on a balanced test set is a harder measurement, so the report states what
+the pair does and does not establish rather than banking the result. It is explicitly
+marked as carrying no interpretive weight beyond a sanity check, because Step 2.6 bars
+control-curve data from carrying any and this pair is made of it.
+
+**Disclosures, counted rather than argued.** The subsample ordering's random
+tie-break — two classes with equally many surplus rows produce identical keys —
+decided membership at **1 of the 5** main-curve points (n=116, 4 rows contested) and
+nothing at the other four. It does not apply to the control curve at all, which takes
+a prefix of each class separately. `test_learning_curve.py` requires that where the
+count is non-zero the contested rows actually straddle the cut and come from more than
+one class, so the number bounds a real choice rather than decorating the report.
+
+**`learning_curve.py --stage report`** re-renders the report from
+`learning_curve_results.json` alone — not from the gitignored checkpoint — refitting
+nothing, and recomputes every derived key from the per-point per-seed indicators
+inside that file so the JSON and the report cannot hold different versions of one
+derivation. It was needed for the reason `sweep_round2.py`'s equivalent was: the
+long-running process holds the module it loaded at launch, so the prose fixes made
+during the run did not reach it and the report was re-rendered afterwards. The run
+checkpoints per **(point, seed)** — 35 units — because the nested comparator legs are
+where the hours are.
+
+**No calibration number is reported.** The pre-registered reading is about top-2 gaps,
+ECE is not part of it, and the Ship Floor's calibration verdict is DEV-95's and stands
+unchanged. Nothing here is Qualified, Selected, Servable or Deployable, nothing here
+reopens the search budget — **there is still no round 3** — and `MATCHER_MODEL_PATH`
+is untouched.
+
+**A code review changed the deliverable, and that is recorded rather than smoothed
+over.** It caught four things worth naming. (1) Three claims in the report template
+were typed rather than derived — "improves steeply with n", "and so do the
+comparators", and the conclusion drawn from the equal-n balance pair — the exact shape
+of the failure that bit DEV-91, DEV-93 and DEV-95; all three are now computed, and
+"steeply" is earned against Step 2.5's own 0.02 materiality marker rather than
+asserted. (2) The growth claim was anchored at **n=48**, the one point the plan
+annotates "not a data-size measurement"; every claim is now anchored at the smallest
+point above the protocol floor, and the floor point is named wherever it is still
+counted. (3) The nested-comparator cost was printed as 16x, the grid size, when
+nesting costs grid × inner folds + refit = **33x**; it is computed now. (4) `_report`
+interpolated the protocol from this module's live constants, so `--stage report` on a
+tree with edited constants would have described a run that never happened; the
+protocol keys are carried over from the results file the way `environment` already
+was. The review also asked for Step 2.4's "what the CI covers" statement and per-seed
+table, which this report had inherited the machinery for and not the disclosure — both
+are now in, along with a definition of the `+/-` column.
+
+Test counts: `data/scripts/tests` is **83** under the training venv (was 71), and
+**7 passed + 9 skipped** under `backend/venv` (was 7 + 8) — `test_learning_curve.py`
+skips whole there for the usual reason, no torch, which is what shows it adds no
+dependency to the service-test venv. The five service suites are unchanged at **268**
+(questionnaire 18, matching 108, roadmap 30, auth 31, history 81); no file under
+`services/` is in this change.
+
 ## Pipeline order
 
 ```
