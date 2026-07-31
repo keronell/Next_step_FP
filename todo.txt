@@ -1,0 +1,208 @@
+DEV-23 NEURAL MATCHER REWORK -- WHAT IS LEFT
+Written 2026-07-31 after DEV-94 (commit 6f7ba12) on branch dev-23.
+
+NOTE: an earlier untracked todo.txt vanished during the DEV-96 session and was
+never recovered. This file is written fresh from the plan's execution order and
+the ticket state -- it is NOT a reconstruction of that one. It is committed this
+time, so it survives the trip between machines.
+
+
+================================================================
+0. READ THIS FIRST ON THE OTHER PC -- IT WILL COST YOU TIME
+================================================================
+
+(a) backend/venv NEEDS NUMPY INSTALLED. It is a per-machine virtualenv, so the
+    DEV-94 install did not travel with the commit. Until you run this, the
+    137-test matching suite FAILS TO COLLECT (not fails -- fails to collect),
+    because services/matching/app/services/matcher_nn.py imports numpy and the
+    dispatch seam imports that module:
+
+        backend/venv/Scripts/python -m pip install --no-deps "numpy>=1.24.0"
+
+    Use --no-deps. numpy has been declared in backend/requirements.txt all
+    along; the venv was simply out of sync with it. Do NOT install anything
+    into data/venv-training -- that is the hash-pinned one the dataset digest
+    depends on. See data/scripts/README.md, "Matcher training environment".
+
+    Verify afterwards, in this order:
+        cd services/matching && ../../backend/venv/Scripts/python -m pytest tests -q
+            -> expect 137 passed
+        backend/venv/Scripts/python -m pytest data/scripts/tests -q
+            -> expect 7 passed, 9 skipped  (MUST NOT MOVE -- if numpy alone
+               un-skipped a module, something is wrong)
+        data/venv-training/Scripts/python -m pytest data/scripts/tests -q
+            -> expect 83 passed
+
+(b) THE FOUR SWEEP CHECKPOINTS DO NOT TRANSFER. They are gitignored and live in
+    data/training/: round1_checkpoint.json, round2_checkpoint.json,
+    round2_scoreboard_checkpoint.json, learning_curve_checkpoint.json. This is
+    fine -- Rounds 1 and 2 and the learning curve are all DONE and their
+    RESULTS are committed (round1_results.json, round2_results.json,
+    learning_curve_results.json, plus the three reports). You only lose the
+    ability to resume a killed sweep, and there is no sweep left to run.
+    THERE IS NO ROUND 3. Do not re-run or re-tune any sweep.
+
+(c) e2e/ is gitignored (.gitignore:29) and is not mine. Leave it alone.
+
+(d) On Windows the repo docs' POSIX venv paths need Scripts/ where they write
+    bin/.
+
+
+================================================================
+1. NEXT TICKET: DEV-97 -- export the selected neural matcher
+================================================================
+Execution-order item 9, second half. Writes data/scripts/export_nn_model.py,
+mirroring export_model.py, plus Gate-1 revalidation of the exact exported
+configuration and torch-vs-numpy parity tests.
+
+DEV-94 hands it two HARD constraints. Getting either wrong ships an artifact
+whose served explanation describes a different model:
+
+  * The artifact must serialize ALL FIVE ensemble members. The selected config
+    is SeedEnsemble(random_state=42, n_members=5, dropout=0.5,
+    weight_decay=1e-2), hidden 64->32, members seeded random_state+i, rest at
+    NNClassifier defaults. Read it from `selected_specification` in
+    data/training/round2_results.json rather than retyping it.
+
+  * IG EXPLAINS THE LOGIT OF THE MEAN PROBABILITY,
+    g_c = log(mean_i softmax(z_i)_c) / T.  Therefore:
+      - fit `temperature` on ENSEMBLE-AVERAGED OOF probabilities (that is
+        export_model.py's deployment-temperature use of temperature_scale --
+        ADR 0004 sanctions it for exactly this), and
+      - revalidate Gate 1 on SeedEnsemble.predict_proba, i.e. the mean of the
+        members' probabilities.
+    Do NOT revalidate mean-of-members'-logits. mean(softmax(z)) is not
+    softmax(mean(z)), and the whole DEV-94 attribution rests on which one.
+    ADR 0004's per-outer-fold cross-fitting still governs any REPORTED ECE;
+    the shipped constant is the pooled deployment one. Two different fits.
+
+The artifact schema matcher_nn.py already reads and validates (see
+services/matching/tests/conftest.py::nn_artifact for a worked example):
+    model_type: "probability_averaged_mlp_ensemble"
+    feature_version, feature_names, careers
+    scaler_mean, scaler_scale        (ONE shared scaler -- every member
+                                      standardizes on the same training stats)
+    activation: "relu"               (anything else is refused at load)
+    members: [ {"layers": [{"weight": [[..]], "bias": [..]}, ...]}, ... ]
+                                      weight is (out_features, in_features),
+                                      same convention as the linear artifact's
+                                      `coef`
+    temperature, label_source, caveats
+Depth, widths and member count are all read from the artifact -- nothing is
+hardcoded, so the exporter is free to change the shape.
+
+Also owed by DEV-97: the torch-vs-numpy parity tests plan Step 5.2 asks for.
+They were deliberately NOT done in DEV-94 -- backend/venv has neither torch nor
+a trained artifact, so they belong in the training venv alongside the exporter.
+
+
+================================================================
+2. THE OPEN DECISION I COULD NOT MAKE -- NEEDS A HUMAN
+================================================================
+THE IG STEP CAP IS ABOUT AN ORDER OF MAGNITUDE SHORT.
+
+The integrand jumps at every ReLU breakpoint, so the midpoint Riemann sum is
+O(1/m), not O(1/m^2). At the plan's tolerance (relative completeness residual
+< 1e-3, measured against the centered delta being explained) and its cap of 512
+steps, a large minority of careers emit NO model-derived reasons and fall
+through to the non-model wording -- 60.9% on the measured fixture, 33.9% when
+the same fixture's random weights are scaled by 0.3. The DIRECTION is robust,
+the PERCENTAGE is not; quote the direction.
+
+Beating O(1/m) requires locating the breakpoints, which is the analytic
+activation-pattern tracking plan Step 5.2 explicitly rejects. So this is a real
+accuracy / latency / tolerance trade, not a bug. The options are:
+    - raise the cap (costs latency: ~200 ms/request today at TOP_N=3 and m=512;
+      roughly linear in m),
+    - loosen the tolerance, or change "relative" to mean relative to the
+      attribution mass rather than the delta (Attribution.attribution_mass is
+      carried so this is one line to evaluate -- at that reading essentially
+      nothing falls through at either weight scale), or
+    - accept the fall-through as designed ("better silence than attributions
+      that do not sum to what they claim").
+
+DO NOT SETTLE THIS ON THE SYNTHETIC FIXTURE. A weight_decay=1e-2 trained
+network is nowhere near uniform(-1,1). MEASURE IT ON THE REAL ARTIFACT ONCE
+DEV-97 EXISTS:
+    cd services/matching && ../../backend/venv/Scripts/python tests/ig_diagnostics.py
+(that script regenerates the table in the DEV-94 record; point it at the real
+artifact instead of the synthetic one).
+
+Full write-up: docs/dev-23-nn-rework-plan.md Step 5.2, and the DEV-94
+reproduction record in data/scripts/README.md.
+
+
+================================================================
+3. THE MERGE BLOCKER: DEV-89 -- q11-q18 attribution
+================================================================
+STILL "To Do". Own ticket, OWN BRANCH OFF main, own schedule -- it is a
+prerequisite of MERGING the NN serving work, not of building it, and it
+degrades production output RIGHT NOW on the currently-served path.
+
+reason_builder.py:18 defines QUESTION_PHRASES for q1-q10 only AND that dict is
+also the iteration set (reason_builder.py:71 -- the plan said :72, corrected in
+DEV-94). The bank is 18 questions, so 16 of the 36 question features -- 44% of
+the question-feature attribution surface -- are silently discarded. DEV-94's
+integrated gradients compute them correctly and they are thrown away until this
+lands.
+
+Three tests the plan specifies (Step 5.1): coverage of every id in
+questions.json; attribution mass renderable >= 0.99 against the explainable
+universe; and a wording-drift snapshot pairing each question's text with its
+phrase.
+
+
+================================================================
+4. AFTER DEV-97
+================================================================
+Execution-order item 10: Steps 4 + 6 writeups with real numbers, and the new
+docs/dev-23-nn-decision.md. The honest-framing paragraph in plan Step 6 is the
+one thing that would make the deliverable indefensible if it is got wrong --
+these metrics can rank learned models against each other, they CANNOT justify
+replacing the formula, and the NN ships because the project requires it
+(ADR 0001).
+
+Execution-order item 11 / DEV-99: report and WAIT on the MATCHER_MODEL_PATH
+question. Nobody is authorised to flip it -- not .env.example, not backend/.env,
+not docker-compose.yml. It is blank today, so production runs the formula.
+
+DEV-100 (separate, unrelated to the above): two_tower seeds from PROCESS-GLOBAL
+torch RNG rather than per fit, so its predictions depend on how many torch fits
+preceded it. If anything ever touches train_models.main(), keep every
+torch-fitting model AFTER two_tower or its recorded numbers move.
+
+
+================================================================
+5. STOP CONDITIONS -- NOTHING BELOW MAY MOVE
+================================================================
+dataset_digest
+  2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27
+
+Gate 1 (data/training/gate1_verdict.json), ECE / top-2 stability:
+  logistic  0.034099440082920096 / 0.637516702641587
+  lightgbm  0.128155228434309    / 0.5566450817144618
+  small_nn  0.06183095636038942  / 0.6153150375167026
+  small_nn reseeded stability 0.6670161373214101
+
+Gate 2, top-2 / cross-fitted ECE:
+  gbt_tuned 0.892 / 0.040 . logistic_tuned 0.849 / 0.061
+  small_nn  0.845 / 0.102 . two_tower 0.763 / 0.081
+  residual_matcher 0.849 / 0.061
+
+Round 1 (nn_rework.md), Round 2 (nn_rework_round2.md) and the learning curve
+(learning_curve.md) are recorded MEASUREMENTS. So is the currently served
+output: the 297 service tests are the evidence, and within them the 108
+pre-existing matching tests are what shows the formula path is inert.
+
+
+================================================================
+6. STATE AS OF THIS COMMIT
+================================================================
+Branch dev-23. Done: DEV-87, 88, 90, 91, 92, 93, 95, 96, 94.
+Service suites 297 = questionnaire 18 + matching 137 + roadmap 30 + auth 31 +
+history 81.  data/scripts/tests = 83 (training venv), 7 passed + 9 skipped
+(backend/venv).
+
+CONTEXT.md's four states are distinct and none implies an earlier one.
+DEV-94 delivered the implementation half of SERVABLE. NOTHING IS DEPLOYABLE,
+and there is no trained neural artifact yet.
