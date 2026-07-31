@@ -40,6 +40,14 @@ function App() {
   const [answers, setAnswers] = useState(null)
   const [profile, setProfile] = useState(null)
 
+  // Has the initial post-auth restore already run? It spends this on its first pass,
+  // so the roadmap jump below fires for *opening the app* and nothing else. The
+  // restore effect re-runs on every `user` change, and signing in is one — without
+  // this, clicking "Start Assessment" while signed out, signing in through the modal,
+  // and then being thrown onto your OLD roadmap would be the flow for taking a new
+  // assessment.
+  const autoJumpSpentRef = useRef(false)
+
   // Monotonic id for the active run. Every async continuation captures it before
   // awaiting and re-checks it after, so work belonging to a run the user has
   // abandoned (reset, sign-out, account switch) can never write into the run that
@@ -82,6 +90,11 @@ function App() {
   // from the deps on purpose (it's a new fn each render).
   useEffect(() => {
     if (authLoading || phase !== 'idle') return
+    // Spent on the first pass that gets past the guards above — i.e. the one restore
+    // that belongs to opening the app. Read into a const here so the continuation
+    // below sees THIS pass's answer, not a later one's.
+    const mayAutoJump = !autoJumpSpentRef.current
+    autoJumpSpentRef.current = true
     // The fetch outlives a sign-out: without this the previous account's
     // recommendations AND profile snapshot get restored after the sign-out effect
     // cleared state, which also leaves phase !== 'idle' so the NEW account's
@@ -93,15 +106,46 @@ function App() {
       fetchMySubmissions()
         .then((subs) => {
           if (cancelled || runIdRef.current !== runId) return
+          // The effect's own `phase === 'idle'` test was evaluated before this fetch;
+          // re-read it LIVE. The run token doesn't cover this: handleGoToAssessment
+          // bumps it, but handleStart — what the Hero CTA calls — does not, so a user
+          // who starts an assessment from the hero while the restore is still in
+          // flight would have it clobbered back to results_ready, and (since DEV-76)
+          // be navigated off to an old roadmap on top of that.
+          if (phaseRef.current !== 'idle') return
           if (!subs?.length) return
           const latest = [...subs].sort(
             (a, b) => new Date(b.created_at) - new Date(a.created_at),
           )[0]
-          handleLoadHistory(
+          const resumeCareer = handleLoadHistory(
             latest.recommendations,
             latest.selected_career ?? null,
             latest.profile ?? null,
           )
+          // DEV-76: land a returning user ON their roadmap rather than on the landing
+          // page auto-scrolled to Results. The restore above already resolved which
+          // career that is, so this is the same decision the header's "My Roadmap"
+          // shortcut makes, taken automatically.
+          //
+          // Only from '/': a deep link to another roadmap, or /admin, is the user
+          // asking for somewhere specific and outranks this. Read live rather than
+          // from the render closure — the fetch takes a moment and they may have
+          // navigated during it.
+          //
+          // Accepted: the landing hero paints for the length of this fetch before
+          // swapping. ponytail: mirroring the resume career to localStorage (as the
+          // anonymous path below already does) would let us jump before first paint —
+          // add that if the flash actually grates, it is strictly this plus a cache.
+          //
+          // This can't reach a roadmap the user hasn't earned, but not because
+          // RoadmapPage re-checks: `roadmapUsesCurrentRun` matches on the id we just
+          // set, so the restored recommendations ride along and unlock via the fast
+          // path with no fetch. That is sound — they came out of the user's OWN
+          // submission, which is exactly the evidence DEV-82 asks for
+          // (docs/adr/0002-roadmap-access.md).
+          if (mayAutoJump && resumeCareer && window.location.pathname === '/') {
+            navigate(`/roadmap/${encodeURIComponent(resumeCareer)}`)
+          }
         })
         .catch(() => {})
       return () => { cancelled = true }
@@ -271,9 +315,13 @@ function App() {
     setSelectedCareer(careerId)
     setProfile(profileSnapshot)
     // The "My Roadmap" shortcut points at the selected career, else the top match.
-    setResumeCareerId(careerId ?? recommendations?.[0]?.id ?? null)
+    // Returned as well as stored: callers that need to ROUTE to it can't read it back
+    // out of state on this tick, and both of them had reimplemented the rule inline.
+    const resumeCareer = careerId ?? recommendations?.[0]?.id ?? null
+    setResumeCareerId(resumeCareer)
     setPhase('results_ready')
     scrollTo(resultsRef)
+    return resumeCareer
   }
 
   // History now lives on the standalone roadmap page (moved off the scroll app),
@@ -282,8 +330,7 @@ function App() {
   // roadmap route ignores unless it already matches the URL's careerId (see
   // roadmapUsesCurrentRun below). navigate() no-ops if we're already there.
   const handleLoadHistoryOnRoadmap = (recommendations, careerId = null, profileSnapshot = null) => {
-    handleLoadHistory(recommendations, careerId, profileSnapshot)
-    const targetCareer = careerId ?? recommendations?.[0]?.id ?? null
+    const targetCareer = handleLoadHistory(recommendations, careerId, profileSnapshot)
     if (targetCareer) navigate(`/roadmap/${encodeURIComponent(targetCareer)}`)
   }
 
