@@ -48,6 +48,15 @@ function App() {
   // assessment.
   const autoJumpSpentRef = useRef(false)
 
+  // The path the app OPENED at, captured on the first render. It cannot be read
+  // inside the restore effect: that effect is gated on `authLoading`, so its body
+  // first runs when GET /api/auth/me resolves — a network round-trip the user can
+  // navigate during. Opening a deep-linked /roadmap/x and clicking "Back to home"
+  // before auth settles would leave the effect reading '/' and concluding the app
+  // had opened at the root, which is the deep-link precedence it exists to enforce
+  // getting it exactly backwards.
+  const startedAtRootRef = useRef(window.location.pathname === '/')
+
   // Monotonic id for the active run. Every async continuation captures it before
   // awaiting and re-checks it after, so work belonging to a run the user has
   // abandoned (reset, sign-out, account switch) can never write into the run that
@@ -95,14 +104,9 @@ function App() {
     // below sees THIS pass's answer, not a later one's.
     const mayAutoJump = !autoJumpSpentRef.current
     autoJumpSpentRef.current = true
-    // Where the app was when this restore began. The jump belongs to *opening the
-    // app at the root* — arriving on /roadmap/x or /admin is the user asking for
-    // somewhere specific, and that outranks it for the rest of the page load. It
-    // has to be captured here rather than re-read later: clicking "Back to home"
-    // from a deep-linked roadmap puts us at '/' by the time the fetch lands, and a
-    // live-only check would read that as "opened at the root" and throw the user
-    // straight back onto a roadmap they just left.
-    const startedAtRoot = window.location.pathname === '/'
+    // The jump belongs to *opening the app at the root* — arriving on /roadmap/x or
+    // /admin is the user asking for somewhere specific, and that outranks it for the
+    // rest of the page load. Read from the mount-time ref, never from here.
     // The fetch outlives a sign-out: without this the previous account's
     // recommendations AND profile snapshot get restored after the sign-out effect
     // cleared state, which also leaves phase !== 'idle' so the NEW account's
@@ -135,10 +139,11 @@ function App() {
           // career that is, so this is the same decision the header's "My Roadmap"
           // shortcut makes, taken automatically.
           //
-          // Both ends of the fetch must be at '/': `startedAtRoot` so a deep link the
-          // user opened outranks this, and the live re-read so a jump they made
-          // during the fetch (My Roadmap, Admin) isn't overwritten on arrival.
-          // Neither check subsumes the other — they fail in opposite directions.
+          // Both ends must be at '/': `startedAtRootRef` (mount time) so a deep link
+          // the user opened outranks this, and the live re-read so a jump they made
+          // in the meantime (My Roadmap, Admin) isn't overwritten on arrival.
+          // Neither check subsumes the other — they fail in opposite directions, and
+          // the window they cover between them runs from first paint to fetch.
           //
           // Accepted: the landing hero paints for the length of this fetch before
           // swapping. ponytail: mirroring the resume career to localStorage (as the
@@ -151,7 +156,7 @@ function App() {
           // path with no fetch. That is sound — they came out of the user's OWN
           // submission, which is exactly the evidence DEV-82 asks for
           // (docs/adr/0002-roadmap-access.md).
-          if (mayAutoJump && startedAtRoot && resumeCareer && window.location.pathname === '/') {
+          if (mayAutoJump && startedAtRootRef.current && resumeCareer && window.location.pathname === '/') {
             navigate(`/roadmap/${encodeURIComponent(resumeCareer)}`)
           }
         })
