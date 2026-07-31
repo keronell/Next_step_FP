@@ -212,6 +212,20 @@ function App() {
     }
   }, [phase, results, selectedCareer, user, authLoading])
 
+  // Leaving '/' at ANY point forfeits the auto-jump for the rest of the page load.
+  // The two endpoint checks around the history fetch can't see this: navigating away
+  // and back leaves both of them true, so a user who went to /admin mid-fetch and
+  // came home would still be thrown onto the restored roadmap. The jump belongs to
+  // an UNINTERRUPTED open-at-root, which is a fact about the whole window, not its
+  // two ends.
+  //
+  // This does not replace the live pathname re-read at the jump site: an effect is a
+  // render behind, but pushState changes the URL synchronously, so a fetch resolving
+  // between a navigation and this effect flushing is caught only there.
+  useEffect(() => {
+    if (path !== '/') autoJumpSpentRef.current = true
+  }, [path])
+
   // Returning to the scroll app from a route (e.g. the roadmap page) may carry a
   // deferred section target: a nav control clicked while its section wasn't mounted
   // (see navigateToSection). Honor it once we're back on the scroll app, giving the
