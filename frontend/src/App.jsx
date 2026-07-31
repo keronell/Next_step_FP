@@ -95,6 +95,14 @@ function App() {
     // below sees THIS pass's answer, not a later one's.
     const mayAutoJump = !autoJumpSpentRef.current
     autoJumpSpentRef.current = true
+    // Where the app was when this restore began. The jump belongs to *opening the
+    // app at the root* — arriving on /roadmap/x or /admin is the user asking for
+    // somewhere specific, and that outranks it for the rest of the page load. It
+    // has to be captured here rather than re-read later: clicking "Back to home"
+    // from a deep-linked roadmap puts us at '/' by the time the fetch lands, and a
+    // live-only check would read that as "opened at the root" and throw the user
+    // straight back onto a roadmap they just left.
+    const startedAtRoot = window.location.pathname === '/'
     // The fetch outlives a sign-out: without this the previous account's
     // recommendations AND profile snapshot get restored after the sign-out effect
     // cleared state, which also leaves phase !== 'idle' so the NEW account's
@@ -127,10 +135,10 @@ function App() {
           // career that is, so this is the same decision the header's "My Roadmap"
           // shortcut makes, taken automatically.
           //
-          // Only from '/': a deep link to another roadmap, or /admin, is the user
-          // asking for somewhere specific and outranks this. Read live rather than
-          // from the render closure — the fetch takes a moment and they may have
-          // navigated during it.
+          // Both ends of the fetch must be at '/': `startedAtRoot` so a deep link the
+          // user opened outranks this, and the live re-read so a jump they made
+          // during the fetch (My Roadmap, Admin) isn't overwritten on arrival.
+          // Neither check subsumes the other — they fail in opposite directions.
           //
           // Accepted: the landing hero paints for the length of this fetch before
           // swapping. ponytail: mirroring the resume career to localStorage (as the
@@ -143,7 +151,7 @@ function App() {
           // path with no fetch. That is sound — they came out of the user's OWN
           // submission, which is exactly the evidence DEV-82 asks for
           // (docs/adr/0002-roadmap-access.md).
-          if (mayAutoJump && resumeCareer && window.location.pathname === '/') {
+          if (mayAutoJump && startedAtRoot && resumeCareer && window.location.pathname === '/') {
             navigate(`/roadmap/${encodeURIComponent(resumeCareer)}`)
           }
         })
