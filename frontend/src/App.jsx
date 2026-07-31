@@ -99,11 +99,13 @@ function App() {
   // from the deps on purpose (it's a new fn each render).
   useEffect(() => {
     if (authLoading || phase !== 'idle') return
-    // Spent on the first pass that gets past the guards above — i.e. the one restore
-    // that belongs to opening the app. Read into a const here so the continuation
-    // below sees THIS pass's answer, not a later one's.
-    const mayAutoJump = !autoJumpSpentRef.current
-    autoJumpSpentRef.current = true
+    // NB: the jump is spent where the restore COMPLETES, not here. Spending on
+    // effect entry loses it whenever a first attempt is superseded before resolving,
+    // and that is the normal case in dev: StrictMode double-invokes AuthProvider's
+    // mount effect, so two /api/auth/me calls land two DISTINCT user objects, the
+    // second cancels the first restore, and the replacement then finds the flag
+    // already spent — results restored, no jump. See the continuations below.
+    //
     // The jump belongs to *opening the app at the root* — arriving on /roadmap/x or
     // /admin is the user asking for somewhere specific, and that outranks it for the
     // rest of the page load. Read from the mount-time ref, never from here.
@@ -125,6 +127,12 @@ function App() {
           // flight would have it clobbered back to results_ready, and (since DEV-76)
           // be navigated off to an old roadmap on top of that.
           if (phaseRef.current !== 'idle') return
+          // Past every guard, so THIS is the initial post-auth restore that counts —
+          // spend the jump here. A superseded attempt returned above without touching
+          // the flag, so the surviving restore still gets its one chance, while any
+          // LATER restore (a mid-session sign-in) correctly finds it spent.
+          const mayAutoJump = !autoJumpSpentRef.current
+          autoJumpSpentRef.current = true
           if (!subs?.length) return
           const latest = [...subs].sort(
             (a, b) => new Date(b.created_at) - new Date(a.created_at),
@@ -163,6 +171,13 @@ function App() {
         .catch(() => {})
       return () => { cancelled = true }
     } else {
+      // Auth resolved to nobody (or a sign-out landed here). There is no roadmap to
+      // jump to, and this is synchronous — nothing can supersede it — so spend the
+      // jump now: any restore after this one belongs to a mid-session sign-in, which
+      // must not teleport. Without this the flag would still be unspent when that
+      // sign-in's restore completes, and signing in to take a NEW assessment would
+      // land the user on their old roadmap.
+      autoJumpSpentRef.current = true
       let recs = null
       try { recs = JSON.parse(localStorage.getItem('nextstep_last_recommendations')) } catch {} // eslint-disable-line no-empty
       if (recs?.length) handleLoadHistory(recs, localStorage.getItem('nextstep_last_career') || null)
