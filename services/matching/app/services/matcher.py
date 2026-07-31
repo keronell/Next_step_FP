@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from app.services.matcher_model import MatcherModel, MatcherModelError
+from app.services.matcher_nn import NeuralMatcher
 
 __all__ = ["Matcher", "MatcherModelError", "load_matcher"]
 
@@ -54,6 +55,7 @@ class Matcher(Protocol):
 # adapter (DEV-23 step 5.2) is one more entry, not a change to the call sites.
 _IMPLEMENTATIONS: dict[str, type[Matcher]] = {
     "multinomial_logistic_regression": MatcherModel,
+    "probability_averaged_mlp_ensemble": NeuralMatcher,
 }
 
 

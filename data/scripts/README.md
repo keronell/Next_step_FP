@@ -697,6 +697,157 @@ dependency to the service-test venv. The five service suites are unchanged at **
 (questionnaire 18, matching 108, roadmap 30, auth 31, history 81); no file under
 `services/` is in this change.
 
+### Reproduction record (DEV-94, 2026-07-31)
+
+The neural serving path (`services/matching/app/services/matcher_nn.py`, plan Step
+5.2). **This is the first DEV-23 ticket whose change lands under `services/`, and
+nothing in `data/` moved** — no script was run, no artifact regenerated, no gate
+recomputed. `dataset_digest` is still
+`2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27` because nothing
+touched the thing that computes it, and `two_tower`'s ordering in
+`train_models.main()` is untouched. This record lives here because it is where the
+DEV-23 records live, not because a pipeline script changed.
+
+**Nothing here is Deployable, and nothing here is even a model.** In `CONTEXT.md`'s
+terms this ticket delivers the *implementation half* of **Servable** — "an
+implementation exists that can execute the artifact at serve time with exact or
+tolerance-tested attribution", a property of the serving code. The claim is
+deliberately not made flat: the attribution is **tolerance-tested and, on the
+synthetic artifact measured below, frequently fails that tolerance**. Whether
+Servable holds for the model that ships is settled when a real artifact exists and
+is measured, which is DEV-97's. There is still no trained neural artifact, and
+`MATCHER_MODEL_PATH` is untouched in `.env.example`, `backend/.env` and
+`docker-compose.yml`, so production still runs the formula.
+
+**The environment trap, and how it was resolved.** `backend/venv` had no numpy, and
+before this ticket **no module under `services/` imported numpy at all** — so the
+moment the dispatch seam imported `matcher_nn`, the matching suite would have failed
+to *collect*. numpy was installed into `backend/venv` with `--no-deps`, which is
+where `backend/requirements.txt` has declared `numpy>=1.24.0` all along; the venv was
+simply out of sync with its own requirements file. That venv is **not** the
+hash-pinned training venv, and the separation the digest depends on is intact —
+checked rather than asserted: `data/scripts/tests` under `backend/venv` is **7
+passed + 9 skipped, unchanged**, because all nine of those modules `importorskip`
+torch and/or sklearn as well as numpy, so none of them un-skipped. `pip list` grew
+by exactly one package.
+
+**The two decisions plan Step 5.2 left undefined.** Both are now written into the
+plan; the second is a finding, not a preference.
+
+1. **IG explains the logit of the mean probability**, `g_c = log(mean_i
+   softmax(z_i)_c) / T`, centered across classes — *not* the mean of the members'
+   logits that averaging their attributions would explain. The decisive argument is
+   in the offline code rather than in the maths: `train_models.apply_temperature` is
+   `softmax(log(clip(probs)) / t)`, it consumes **probabilities**, and this model's
+   probabilities are the averaged ones. Explaining the mean logit would apply `T`
+   somewhere no fit ever put it. **DEV-97 must fit `temperature` on
+   ensemble-averaged OOF probabilities and revalidate Gate 1 on
+   `SeedEnsemble.predict_proba`** — the same quantity, or the export revalidates a
+   model the served explanation does not describe. To be exact about which fit that
+   is: the *shipped constant* is `export_model.py`'s deployment temperature —
+   `temperature_scale` on pooled OOF from the exact configuration being serialized,
+   which ADR 0004 names as one of its two remaining honest uses. It is **not** the
+   per-outer-fold cross-fitted temperature ADR 0004 requires for a *reported* ECE;
+   that one stays per-fold, and satisfying this instruction must not be read as
+   licence to pool the reported number.
+2. **"Relative" residual means relative to the delta being explained**, not to the
+   attribution mass. This is the strict reading and it was chosen *before* measuring
+   which one passed, which turned out to matter a great deal.
+
+**The completeness finding, and the thumbs on the scale, counted.** The integrand is
+the gradient along the path; for a ReLU trunk it *jumps* at every activation
+breakpoint, so a midpoint Riemann sum is **O(1/m)** and not O(1/m²). Regenerate the
+table below with:
+
+```
+cd services/matching && ../../backend/venv/Scripts/python tests/ig_diagnostics.py
+```
+
+**640 explanations** — 40 profiles x all 16 careers, feature vectors built by
+`feature_builder` from the real catalog and question bank, five members at the
+shipped trunk shape 84 -> 64 -> 32 -> 16:
+
+| | median | p90 | max |
+|---|---|---|---|
+| strict residual, `/ abs(delta)` | 1.77e-3 | 7.32e-3 | 3.57 |
+| lenient residual, `/ sum(abs(a))` | 9.85e-5 | 3.92e-4 | 1.24e-3 |
+| absolute residual | 9.92e-3 | 3.46e-2 | 1.04e-1 |
+
+- **Step counts reached:** 32 x10, 64 x23, 128 x44, 256 x56, 512 x507. So `m`
+  doubled at least once in **630 of 640** explanations, and reached the cap in 507.
+- **Fall-through: 390 of 640 = 60.9%** of careers emit no model-derived reasons at
+  the plan's stated tolerance. Under the lenient denominator it would have been
+  approximately none — one number in the whole run exceeds 1e-3.
+- **Latency:** ~66 ms per career explained, so ~200 ms per request at `TOP_N = 3`.
+  Each `contributions()` call recomputes all 16 classes because centering needs
+  them, so the three served careers pay for the same work three times; a per-vector
+  cache would cut that to ~66 ms and is deliberately **not** in this change, since
+  it puts mutable state on an object shared across request threads.
+
+**The plan's cap of 512 is roughly an order of magnitude short at the strict
+reading, and that is left open for a human decision rather than fixed by loosening
+the tolerance.** Beating O(1/m) requires locating the breakpoints, which is the
+analytic activation-pattern tracking Step 5.2 explicitly rejects — so the trade is
+real (accuracy vs latency vs tolerance) and not an implementation defect. The
+numbers above come from a **synthetic** artifact with pseudo-random weights, because
+no trained one exists until DEV-97.
+
+**How sensitive that 60.9% is, measured rather than guessed** — this is the largest
+thumb on the scale in the record, and it was found by the code review rather than by
+the author. The weights are `uniform(-1, 1)`; a network trained with
+`weight_decay=1e-2` is nowhere near that large. Rerunning at
+`--weight-scale 0.3` (same seeds, same profiles):
+
+| weight scale | fell through | strict median | absolute median | reached the cap |
+|---|---|---|---|---|
+| 1.0 | 390/640 = **60.9%** | 1.77e-3 | 9.92e-3 | 507 |
+| 0.3 | 217/640 = **33.9%** | 7.35e-4 | 1.89e-4 | 349 |
+
+So the *direction* is robust — a plain Riemann sum at 512 steps does not reach a
+1e-3 strict residual for a large minority of careers at either scale — but **the
+magnitude is a property of the fixture, not a prediction about the shipped model**.
+Quote the direction, not the percentage. **The real fall-through rate is DEV-97's to
+measure.** Two tests pin the shape of the finding so it cannot rot quietly:
+`test_completeness_improves_as_the_step_count_rises` (the residual is quadrature
+error, so it must fall with `m`) and
+`test_a_realistically_shaped_network_does_not_reach_tolerance_at_the_cap` (which
+fails if the cap ever *does* become sufficient, forcing a re-read of this record).
+
+**What was verified rather than assumed.** The gradient is checked against central
+finite differences of `_explained_logit` (observed agreement 5.8e-9; the committed
+test pins the looser 1e-6, which is where a central difference at `h = 1e-6` stops
+being trustworthy), which separates "the chain rule through the ensemble mean is
+wrong" from "the integral is coarse" — the
+quadrature error is easily large enough to hide a small analytic mistake, and
+completeness alone would not have caught it. The forward pass is checked against a
+hand-worked two-member network whose logits are derivable on paper: at `z = [2, 1]`
+the members emit `[1, -1]` and `[2, -2]`, so the served probability is
+`(sigmoid(2) + sigmoid(4)) / 2 = 0.9314` and **not** `sigmoid(3) = 0.9526`, which is
+what averaging the logits first would give. That fixture is the ensemble decision
+made executable.
+
+**The q11-q18 interaction, so no reader is misled.** `reason_builder.py:18`
+`QUESTION_PHRASES` covers q1-q10 and is also the iteration set (`:71` — the plan
+said `:72`, corrected here). The integrated gradients computed by this ticket cover
+all 18 questions correctly, and **16 of the 36 question features are discarded
+downstream until DEV-89 lands**. That is unchanged by this ticket and deliberately
+not fixed in it; DEV-89 is a blocker of the *merge*, not of the build.
+
+Test counts: the five service suites are **297** (questionnaire 18, matching
+**137**, roadmap 30, auth 31, history 81), up from 268 — matching gains the 29 tests
+of `tests/test_matcher_nn.py` and **the pre-existing 108 are unchanged**, which is
+the evidence that the formula path is inert. `data/scripts/tests` is **83** under
+the training venv and **7 passed + 9 skipped** under `backend/venv`, both unmoved.
+
+Four of those 29 exist because the code review found the defects they now pin: two
+artifacts that raise `ValueError` out of `np.asarray` (ragged and non-numeric
+weights) reached `load_matcher` uncaught and would have taken **service startup
+down** instead of falling back to the formula, which is precisely the contract
+`load_matcher` exists to keep. The review also caught that the test standing behind
+the fall-through finding ran **three** members while the record said five, and that
+the record quoted a fall-through percentage without disclosing how hard it depends
+on the fixture's weight scale — the table above is the answer to that.
+
 ## Pipeline order
 
 ```

@@ -1,6 +1,8 @@
 """matching-service test fixtures. Same strategy as the monolith suite: a fake
 repository injected onto app.state (TestClient WITHOUT lifespan, so the real
 ChromaDB store / embedding model are never loaded), external backends forced off."""
+import json
+import random
 import sys
 from pathlib import Path
 
@@ -41,6 +43,70 @@ def tiny_artifact(**overrides) -> dict:
     }
     artifact.update(overrides)
     return artifact
+
+
+def write_artifact(tmp_path: Path, artifact: dict, name: str = "artifact.json") -> Path:
+    p = tmp_path / name
+    p.write_text(json.dumps(artifact), encoding="utf-8")
+    return p
+
+
+def nn_artifact(feature_names: list[str], careers: list[str], members: list[dict],
+                **overrides) -> dict:
+    """A structurally valid neural artifact. `members` are already-built layer
+    stacks, so callers keep full control of the weights they reason about.
+
+    This is the schema DEV-97's exporter has to emit: one shared scaler (every
+    ensemble member standardizes on the same training statistics, so per-member
+    scalers would be five copies of one thing), weights stored (out_features,
+    in_features) exactly as the linear artifact's `coef` is."""
+    artifact = {
+        "model_version": "test-nn-v0",
+        "model_type": "probability_averaged_mlp_ensemble",
+        "feature_version": FEATURE_VERSION,
+        "feature_names": feature_names,
+        "careers": careers,
+        "scaler_mean": [0.0] * len(feature_names),
+        "scaler_scale": [1.0] * len(feature_names),
+        "activation": "relu",
+        "members": members,
+        "label_source": "synthetic_llm",
+    }
+    artifact.update(overrides)
+    return artifact
+
+
+def dense_member(shapes: list[tuple[int, int]], seed: int) -> dict:
+    """A member with pseudo-random weights, for tests that need a realistically
+    shaped network rather than a hand-worked one. `shapes` are (out, in) pairs."""
+    rng = random.Random(seed)
+    return {
+        "layers": [
+            {
+                "weight": [[rng.uniform(-1.0, 1.0) for _ in range(n_in)] for _ in range(n_out)],
+                "bias": [rng.uniform(-0.5, 0.5) for _ in range(n_out)],
+            }
+            for n_out, n_in in shapes
+        ]
+    }
+
+
+def full_size_nn_artifact(n_members: int = 3, hidden=(12, 8), seed: int = 7,
+                          **overrides) -> dict:
+    """A neural artifact over the REAL feature layout and career catalog, so the
+    matching service can be driven end to end without a trained model."""
+    shapes: list[tuple[int, int]] = []
+    prev = len(_NAMES)
+    for width in hidden:
+        shapes.append((width, prev))
+        prev = width
+    shapes.append((len(_CIDS), prev))
+    return nn_artifact(
+        feature_names=_NAMES,
+        careers=_CIDS,
+        members=[dense_member(shapes, seed=seed + i) for i in range(n_members)],
+        **overrides,
+    )
 
 
 @pytest.fixture(autouse=True)

@@ -617,8 +617,9 @@ it Gate 2. That is a deliberate, documented break, not silent drift.
 ### 5.1 The q11–q18 discarded-attribution defect — own ticket, but a hard prerequisite
 
 `reason_builder.py:18` defines `QUESTION_PHRASES` for q1–q10 only, **and that dict
-is also the iteration set** (`:72`). The bank is 18 questions, so q11–q18
-attributions are silently discarded today.
+is also the iteration set** (`:71` — this reference read `:72` until DEV-94
+rechecked it). The bank is 18 questions, so q11–q18 attributions are silently
+discarded today.
 
 The arithmetic matters. The feature vector is 2·18 + 3·16 = 84. Of the 36 question
 features, **16 belong to q11–q18 — 44% of the question-feature attribution surface,
@@ -676,13 +677,28 @@ artifact now reproduces 1.05), at which point this path deliberately changes
 served probabilities.
 
 **`services/matching/app/services/matcher_nn.py`** — forward pass in **numpy**, no
-torch. Rev 2 specified stdlib-only, mirroring `matcher_model.py`'s posture; but
-`numpy>=1.24.0` is already a declared dependency of the matching service and
-already loaded in-process. The real requirement is *no torch at serve time* — torch
-is heavyweight and slow to import; numpy is neither, and it is already there. Under
-stdlib-only, IG at m=32 is roughly 760k pure-Python float operations per career
-explained, which lands around 100–250 ms of added latency per request and makes the
-step count a budget decision rather than a correctness one.
+torch. Rev 2 specified stdlib-only, mirroring `matcher_model.py`'s posture. The
+decision to use numpy stands; **its stated justification was half wrong and is
+corrected here** (DEV-94, verified at f371a27), in the same spirit as DEV-93's
+correction of the "32-point GBT grid" that was really 16:
+
+- `numpy>=1.24.0` *is* a declared dependency of the matching service
+  (`services/matching/requirements.txt`), so the Docker image has always had it.
+- It was **not** "already loaded in-process". Before `matcher_nn.py`, **no module
+  under `services/` imported numpy at all**, so the import was pure new cost, not a
+  free ride on something already resident. The consequence was concrete:
+  `backend/venv` — which runs the service suites — had no numpy, so the 108-test
+  matching suite would have failed to *collect* the moment the dispatch seam
+  imported the new module. Resolved by installing numpy into `backend/venv`, where
+  `backend/requirements.txt` had declared it all along; see the DEV-94 record.
+
+The surviving requirement is the real one: *no torch at serve time*. torch is
+heavyweight and slow to import; numpy is neither. Under stdlib-only, IG at m=32 is
+roughly 760k pure-Python float operations per career explained, which lands around
+100–250 ms of added latency per request.
+
+**The step count turned out to be a correctness constraint, not only a budget one**
+— see the completeness finding below.
 
 **Integrated gradients**, with an honest exactness claim. For a ReLU net the
 *theorem* is exact — `f` is piecewise-linear along the straight path — but a fixed
@@ -707,6 +723,54 @@ analogous to the linear case" overclaimed in the same way its C4 description did
 - Returns the same `dict[feature_name, float]` shape, so `reason_builder` is
   untouched and the user-facing UX is identical. SHAP rejected: heavier
   dependency, weaker guarantee here.
+
+**Two things 5.2 left undefined, decided in DEV-94 rather than discovered later.**
+
+1. **Which quantity is explained.** The shipped model is a probability-averaged
+   5-member ensemble, and averaging the members' own attributions explains the
+   *mean of the members' logits* — not the *logit of the mean probability* the
+   ensemble serves, since `mean(softmax(z))` is not `softmax(mean(z))`. DEV-94
+   explains **the logit of the mean probability**, `g_c = log(mean_i softmax(z_i)_c)
+   / T`, centered across classes. Decisive reason: `train_models.apply_temperature`
+   is `softmax(log(clip(probs)) / t)` — it consumes **probabilities**, which for
+   this model are the averaged ones, so this is the only choice that puts `T` where
+   it was fitted. **DEV-97's exporter must therefore fit `temperature` on
+   ensemble-averaged OOF probabilities and revalidate Gate 1 on
+   `SeedEnsemble.predict_proba`.**
+
+2. **What "relative" means in "relative completeness residual < 1e-3".** Two
+   readings, and the gap between them is the whole guarantee:
+   `|sum(a) - delta| / |delta|` (relative to what is explained) versus
+   `|sum(a) - delta| / sum(|a|)` (relative to the explanation's own mass). At 84
+   features the mass runs an order of magnitude above the delta, so the second is
+   far easier to satisfy. DEV-94 ships **the strict one** and reports both.
+
+**The completeness finding, measured (DEV-94).** The integrand is the gradient
+along the path, and for a ReLU trunk that gradient *jumps* at every activation
+breakpoint — so a midpoint Riemann sum converges at **O(1/m)**, not O(1/m²).
+Measured over 640 explanations at the shipped trunk shape (84 → 64 → 32 → 16, five
+members) on feature vectors built by `feature_builder` from the real catalog:
+
+| | median | p90 | max |
+|---|---|---|---|
+| strict residual, `/ \|delta\|` | 1.77e-3 | 7.32e-3 | 3.57 |
+| lenient residual, `/ sum(\|a\|)` | 9.85e-5 | 3.92e-4 | 1.24e-3 |
+| absolute residual | 9.92e-3 | 3.46e-2 | 1.04e-1 |
+
+**At the strict reading the cap of 512 steps is short by roughly an order of
+magnitude, and a large minority of careers fall through to the non-model wording**
+— 60.9% on the fixture above, 33.9% when the same fixture's random weights are
+scaled to 0.3x. The direction is robust to that scaling; **the percentage is not,
+so it is the direction that should be quoted.** At the lenient reading essentially
+nothing falls through at either scale.
+
+Nothing but locating the breakpoints beats O(1/m), and that is the analytic tracking
+this step rejects — so this is a genuine accuracy/latency/tolerance trade, not an
+implementation defect. It is left **open for a human decision**, because these
+numbers come from a synthetic artifact with pseudo-random weights: no trained one
+exists until DEV-97, a `weight_decay=1e-2` network is far from `uniform(-1, 1)`, and
+**the real fall-through rate is DEV-97's to measure**. Serving cost is ~200 ms per
+request at `TOP_N = 3` and the 512-step cap.
 
 **`export_nn_model.py`**, mirroring `export_model.py`, including Gate-1
 revalidation of the exact exported configuration and `caveats` carried identically
@@ -823,6 +887,11 @@ The order is now driven by dependencies alone.
    different protocol.
 9. **`matcher_nn.py`, `export_nn_model.py`**, parity and IG-completeness tests.
    *Merges after the q11–q18 branch.*
+   — **`matcher_nn.py` DONE (DEV-94, 2026-07-31):** numpy forward pass, adaptive IG,
+   the two decisions above, and the completeness finding. Nothing became
+   *Deployable*; `MATCHER_MODEL_PATH` is untouched. `export_nn_model.py` and the
+   torch-vs-numpy parity tests stay with DEV-97, which is where a trained artifact
+   and a torch runtime both exist — `backend/venv` has neither.
 10. **Steps 4 + 6 writeups** with real numbers; `docs/dev-23-nn-decision.md`.
 11. Report and **wait** on the `MATCHER_MODEL_PATH` question.
 

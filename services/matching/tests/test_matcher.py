@@ -1,9 +1,9 @@
 """Dispatch seam: the Matcher protocol and the load_matcher() factory.
 
-These test the boundary the NN adapter will later implement (DEV-23 step 5.2), so
-they deliberately assert against the protocol rather than against MatcherModel.
+These assert against the protocol rather than against MatcherModel, which is what
+let the NN adapter (DEV-94) join as a second family without touching them. Its own
+dispatch and conformance cases live in `test_matcher_nn.py`.
 """
-import json
 from pathlib import Path
 
 import pytest
@@ -12,15 +12,10 @@ from app.services.matcher import Matcher, load_matcher
 from app.services.matcher_model import MatcherModel, MatcherModelError
 
 from tests.conftest import tiny_artifact
+from tests.conftest import write_artifact as write
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SHIPPED_ARTIFACT = REPO_ROOT / "data" / "models" / "matcher_logistic_v2.json"
-
-
-def write(tmp_path: Path, artifact: dict, name: str = "artifact.json") -> Path:
-    p = tmp_path / name
-    p.write_text(json.dumps(artifact), encoding="utf-8")
-    return p
 
 
 def test_linear_artifact_dispatches_to_the_linear_implementation(tmp_path):
