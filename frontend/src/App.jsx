@@ -12,7 +12,7 @@ import Admin from './pages/Admin'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
-import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll, replaceWithHome, hasNavigatedInPage } from './hooks/useRoute'
+import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll, replaceWithHome, didBootJump, RESUME_CAREER_KEY } from './hooks/useRoute'
 
 function App() {
   const { user, authLoading } = useAuth()
@@ -39,23 +39,6 @@ function App() {
   // together; `profile` is kept so the roadmap can personalize from it too.
   const [answers, setAnswers] = useState(null)
   const [profile, setProfile] = useState(null)
-
-  // Has the initial post-auth restore already run? It spends this on its first pass,
-  // so the roadmap jump below fires for *opening the app* and nothing else. The
-  // restore effect re-runs on every `user` change, and signing in is one — without
-  // this, clicking "Start Assessment" while signed out, signing in through the modal,
-  // and then being thrown onto your OLD roadmap would be the flow for taking a new
-  // assessment.
-  const autoJumpSpentRef = useRef(false)
-
-  // The path the app OPENED at, captured on the first render. It cannot be read
-  // inside the restore effect: that effect is gated on `authLoading`, so its body
-  // first runs when GET /api/auth/me resolves — a network round-trip the user can
-  // navigate during. Opening a deep-linked /roadmap/x and clicking "Back to home"
-  // before auth settles would leave the effect reading '/' and concluding the app
-  // had opened at the root, which is the deep-link precedence it exists to enforce
-  // getting it exactly backwards.
-  const startedAtRootRef = useRef(window.location.pathname === '/')
 
   // Monotonic id for the active run. Every async continuation captures it before
   // awaiting and re-checks it after, so work belonging to a run the user has
@@ -99,16 +82,6 @@ function App() {
   // from the deps on purpose (it's a new fn each render).
   useEffect(() => {
     if (authLoading || phase !== 'idle') return
-    // NB: the jump is spent where the restore COMPLETES, not here. Spending on
-    // effect entry loses it whenever a first attempt is superseded before resolving,
-    // and that is the normal case in dev: StrictMode double-invokes AuthProvider's
-    // mount effect, so two /api/auth/me calls land two DISTINCT user objects, the
-    // second cancels the first restore, and the replacement then finds the flag
-    // already spent — results restored, no jump. See the continuations below.
-    //
-    // The jump belongs to *opening the app at the root* — arriving on /roadmap/x or
-    // /admin is the user asking for somewhere specific, and that outranks it for the
-    // rest of the page load. Read from the mount-time ref, never from here.
     // The fetch outlives a sign-out: without this the previous account's
     // recommendations AND profile snapshot get restored after the sign-out effect
     // cleared state, which also leaves phase !== 'idle' so the NEW account's
@@ -127,63 +100,24 @@ function App() {
           // flight would have it clobbered back to results_ready, and (since DEV-76)
           // be navigated off to an old roadmap on top of that.
           if (phaseRef.current !== 'idle') return
-          // Past every guard, so THIS is the initial post-auth restore that counts —
-          // spend the jump here. A superseded attempt returned above without touching
-          // the flag, so the surviving restore still gets its one chance, while any
-          // LATER restore (a mid-session sign-in) correctly finds it spent.
-          const mayAutoJump = !autoJumpSpentRef.current
-          autoJumpSpentRef.current = true
           if (!subs?.length) return
           const latest = [...subs].sort(
             (a, b) => new Date(b.created_at) - new Date(a.created_at),
           )[0]
-          const resumeCareer = handleLoadHistory(
+          // DEV-76: this restore no longer routes anywhere. It records the resume
+          // career (below), and the NEXT page load acts on it in bootRedirect(),
+          // before rendering. Navigating from here is what forced five guards: by
+          // the time this resolves, auth has re-run, effects have replayed and the
+          // user has had hundreds of milliseconds to go somewhere of their own.
+          handleLoadHistory(
             latest.recommendations,
             latest.selected_career ?? null,
             latest.profile ?? null,
           )
-          // DEV-76: land a returning user ON their roadmap rather than on the landing
-          // page auto-scrolled to Results. The restore above already resolved which
-          // career that is, so this is the same decision the header's "My Roadmap"
-          // shortcut makes, taken automatically.
-          //
-          // Both ends must be at '/': `startedAtRootRef` (mount time) so a deep link
-          // the user opened outranks this, and the live re-read so a jump they made
-          // in the meantime (My Roadmap, Admin) isn't overwritten on arrival.
-          // Neither check subsumes the other — they fail in opposite directions, and
-          // the window they cover between them runs from first paint to fetch.
-          //
-          // Accepted: the landing hero paints for the length of this fetch before
-          // swapping. ponytail: mirroring the resume career to localStorage (as the
-          // anonymous path below already does) would let us jump before first paint —
-          // add that if the flash actually grates, it is strictly this plus a cache.
-          //
-          // This can't reach a roadmap the user hasn't earned, but not because
-          // RoadmapPage re-checks: `roadmapUsesCurrentRun` matches on the id we just
-          // set, so the restored recommendations ride along and unlock via the fast
-          // path with no fetch. That is sound — they came out of the user's OWN
-          // submission, which is exactly the evidence DEV-82 asks for
-          // (docs/adr/0002-roadmap-access.md).
-          if (
-            mayAutoJump &&
-            startedAtRootRef.current &&
-            !hasNavigatedInPage() &&
-            resumeCareer &&
-            window.location.pathname === '/'
-          ) {
-            navigate(`/roadmap/${encodeURIComponent(resumeCareer)}`)
-          }
         })
         .catch(() => {})
       return () => { cancelled = true }
     } else {
-      // Auth resolved to nobody (or a sign-out landed here). There is no roadmap to
-      // jump to, and this is synchronous — nothing can supersede it — so spend the
-      // jump now: any restore after this one belongs to a mid-session sign-in, which
-      // must not teleport. Without this the flag would still be unspent when that
-      // sign-in's restore completes, and signing in to take a NEW assessment would
-      // land the user on their old roadmap.
-      autoJumpSpentRef.current = true
       let recs = null
       try { recs = JSON.parse(localStorage.getItem('nextstep_last_recommendations')) } catch {} // eslint-disable-line no-empty
       if (recs?.length) handleLoadHistory(recs, localStorage.getItem('nextstep_last_career') || null)
@@ -212,6 +146,9 @@ function App() {
       prevUserRef.current = user
       localStorage.removeItem('nextstep_last_recommendations')
       localStorage.removeItem('nextstep_last_career')
+      // DEV-76: the resume pointer is account data. Left behind, the next visit to
+      // this browser would boot straight onto the previous user's roadmap.
+      localStorage.removeItem(RESUME_CAREER_KEY)
       setPhase('idle')
       setResults(null)
       setNotice(null)
@@ -233,19 +170,26 @@ function App() {
     }
   }, [phase, results, selectedCareer, user, authLoading])
 
-  // Leaving '/' at ANY point forfeits the auto-jump for the rest of the page load.
-  // The two endpoint checks around the history fetch can't see this: navigating away
-  // and back leaves both of them true, so a user who went to /admin mid-fetch and
-  // came home would still be thrown onto the restored roadmap. The jump belongs to
-  // an UNINTERRUPTED open-at-root, which is a fact about the whole window, not its
-  // two ends.
-  //
-  // This does not replace the live pathname re-read at the jump site: an effect is a
-  // render behind, but pushState changes the URL synchronously, so a fetch resolving
-  // between a navigation and this effect flushing is caught only there.
+  // Remember which roadmap a signed-in user is on, for bootRedirect() to act on at
+  // the START of the next visit. Writing it is the whole cost of the feature; the
+  // reading side is three synchronous localStorage/URL checks with no window to
+  // defend. Deliberately NOT written for anonymous users — the boot redirect
+  // requires a token, and the sign-out cleanup below clears the key so the next
+  // account on this browser cannot inherit it.
   useEffect(() => {
-    if (path !== '/') autoJumpSpentRef.current = true
-  }, [path])
+    if (user && resumeCareerId) localStorage.setItem(RESUME_CAREER_KEY, resumeCareerId)
+  }, [user, resumeCareerId])
+
+  // bootRedirect() trusts a token's PRESENCE, because validating one costs the very
+  // request whose window this design exists to avoid. So an expired session still
+  // routes here — and would strand the user on a roadmap that RoadmapPage correctly
+  // walls off as signed-out. Once auth has actually answered, take them home. This
+  // is the one thing the boot decision cannot know up front, so it is the one thing
+  // corrected afterwards.
+  useEffect(() => {
+    if (authLoading || user || !didBootJump()) return
+    replaceWithHome()
+  }, [authLoading, user])
 
   // Returning to the scroll app from a route (e.g. the roadmap page) may carry a
   // deferred section target: a nav control clicked while its section wasn't mounted
