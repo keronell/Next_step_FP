@@ -12,7 +12,7 @@ import Admin from './pages/Admin'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
-import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll, replaceWithHome } from './hooks/useRoute'
+import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll, replaceWithHome, hasNavigatedInPage } from './hooks/useRoute'
 
 function App() {
   const { user, authLoading } = useAuth()
@@ -164,7 +164,13 @@ function App() {
           // path with no fetch. That is sound — they came out of the user's OWN
           // submission, which is exactly the evidence DEV-82 asks for
           // (docs/adr/0002-roadmap-access.md).
-          if (mayAutoJump && startedAtRootRef.current && resumeCareer && window.location.pathname === '/') {
+          if (
+            mayAutoJump &&
+            startedAtRootRef.current &&
+            !hasNavigatedInPage() &&
+            resumeCareer &&
+            window.location.pathname === '/'
+          ) {
             navigate(`/roadmap/${encodeURIComponent(resumeCareer)}`)
           }
         })

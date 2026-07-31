@@ -62,10 +62,27 @@ export function consumePendingHistoryOpen() {
   return v
 }
 
+// Has the user deliberately navigated within the page? Every navigateToSection()
+// caller is a click on a nav control (Header, Footer, the assessment CTAs), so one
+// call means the user has stated where they want to be.
+//
+// DEV-76 needs this because a same-page section jump is INVISIBLE to every other
+// signal: it only scrolls, so the pathname never changes, no route effect fires and
+// `phase` stays 'idle'. A returning user who clicks "How It Works" while the history
+// request is still in flight would otherwise be yanked onto their roadmap moments
+// after asking to read something else. The auto-jump may override the passive
+// default of "you landed on the homepage"; it may not override a stated intent.
+let userNavigatedInPage = false
+
+export function hasNavigatedInPage() {
+  return userNavigatedInPage
+}
+
 // Scroll to a scroll-app section by id. If it's on the current page, scroll now;
 // otherwise remember it and route home, so the control still performs its labeled
 // action (jump to that section) instead of just dumping the user at the top.
 export function navigateToSection(id) {
+  userNavigatedInPage = true
   const el = document.getElementById(id)
   if (el) {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' })
