@@ -290,7 +290,6 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
                           <div className="max-h-96 overflow-y-auto border-t border-navy/[0.06]">
                             <History
                               user={user}
-                        onChanged={onHistoryChanged}
                               onChanged={onHistoryChanged}
                               onLoadResults={(...args) => {
                                 setAccountOpen(false)
@@ -427,6 +426,7 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
                     <div className="max-h-80 overflow-y-auto">
                       <History
                         user={user}
+                        onChanged={onHistoryChanged}
                         onLoadResults={(...args) => {
                           setMenuOpen(false)
                           setAccountOpen(false)

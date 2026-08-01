@@ -349,6 +349,29 @@ function App() {
     const next = resumeCareerFrom(freshSubs)
     setResumeCareerId(next)
     setResumeCareer(next)
+    // The in-memory run still describes whatever was loaded before this delete —
+    // possibly the submission that was just deleted. That is not merely stale, it is
+    // reachable: `roadmapUsesCurrentRun` matches on `resumeCareerId`, so the NEW
+    // pointer would be treated as belonging to those old `results`, and if the
+    // surviving career also appeared among the deleted assessment's recommendations,
+    // RoadmapPage's fast path would personalize the roadmap with the DELETED
+    // assessment's skill gaps instead of fetching the survivor's.
+    //
+    // Drop the run rather than try to work out whether it survived: matching results
+    // back to submissions means comparing recommendation arrays, and the cost of
+    // being wrong is showing someone skill gaps from an assessment they deleted.
+    // Cleared, RoadmapPage simply re-derives from live history.
+    //
+    // Bump the run token too: a restore could be in flight, and it would otherwise
+    // repopulate exactly the state being cleared here.
+    runIdRef.current += 1
+    setResults(null)
+    setSelectedCareer(null)
+    setProfile(null)
+    setNotice(null)
+    // Back to idle rather than leaving 'results_ready' with nothing to show — that
+    // combination renders an empty Results section the moment the user goes home.
+    setPhase('idle')
   }
 
   const handleLoadHistoryOnRoadmap = (recommendations, careerId = null, profileSnapshot = null) => {
