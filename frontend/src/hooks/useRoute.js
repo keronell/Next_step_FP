@@ -9,6 +9,7 @@
 // fires no event).
 import { useEffect, useState } from 'react'
 import { CAREERS } from '../data'
+import { RESUME_CAREER_KEY } from '../lib/resume'
 
 const NAV_EVENT = 'nextstep:navigate'
 
@@ -18,10 +19,6 @@ const NAV_EVENT = 'nextstep:navigate'
 // `../auth/logout` and would otherwise be interpolated into API URLs) never
 // matches the route.
 const CAREER_IDS = new Set(CAREERS.map((c) => c.id))
-
-// Where the last signed-in visit's roadmap career is remembered, so the next visit
-// can route to it before rendering. Written by App, cleared on sign-out.
-export const RESUME_CAREER_KEY = 'nextstep_resume_career'
 
 // Programmatic navigation: push the URL, scroll to top, notify consumers.
 export function navigate(path) {

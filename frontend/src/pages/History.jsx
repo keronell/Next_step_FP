@@ -15,7 +15,7 @@ function formatDate(iso) {
   })
 }
 
-export default function History({ user, onLoadResults }) {
+export default function History({ user, onLoadResults, onChanged }) {
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -67,12 +67,26 @@ export default function History({ user, onLoadResults }) {
         try {
           const fresh = await fetchMySubmissions()
           // Dropped outright after an account switch — see userRef above.
-          if (userRef.current === startedAs) setSubmissions(fresh)
+          if (userRef.current === startedAs) {
+            setSubmissions(fresh)
+            // DEV-76: the deleted submission may be the one the resume pointer was
+            // derived from. Hand the refreshed list up so App can recompute it —
+            // otherwise the next load boots onto a career whose assessment no longer
+            // exists, which `recommended-careers` then refuses, leaving the user on a
+            // locked roadmap every visit with no assessment to explain it.
+            onChanged?.(fresh)
+          }
         } catch {
           // Delete succeeded but the refill fetch failed — at least drop the removed
           // card locally so the UI reflects the deletion.
           if (userRef.current === startedAs) {
             setSubmissions((subs) => subs.filter((s) => s.request_id !== requestId))
+            // The refill that would tell us what survives is exactly what just
+            // failed, so clear the pointer rather than guess. Worst case that costs
+            // one un-jumped load, which then recomputes it correctly; guessing wrong
+            // costs a locked roadmap that never self-corrects. Called outside the
+            // updater above — that must stay pure, and StrictMode double-invokes it.
+            onChanged?.(null)
           }
         }
       })

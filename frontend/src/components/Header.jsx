@@ -16,7 +16,7 @@ import { navigate, navigateToSection, requestHistoryOpen, consumePendingHistoryO
 // menu's "My History" item: when present, that item expands the list in place;
 // everywhere else it has nowhere to expand into, so it falls back to routing to
 // the roadmap page (same as "My Roadmap").
-function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId, onHistoryLoadResults }) {
+function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId, onHistoryLoadResults, onHistoryChanged }) {
   const { user, authLoading, signOut } = useAuth()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -290,6 +290,8 @@ function Header({ phase, onReset, onOpenAuth, onStartAssessment, roadmapCareerId
                           <div className="max-h-96 overflow-y-auto border-t border-navy/[0.06]">
                             <History
                               user={user}
+                        onChanged={onHistoryChanged}
+                              onChanged={onHistoryChanged}
                               onLoadResults={(...args) => {
                                 setAccountOpen(false)
                                 setMenuOpen(false)

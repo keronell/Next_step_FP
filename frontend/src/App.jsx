@@ -12,7 +12,8 @@ import Admin from './pages/Admin'
 import { computeResults } from './data'
 import { submitQuestionnaire, selectCareer, fetchMySubmissions } from './api'
 import { useAuth } from './contexts/AuthContext'
-import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll, replaceWithHome, didBootJump, RESUME_CAREER_KEY } from './hooks/useRoute'
+import { useRoute, matchRoadmap, navigate, navigateToSection, consumePendingScroll, replaceWithHome, didBootJump } from './hooks/useRoute'
+import { resumeCareerFrom, setResumeCareer } from './lib/resume'
 
 function App() {
   const { user, authLoading } = useAuth()
@@ -100,7 +101,15 @@ function App() {
           // flight would have it clobbered back to results_ready, and (since DEV-76)
           // be navigated off to an old roadmap on top of that.
           if (phaseRef.current !== 'idle') return
-          if (!subs?.length) return
+          // An empty history must ERASE the pointer, not merely skip updating it.
+          // This is the backstop for staleness we can't observe locally — the
+          // submissions deleted in another tab, on another device, or by an admin.
+          // Without it a pointer can outlive every submission behind it and boot
+          // this browser onto a locked roadmap on every future visit.
+          if (!subs?.length) {
+            setResumeCareer(null)
+            return
+          }
           const latest = [...subs].sort(
             (a, b) => new Date(b.created_at) - new Date(a.created_at),
           )[0]
@@ -146,9 +155,8 @@ function App() {
       prevUserRef.current = user
       localStorage.removeItem('nextstep_last_recommendations')
       localStorage.removeItem('nextstep_last_career')
-      // DEV-76: the resume pointer is account data. Left behind, the next visit to
-      // this browser would boot straight onto the previous user's roadmap.
-      localStorage.removeItem(RESUME_CAREER_KEY)
+      // The resume pointer is cleared by the auth-settled effect above, which covers
+      // this sign-out AND the expired-token case this branch cannot see.
       setPhase('idle')
       setResults(null)
       setNotice(null)
@@ -177,18 +185,25 @@ function App() {
   // requires a token, and the sign-out cleanup below clears the key so the next
   // account on this browser cannot inherit it.
   useEffect(() => {
-    if (user && resumeCareerId) localStorage.setItem(RESUME_CAREER_KEY, resumeCareerId)
+    if (user && resumeCareerId) setResumeCareer(resumeCareerId)
   }, [user, resumeCareerId])
 
-  // bootRedirect() trusts a token's PRESENCE, because validating one costs the very
-  // request whose window this design exists to avoid. So an expired session still
-  // routes here — and would strand the user on a roadmap that RoadmapPage correctly
-  // walls off as signed-out. Once auth has actually answered, take them home. This
-  // is the one thing the boot decision cannot know up front, so it is the one thing
-  // corrected afterwards.
+  // Auth has settled and there is nobody signed in. Two jobs, both consequences of
+  // bootRedirect() trusting a token's PRESENCE — validating it would cost the very
+  // request whose window this design removes.
+  //
+  // 1. Drop the pointer. It belongs to a session that no longer exists, and it is
+  //    NOT enough to clear it on sign-out: a token that expires between visits is
+  //    discovered only when getMe() rejects, so `user` is never truthy, which means
+  //    `prevUserRef.current` is null and the sign-out branch below never runs. The
+  //    pointer would then survive into the next account to sign in on this browser
+  //    and send their first load to the previous account's career.
+  // 2. If we already routed on that pointer, go home — otherwise the visit ends on a
+  //    roadmap RoadmapPage correctly walls off as signed-out.
   useEffect(() => {
-    if (authLoading || user || !didBootJump()) return
-    replaceWithHome()
+    if (authLoading || user) return
+    setResumeCareer(null)
+    if (didBootJump()) replaceWithHome()
   }, [authLoading, user])
 
   // Returning to the scroll app from a route (e.g. the roadmap page) may carry a
@@ -321,6 +336,21 @@ function App() {
   // belongs to — plain handleLoadHistory only updates in-memory state, which the
   // roadmap route ignores unless it already matches the URL's careerId (see
   // roadmapUsesCurrentRun below). navigate() no-ops if we're already there.
+  // DEV-75 deletes a past assessment; DEV-76 caches which one to resume to. Deleting
+  // the submission a pointer came from must therefore recompute it — from the list
+  // the delete already refetched, so there is no extra request and no chance of
+  // reading back a not-yet-consistent history. Recompute rather than clear: deleting
+  // one of several assessments should resume to the newest survivor, not nothing.
+  //
+  // App owns this rather than History writing the key itself, so the in-memory
+  // `resumeCareerId` and the stored pointer cannot disagree — a split would let the
+  // write effect above resurrect a deleted career on the next render.
+  const handleHistoryChanged = (freshSubs) => {
+    const next = resumeCareerFrom(freshSubs)
+    setResumeCareerId(next)
+    setResumeCareer(next)
+  }
+
   const handleLoadHistoryOnRoadmap = (recommendations, careerId = null, profileSnapshot = null) => {
     const targetCareer = handleLoadHistory(recommendations, careerId, profileSnapshot)
     if (targetCareer) navigate(`/roadmap/${encodeURIComponent(targetCareer)}`)
@@ -425,6 +455,7 @@ function App() {
         recommendations={roadmapUsesCurrentRun ? results : null}
         onStartAssessment={handleGoToAssessment}
         onLoadResults={handleLoadHistoryOnRoadmap}
+        onHistoryChanged={handleHistoryChanged}
       />
     )
   }
