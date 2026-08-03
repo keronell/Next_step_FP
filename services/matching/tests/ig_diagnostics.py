@@ -7,12 +7,20 @@ this measures rather than asserts. The two properties worth *pinning* are pinned
 `test_matcher_nn.py`; this is the thing that produces the numbers the record quotes,
 so a reader can re-derive them instead of trusting them.
 
-The artifact is **synthetic**: pseudo-random weights at the shipped trunk shape,
-because no trained neural artifact exists until DEV-97. The feature vectors are not
-synthetic — `feature_builder` builds them from the real career catalog and question
-bank, so the input distribution is the serving one. `--weight-scale` exists because
-the fall-through rate is sensitive to how large the random weights are, and a report
-that quoted one scale without saying so would be hiding its own thumb on the scale.
+Two artifacts can be measured, and they answer different questions:
+
+- `--artifact <path>` measures a REAL exported model. Since DEV-97 that is the
+  honest one — `data/models/matcher_nn_v1.json` is the model that would actually
+  serve. Prefer it.
+- With no `--artifact`, the artifact is **synthetic**: pseudo-random weights at the
+  shipped trunk shape. This is what DEV-94 had to use, because no trained artifact
+  existed yet. `--weight-scale` exists because the fall-through rate is sensitive to
+  how large the random weights are, and a report that quoted one scale without
+  saying so would be hiding its own thumb on the scale. It is retained so the DEV-94
+  table stays reproducible, not because it is the better measurement.
+
+The feature vectors are never synthetic — `feature_builder` builds them from the
+real career catalog and question bank, so the input distribution is the serving one.
 """
 import argparse
 import random
@@ -80,11 +88,36 @@ def main() -> None:
     parser.add_argument("--profiles", type=int, default=40)
     parser.add_argument("--members", type=int, default=5)
     parser.add_argument("--weight-scale", type=float, default=1.0)
+    parser.add_argument("--artifact", type=Path, default=None,
+                        help="a real exported artifact; omit for the DEV-94 synthetic one")
     args = parser.parse_args()
 
-    matcher = NeuralMatcher(
-        shipped_shape_artifact(args.members, (64, 32), args.weight_scale)
-    )
+    if args.artifact is not None:
+        # Through load_matcher, so what is measured is what would be served — a
+        # direct construction would bypass the dispatch the serving path uses.
+        from app.services.matcher import load_matcher
+
+        matcher = load_matcher(args.artifact)
+        # `load_matcher` dispatches on model_type and can hand back any Matcher, but
+        # this script measures integrated gradients — which only the neural family
+        # has. Refuse explicitly rather than reading `members`/`temperature` off the
+        # protocol, which does not carry them (a linear artifact would otherwise
+        # load fine and then die in the description string).
+        if not isinstance(matcher, NeuralMatcher):
+            raise SystemExit(
+                f"{args.artifact} loaded as {type(matcher).__name__}, which has no "
+                "integrated-gradients path - this script measures the neural matcher "
+                "only."
+            )
+        described = (f"artifact: {args.artifact} ({matcher.version}), "
+                     f"{len(matcher.members)} members, T={matcher.temperature}")
+    else:
+        matcher = NeuralMatcher(
+            shipped_shape_artifact(args.members, (64, 32), args.weight_scale)
+        )
+        described = (f"artifact: SYNTHETIC, {args.members} members, trunk {len(NAMES)} "
+                     f"-> 64 -> 32 -> {len(CIDS)}, weights "
+                     f"uniform(+/-{args.weight_scale}), seed {SEED}")
     rng = random.Random(PROFILE_SEED)
     vectors = [realistic_vector(rng) for _ in range(args.profiles)]
 
@@ -103,8 +136,7 @@ def main() -> None:
             failed += not result.converged
 
     total = len(vectors) * len(matcher.careers)
-    print(f"artifact: {args.members} members, trunk {len(NAMES)} -> 64 -> 32 -> "
-          f"{len(CIDS)}, weights uniform(+/-{args.weight_scale}), seed {SEED}")
+    print(described)
     print(f"profiles={len(vectors)}  careers={len(matcher.careers)}  explanations={total}")
     print("step counts reached:", dict(sorted(steps.items())))
     print(f"fell through (no model reasons): {failed}/{total} = {failed / total:.1%}")

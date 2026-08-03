@@ -848,6 +848,262 @@ the fall-through finding ran **three** members while the record said five, and t
 the record quoted a fall-through percentage without disclosing how hard it depends
 on the fixture's weight scale — the table above is the answer to that.
 
+### Reproduction record (DEV-97, 2026-08-03)
+
+`export_nn_model.py` — the neural sibling of `export_model.py`. **This is the first
+ticket in DEV-23 that produces a trained neural artifact**, and therefore the first
+that can make the claims the earlier ones had to defer.
+
+```
+data/venv-training/bin/python data/scripts/export_nn_model.py
+```
+
+Nothing that gates anything was re-run: no sweep, no Gate-2 re-baseline, no
+relabeling. `dataset_digest` is still
+`2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`, verified by the
+exporter itself before it will proceed, and `two_tower`'s ordering in
+`train_models.main()` is untouched because nothing here reaches it.
+
+**What state this reaches, and the vocabulary problem it exposes.** `CONTEXT.md`'s
+four states are distinct and none implies an earlier one. This ticket delivers
+**Servable** for real (an artifact now exists and the serving code executes it with
+measured attribution) and performs the post-export revalidation **Deployable**
+requires — but it does **not** reach Deployable, and saying otherwise would be the
+exact four-state conflation `CONTEXT.md` exists to prevent:
+
+> **Deployable**: Qualified, Servable, and revalidated against the Gate 1 thresholds
+> *after* export in its exact shipped configuration.
+> **Qualified**: Cleared Gate 1 — calibrated and stable.
+
+`matcher_nn_v1` is stable and **not calibrated**, so it is not Qualified, so it is
+not Deployable. **ADR 0002 splits the ship *floor*; it does not split the *state*.**
+The two documents are in genuine tension — ADR 0002 says a model failing ECE "may
+still ship as the *ranking* source", which describes something the four states have
+no name for. This record does not invent one, and does not stretch "Deployable" to
+cover it. **Reconciling that vocabulary belongs to DEV-98**, which writes the
+decision document; flagged here rather than quietly resolved.
+
+The accurate sentence: *`matcher_nn_v1` may serve the ranking under ADR 0002's
+mitigation, with displayed percentages falling back to the formula's.*
+
+`MATCHER_MODEL_PATH` is unchanged everywhere and **production still runs the
+formula**. Precisely: it is blank in `.env.example` and defaults to blank in
+`docker-compose.yml`; `backend/.env:23` still points at the stale
+`matcher_logistic_v1.json`, which is untouched by this ticket and never reaches the
+services anyway, because compose reads the root `.env`. Flipping the live one is
+DEV-99 and reserved for human approval.
+
+**The configuration is read, not retyped.** `selected_specification` in
+`round2_results.json` is generated from `inspect.signature`, and the exporter
+rebuilds from it. The reconstruction is then *proved* faithful rather than argued:
+revalidating reproduced DEV-95's recorded ship floor at **max drift exactly 0** on
+both numbers. That is what rules out a silently changed default — a signature audit
+would not have. One parameter, `val_size`, postdates the record (DEV-96 added it);
+it is reported at run time rather than absorbed silently, and the zero drift is the
+evidence it is inert.
+
+#### The split ship floor, and why the exporter does not simply refuse
+
+| half | measured | floor | verdict |
+|---|---|---|---|
+| top-2 stability (**hard**, ADR 0002) | **0.7345667591736047** | >= 0.60 | **CLEARS** |
+| pooled OOF ECE (**mitigable**, ADR 0002) | **0.13922660469462908** | <= 0.10 | **FAILS** |
+
+Both reproduce DEV-95 to the last digit. DEV-97's acceptance criterion says export
+"refuses to write when it fails"; taken flat that refuses to write the model the
+project has already decided to ship, and the ticket's own scope-note comment says
+so. So the exporter distinguishes the halves: it **refuses on stability**, which
+ADR 0002 gives no mitigation, and on **ECE it writes and records the failure**.
+
+The mitigation is carried where a consumer cannot miss it. The artifact has no bare
+`deployable: true` to misread — `deployment.status` is the string `"ranking_only"`,
+`deployment.match_percent` reads `FALL BACK TO THE FORMULA`, and a fourth entry
+joins `caveats`, which travel inside the artifact to the recommendations response,
+the persisted history and the results UI. **This model may serve the ranking; its
+percentages are not calibrated and must not be displayed as if they were.**
+
+**The deployment temperature is 0.80**, fitted by `fit_temperature` on
+ensemble-averaged OOF — `SeedEnsemble.predict_proba`, the mean of the members'
+probabilities, which is the quantity DEV-94's attribution takes the logit of. It is
+the same-pool fit `train_models.temperature_scale`'s docstring still calls honest
+for choosing one shipped constant, and it is **not** ADR 0004's per-outer-fold
+cross-fitted temperature, which still governs any *reported* ECE. (ADR 0004 itself
+enumerates no "two honest uses" — that phrasing belongs to the `temperature_scale`
+docstring, and the DEV-94 record above miscites it the same way. Left as written
+there, corrected here.) Note the direction: the linear artifact's 1.05 softens, this one
+**sharpens**. Ranking is unaffected either way (temperature scaling is monotone
+within a row); only the displayed percentage moves, and for this model the displayed
+percentage is the thing the ECE failure says not to trust.
+
+#### The parity work found a real defect, and it was not a small one
+
+Torch trains in float32; the serving path computes in float64. Over the complete
+232-row dataset, per member and for the ensemble average, the naive export diverged
+by up to **1.03e-2** in probability — a full percentage point of `matchPercent`,
+which is exactly the "the served model is not the model that was evaluated" failure
+DEV-97 exists to prevent.
+
+The cause is not the network. Feeding the *same* standardized matrix to both
+runtimes agrees to **1.6e-6**, so the forward pass was always fine. It is the
+standardization, and the intuitive diagnosis of it is wrong:
+
+- `NNClassifier` uses `scale_ = X.std(axis=0) + 1e-8`, so a column that never varied
+  gets a scale of ~1e-8 instead of a zero it could branch on. Five of the 84
+  features are exactly constant on this dataset (`fullstack_skill`, `mobile_skill`,
+  `game-dev_skill`, `technical-writer_skill`, `software-architect_skill`).
+- The tempting conclusion is that such a column standardizes to 0.0 and is inert.
+  **It does not.** `mean_` is the float32 mean of 232 values and accumulates
+  rounding: `game-dev_skill` is 0.8 in every row, `float32(0.8) = 0.800000011920929`,
+  and the computed mean is `0.8000001311302185`. The residual is -1.19e-7 over a
+  scale of 1.29e-7, so **training fed the network a constant -0.9226 on that input**
+  and the network absorbed it as an extra bias.
+- Serving cannot reproduce that by copying the numbers across: in float64 the same
+  expression gives **-1.0149**, a different constant. An intermediate attempt to
+  emit `scale = 0.0` was also wrong, and measurably so — it fed 0.0 where training
+  fed -0.9226 and made the divergence *worse* (9.8e-2).
+
+The fix is exact rather than compensatory: each constant column's fixed contribution
+is folded into the first layer's bias (`bias += W[:, j] * v_j`), its weight column
+zeroed, and its scale exported as 0.0 — the case `matcher_nn` already branches on.
+The composed function is identical to training's for every input, and the ~1e7
+amplification leaves the serving path instead of being cancelled inside it.
+
+| export | max abs probability divergence, complete dataset |
+|---|---|
+| naive (copy `mean_`/`scale_`) | 1.03e-2 |
+| `scale = 0.0` for constant columns | 9.80e-2 |
+| **folded into the bias (shipped)** | **3.15e-7** |
+
+Parity is asserted **per member and for the ensemble**, because the average is
+order-invariant and five members mapped to the wrong seeds would produce a perfectly
+plausible one. `test_member_order_is_not_scrambled` therefore also asserts each
+serialized member *disagrees* with the other four; without that half a permutation
+passes every other check in the file.
+
+**Thumbs on the scale, counted.**
+
+- **Tolerance `1e-5`**, chosen from what the runtimes can differ by rather than from
+  what passed: float32 eps is ~1.2e-7 and three layers of accumulation put the floor
+  near 1e-6. The measured maximum across every check is 4.7e-7, and the defect it
+  had to catch was 1.03e-2 — three orders of magnitude above the bar on one side,
+  twenty-odd below it on the other.
+- **Rows actually compared: all 232**, times 16 careers, times 5 members
+  individually plus the ensemble — not a sample. Plus 200 randomized vectors. Logits
+  are compared per member on the same 232 rows, at a *relative* bar (they are
+  unbounded, so an absolute one would be a weaker claim on rows with large logits).
+- **The randomized vectors hold the five constant columns at their training value.**
+  Varying them would not compare the runtimes; it would compare two extrapolations
+  of a feature the model has no information about, where torch's ~1e7 slope makes
+  any disagreement meaningless. That is a deliberate exclusion and it is the one
+  place the randomized test is narrower than it looks.
+- **The ECE failure is reported in this record before the parity work and in the
+  same table as the stability pass**, not appended as a footnote.
+
+**Where the parity tests live, and why.** In `data/scripts/tests/`, under the
+training venv — the only environment that can hold torch *and* import the real
+`NeuralMatcher`. Reimplementing the numpy forward pass under `data/scripts/` to dodge
+the import was rejected: it would compare two copies of the same code and pass while
+proving nothing. The import needs one disclosed shim — `matcher_nn` reaches
+`common.config` and therefore `pydantic_settings`, which the hash-pinned training
+venv does not have and must not gain, so `common.config` is stubbed to a log level.
+**The code under test is byte-identical**; only a logging dependency it never
+exercises is replaced. Nothing was installed into `data/venv-training`.
+
+#### The linear path had no parity check. It does now.
+
+Checked rather than assumed: `services/matching/tests/test_matching_with_model.py`
+says "shape parity" but means the *response* shape, and drives `MatcherModel` from
+hand-built artifacts with round coefficients. Nothing compared the fitted sklearn
+estimator against the stdlib reimplementation that serves it — which matters
+because that reimplementation is pure `math`, so a divergence would announce itself
+as nothing at all. `data/scripts/tests/test_export_model.py` adds it: complete
+dataset plus randomized vectors, max divergence ~1e-15 against a `1e-9` bar.
+
+One finding fell out of it. `MatcherModel` works in logit space and never clips,
+while `train_models.apply_temperature` works in probability space and must
+`clip(probs, 1e-9, 1.0)` to take a log. For a linear model these are the same
+function wherever the clip does not bind — but off-distribution vectors drive
+sklearn's probabilities to ~1e-47, where it binds hard and the two references
+disagree by 4.0e-8. The reference is therefore the unclipped logit-space quantity,
+with a test pinning that it agrees with the probability-space one on the real data,
+so the choice is not a quiet redefinition of what `temperature` means. This is a
+property of the two *reference* implementations, not a defect in serving.
+
+#### The IG fall-through rate on the model that actually ships
+
+DEV-94 could only measure a synthetic artifact and said so, predicting that a
+`weight_decay=1e-2` network would be nowhere near `uniform(-1, 1)` and that the real
+rate was DEV-97's to measure. It is measured now:
+
+```
+cd services/matching && ../../backend/venv/Scripts/python tests/ig_diagnostics.py \
+    --artifact ../../data/models/matcher_nn_v1.json
+```
+
+| artifact | explanations | fell through | strict median | reached the 512 cap |
+|---|---|---|---|---|
+| real `matcher_nn_v1` | 640 | **75 = 11.7%** | 5.17e-4 | 146 |
+| real `matcher_nn_v1`, 100 profiles | 1600 | **167 = 10.4%** | 5.13e-4 | 350 |
+| synthetic, weight scale 1.0 (DEV-94) | 640 | 390 = 60.9% | 1.77e-3 | 507 |
+| synthetic, weight scale 0.3 (DEV-94) | 640 | 217 = 33.9% | 7.35e-4 | 349 |
+
+**DEV-94's prediction was right and its numbers were pessimistic by roughly a factor
+of five.** The real rate is ~10-12%, stable across the two sample sizes, and the
+strict median residual now sits *under* the 1e-3 tolerance rather than above it. The
+synthetic rows still reproduce exactly, which is what confirms the change to
+`ig_diagnostics.py` measures the artifact rather than moving the goalposts.
+
+**This does not settle the open cap/tolerance decision, and it is not this ticket's
+to settle** — it is an accuracy/latency/tolerance trade reserved for a human
+(todo.txt section 2, plan Step 5.2). What it does is resize it: "a large minority of
+careers emit no model-derived reasons" is no longer the right description of the
+shipped model; "about one in nine" is. Whether that is acceptable, or worth buying
+down by raising the cap or by changing what "relative" divides by, is unchanged as a
+question.
+
+**The q11-q18 interaction, so no reader is misled.** `reason_builder.py:18` defines
+`QUESTION_PHRASES` for q1-q10 and that dict is also the iteration set (`:71`). The
+attributions this artifact produces cover all 18 questions correctly and **16 of the
+36 question features are discarded downstream until DEV-89 lands**. Unchanged by this
+ticket and deliberately not fixed in it: DEV-89 is a blocker of the *merge*, not of
+the build.
+
+**Test counts.** The five service suites go **297 -> 298** (questionnaire 18,
+matching **138**, roadmap 30, auth 31, history 81). This ticket adds no service
+*code*, and the **pre-existing 137 matching tests are unchanged**, which is what
+shows the formula path is still inert. The one addition is
+`test_the_shipped_neural_artifacts_caveats_reach_the_recommendations`: the existing
+caveat-propagation tests drive a stub with hand-set caveats, so nothing carried the
+real artifact's own caveats to a response. It skips if the artifact is absent.
+
+`data/scripts/tests` goes **83 -> 111** under the training venv: 23 in
+`test_export_nn_model.py` (the split-floor branch, the reconstruction, the fold, the
+parity family, the artifact round-trip through `load_matcher`) and 5 in
+`test_export_model.py` (the linear parity check that was owed). Under `backend/venv`
+it is **7 passed + 11 skipped**, up from 7 + 9: the two new modules skip whole
+because they `importorskip` torch and sklearn. **The 7 passed did not move**, which
+is what shows no module un-skipped and the training/serving venv separation is
+intact.
+
+**What the code review changed**, since none of it was polish. It caught that
+`main()` reconstructed the shipping estimator a *second* time by hand, bypassing
+every guard `build_estimator` performs — so the validated configuration was not the
+one that got serialized; `factory()` now goes through `build_estimator`. It caught
+that `constant_feature_mask` tested constancy in **float64** while the pathology is
+triggered by `std` collapsing in **float32**, leaving a column that varies only
+below float32 resolution unfolded and pathological. It caught that
+`training_standardized` widened `scale` before dividing, so it was not quite the
+float32 expression it claimed to reproduce. It caught that the new
+`--artifact` branch of `ig_diagnostics.py` read `members`/`temperature`, which are
+not on the `Matcher` protocol, so a linear artifact would load and then crash. And
+on the spec axis it caught that parity was asserted on probabilities only, when the
+acceptance criterion says "logits **and** probabilities" — softmax is invariant to a
+shared additive shift, so probability parity alone would miss a uniform logit drift,
+and logits are the quantity the attribution is expressed in. All five are fixed and
+the artifact was re-exported; the two dtype fixes moved the serialized biases, which
+is why `test_the_shipped_artifact_is_the_model_that_was_evaluated` failed until it
+was.
+
 ## Pipeline order
 
 ```

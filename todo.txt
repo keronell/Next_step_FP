@@ -49,7 +49,29 @@ time, so it survives the trip between machines.
 
 
 ================================================================
-1. NEXT TICKET: DEV-97 -- export the selected neural matcher
+1. DONE: DEV-97 -- export the selected neural matcher
+================================================================
+LANDED 2026-08-03. data/scripts/export_nn_model.py writes
+data/models/matcher_nn_v1.json. Record: data/scripts/README.md
+"Reproduction record (DEV-97)".
+
+  * Gate-1 revalidation reproduced the DEV-95 ship floor at max drift 0:
+    stability 0.7345667591736047 CLEARS the hard floor, ECE
+    0.13922660469462908 FAILS the mitigable one. The exporter refuses on
+    stability and records-and-mitigates on ECE, per ADR 0002 and the
+    ticket's own scope note. deployment.status is "ranking_only" and a
+    caveat carries the mitigation to the response.
+  * Deployment temperature 0.80, fitted on ensemble-averaged OOF. It
+    SHARPENS, where the linear artifact's 1.05 softens.
+  * PARITY CAUGHT A REAL DEFECT worth 1.03e-2 in probability. Five
+    features are exactly constant, NNClassifier's scale_ = std + 1e-8
+    does NOT make them standardize to zero (the float32 mean of 232 rows
+    carries rounding, so training fed -0.9226 on game-dev_skill), and
+    float64 serving computed -1.0149 instead. Fixed by folding the
+    constant into the first layer's bias. Shipped divergence 3.15e-7.
+  * The linear path had no sklearn-vs-served parity check. Added.
+
+Superseded original notes below, kept for the reasoning:
 ================================================================
 Execution-order item 9, second half. Writes data/scripts/export_nn_model.py,
 mirroring export_model.py, plus Gate-1 revalidation of the exact exported
@@ -99,7 +121,24 @@ a trained artifact, so they belong in the training venv alongside the exporter.
 ================================================================
 2. THE OPEN DECISION I COULD NOT MAKE -- NEEDS A HUMAN
 ================================================================
-THE IG STEP CAP IS ABOUT AN ORDER OF MAGNITUDE SHORT.
+THE IG STEP CAP IS SHORT -- BUT BY LESS THAN DEV-94 COULD TELL.
+
+MEASURED ON THE REAL ARTIFACT (DEV-97, 2026-08-03), which is what section
+2 below asked for and could not do:
+
+    cd services/matching && ../../backend/venv/Scripts/python         tests/ig_diagnostics.py --artifact ../../data/models/matcher_nn_v1.json
+
+    640 explanations : 75 fell through = 11.7%, strict median 5.17e-4
+    1600 explanations: 167 fell through = 10.4%, strict median 5.13e-4
+
+DEV-94's synthetic 60.9% was pessimistic by roughly a factor of five, and
+its prediction that a weight_decay=1e-2 network would behave better was
+right. The strict median now sits UNDER the 1e-3 tolerance rather than
+above it. "A large minority of careers" is no longer the right
+description of the shipped model; "about one in nine" is.
+
+THE DECISION IS STILL A HUMAN'S -- it is resized, not settled. The three
+options below are unchanged as options.
 
 The integrand jumps at every ReLU breakpoint, so the midpoint Riemann sum is
 O(1/m), not O(1/m^2). At the plan's tolerance (relative completeness residual
@@ -121,12 +160,9 @@ accuracy / latency / tolerance trade, not a bug. The options are:
     - accept the fall-through as designed ("better silence than attributions
       that do not sum to what they claim").
 
-DO NOT SETTLE THIS ON THE SYNTHETIC FIXTURE. A weight_decay=1e-2 trained
-network is nowhere near uniform(-1,1). MEASURE IT ON THE REAL ARTIFACT ONCE
-DEV-97 EXISTS:
-    cd services/matching && ../../backend/venv/Scripts/python tests/ig_diagnostics.py
-(that script regenerates the table in the DEV-94 record; point it at the real
-artifact instead of the synthetic one).
+(DONE: measured above. ig_diagnostics.py now takes --artifact; with no
+--artifact it still reproduces the DEV-94 synthetic table exactly, which is
+what proves the change measures the artifact rather than moving goalposts.)
 
 Full write-up: docs/dev-23-nn-rework-plan.md Step 5.2, and the DEV-94
 reproduction record in data/scripts/README.md.
@@ -198,11 +234,34 @@ pre-existing matching tests are what shows the formula path is inert.
 ================================================================
 6. STATE AS OF THIS COMMIT
 ================================================================
-Branch dev-23. Done: DEV-87, 88, 90, 91, 92, 93, 95, 96, 94.
-Service suites 297 = questionnaire 18 + matching 137 + roadmap 30 + auth 31 +
-history 81.  data/scripts/tests = 83 (training venv), 7 passed + 9 skipped
-(backend/venv).
+Branch dev-23. Done: DEV-87, 88, 90, 91, 92, 93, 95, 96, 94, 97.
+Service suites 298 = questionnaire 18 + matching 138 + roadmap 30 + auth 31 +
+history 81. DEV-97 adds no service CODE; the one new matching test carries the
+real artifact's caveats to a response (the existing ones used a stub). The
+pre-existing 137 matching tests are unchanged, which is what shows the formula
+path is still inert.
+data/scripts/tests = 111 (training venv, was 83), 7 passed + 11 skipped
+(backend/venv, was 7 + 9 -- the two new modules skip whole; the 7 passed did
+not move, so nothing un-skipped).
 
 CONTEXT.md's four states are distinct and none implies an earlier one.
-DEV-94 delivered the implementation half of SERVABLE. NOTHING IS DEPLOYABLE,
-and there is no trained neural artifact yet.
+DEV-94 delivered the implementation half of SERVABLE. DEV-97 produced the
+first trained neural artifact, so SERVABLE now holds for real, and ran the
+post-export revalidation DEPLOYABLE requires.
+
+IT IS NOT DEPLOYABLE, and DEV-98 has a vocabulary problem to settle.
+CONTEXT.md defines Deployable as "Qualified, Servable, and revalidated",
+and Qualified as "cleared Gate 1 -- calibrated AND stable". matcher_nn_v1
+is stable and NOT calibrated, so it is not Qualified and not Deployable.
+ADR 0002 splits the ship FLOOR, not the STATE -- it says a model failing
+ECE "may still ship as the ranking source", which is a condition the four
+states have no name for. Do not stretch "Deployable" to cover it; name it.
+The accurate sentence is: matcher_nn_v1 may serve the RANKING under
+ADR 0002's mitigation, with displayed percentages falling back to the
+formula's.
+
+MATCHER_MODEL_PATH is unchanged: blank in .env.example, blank by default
+in docker-compose.yml, and backend/.env:23 still points at the stale
+matcher_logistic_v1.json (which never reaches the services -- compose
+reads the root .env). Production runs the formula. Flipping it is DEV-99
+and needs human approval.
