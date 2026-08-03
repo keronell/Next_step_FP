@@ -41,14 +41,17 @@ against the alternatives?** Everything below serves that.
 
 ## Constraint that bounds every claim below
 
-Silver labels are ~94% circular with the `careers.json` bonus table. **No metric
-here is evidence of real-world recommendation quality.** Everything measures
+Silver labels are ~94% circular with the `careers.json` bonus table — **measured at
+94.5% by DEV-98** (`data/scripts/measure_circularity.py`), a literal until then. **No
+metric here is evidence of real-world recommendation quality.** Everything measures
 fidelity to a hand-authored weight table. See Step 4.
 
 Vocabulary used precisely throughout — *Qualified*, *Selected*, *Servable*,
-*Deployable*, *Ship Floor*, *Incumbent*, *Residual Matcher* — is defined in
-[`CONTEXT.md`](../CONTEXT.md). These were used interchangeably in rev 2 and that
-is what produced its circular deployability wording.
+*Deployable*, *Ranking-Deployable*, *Ship Floor*, *Incumbent*, *Residual Matcher* — is
+defined in [`CONTEXT.md`](../CONTEXT.md). These were used interchangeably in rev 2 and
+that is what produced its circular deployability wording. *Ranking-Deployable* is new
+in DEV-98: ADR 0002 splits the Ship Floor into a hard and a mitigable half but does not
+split the *state*, so a model that is stable and not calibrated had no name.
 
 ---
 
@@ -540,6 +543,26 @@ labels.
 
 ### 4.1 Circularity — documented, not engineered around
 
+> **Status: DONE (DEV-98, 2026-08-03).** Written up in
+> [`dev-23-nn-decision.md`](./dev-23-nn-decision.md) §7. Three things this step asked
+> for as prose turned out to be measurable or wrong, so they were measured or
+> corrected rather than repeated:
+>
+> - **The ~94% is now computed**, not quoted: `data/scripts/measure_circularity.py`
+>   reads the raw vote log and gives **615 / 651 = 94.5%** of stage-2 votes following
+>   the tie-breaker key (94.9% at the consensus-label level; 79.3% under the strict
+>   +3-primary-rules reading). It was a literal everywhere it appeared — including
+>   inside both artifacts' `caveats`, which reach users — and no script computed it.
+>   `data/scripts/tests/test_measure_circularity.py` now pins the shipped caveat text
+>   against the measurement.
+> - **Stage-1 containment is 678 / 678 = 100%** and is *structural*, not evidence: the
+>   shortlist is derived from `careers.json` and the prompt permits nothing outside it.
+>   This is the strongest circularity fact available and the easiest to over-read.
+> - **The Fleiss κ figure below is wrong.** The shipped `panel-v2.1.0` labels record
+>   **κ = 0.857** (pairwise Cohen's 0.843 / 0.853 / 0.875). "0.88–0.92" matches no run
+>   in this tree — 0.930 was the rejected clone-persona `panel-v1.0.1`, 0.864 was
+>   `panel-v1.1.0`. The caveat's direction is unchanged.
+
 No NN work addresses this and none is attempted.
 
 1. A **Validity** section stating plainly that every gate metric is agreement with
@@ -782,6 +805,33 @@ already has the sklearn-vs-stdlib analogue, adding it if not.
 
 ## Step 6 — Decision, and the line I will not cross
 
+> **Status: DONE (DEV-98, 2026-08-03).** The document is
+> [`dev-23-nn-decision.md`](./dev-23-nn-decision.md). What actually happened:
+>
+> - **Shipped:** `matcher_nn_v1` — Variant `D5_ensemble_dropout_0.5_wd_1e-2`, a
+>   5-member `SeedEnsemble`, trunk 84 → 64 → 32 → 16, deployment temperature 0.80.
+> - **Ship floor, split:** top-2 stability **0.7346** clears the hard half (5 of 5
+>   seeds); pooled OOF ECE **0.1392** fails the mitigable one (1 of 5 seeds clear).
+>   So it is **Ranking-Deployable**, not Deployable — see below.
+> - **Standing:** δ = **−0.0181** [−0.0440, +0.0060] vs `logistic_tuned`, materiality
+>   marker **not** cleared; δ = **−0.0440** [−0.0750, −0.0138] vs `gbt_tuned`,
+>   materiality cleared. It is behind both.
+> - **Learning curve:** flat / inconclusive against both, so more labels of this kind
+>   are not measurably closing the gap.
+> - **Three of the five outcome rows below fired at once** (the α = 0 substitution, the
+>   `gbt_tuned` Gate-2 win, and a partial match on "materially behind logistic" — it is
+>   behind, but 0.0181 does not clear the 0.02 marker). Each row was written as though
+>   it were the only one.
+> - **`MATCHER_MODEL_PATH` is untouched.** Production runs the formula.
+>
+> **The vocabulary gap this step exposed, and how it was closed.** The outcome table
+> below and ADR 0002 together describe a model that may serve the ranking while failing
+> ECE — a condition `CONTEXT.md`'s four states could not express, because ADR 0002
+> splits the Ship *Floor* and not the *state*. DEV-97 flagged it rather than stretching
+> "Deployable". DEV-98 resolves it by **adding one state**, `Ranking-Deployable`,
+> instead of amending `Qualified` or `Deployable` — amending either would retroactively
+> change what every earlier record meant by those words.
+
 **Two phases, in order.** Rev 2's wording was circular — the NN had to be servable
 to be selected, but its serving path was built only after selection.
 
@@ -893,6 +943,10 @@ The order is now driven by dependencies alone.
    torch-vs-numpy parity tests stay with DEV-97, which is where a trained artifact
    and a torch runtime both exist — `backend/venv` has neither.
 10. **Steps 4 + 6 writeups** with real numbers; `docs/dev-23-nn-decision.md`.
+    — **DONE (DEV-98, 2026-08-03):** the decision document, the `Ranking-Deployable`
+    state added to `CONTEXT.md`, and `data/scripts/measure_circularity.py` — which
+    turns the ~94% circularity claim from a literal into a measurement (94.5%) and
+    pins both artifacts' shipped caveat text against it.
 11. Report and **wait** on the `MATCHER_MODEL_PATH` question.
 
 *In parallel, off the critical path:* the q11–q18 ticket and branch off `main`

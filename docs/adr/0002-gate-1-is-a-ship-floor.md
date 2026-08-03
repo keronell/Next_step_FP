@@ -28,3 +28,22 @@ differently.
   repo already applies to every learned model.
 - It is known achievable on this data — `logistic_tuned` clears both
   (ECE 0.0341, stability 0.6375).
+
+## Observed on the decision writeup (DEV-98, 2026-08-03)
+
+The decision is unchanged. One attribution above is wrong and matters, because the
+floor's achievability is the sentence the whole "we apply it anyway" argument rests on:
+
+- **ECE 0.0341 / stability 0.6375 belong to `logistic`, not `logistic_tuned`.** They are
+  `gate1_verdict.json`'s `logistic` row — the **fixed `C = 1.0`** configuration that
+  `matcher_logistic_v2.json` actually serialises. Gate 2's `logistic_tuned` re-selects
+  `C` per outer fold (4.0, 4.0, 4.0, 0.05, 0.25) and its *raw* ECE is **0.103**, which
+  would fail this floor. Both numbers are honest; they describe different models.
+- **The claim survives the correction, and is if anything stronger.** The floor is known
+  achievable by the exact configuration that ships, rather than by a nested protocol
+  with no artifact. `nn_rework.md`'s C-sensitivity table shows raw ECE ranging 0.0341 at
+  `C = 1.0` to 0.2898 at `C = 0.05` for the identical estimator, so raw calibration here
+  tracks `C` rather than model family — which is why naming the configuration, not the
+  protocol, is what makes the sentence true.
+- Consequence for `CONTEXT.md`'s **Incumbent**: it is the exported artifact, since
+  `logistic_tuned` has no single configuration and therefore cannot be Deployable.

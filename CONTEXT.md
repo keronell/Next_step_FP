@@ -74,8 +74,10 @@ Version differs from the serving code is refused at load rather than adapted.
 
 ### Selection and shipping
 
-These four are distinct and were previously used interchangeably. They are
-evaluated in this order, and none of them implies any of the earlier ones.
+These are distinct and were previously used interchangeably. The first four are
+evaluated in that order, and none of them implies any of the earlier ones.
+**Deployable** and **Ranking-Deployable** are the two terminal states, and they are
+mutually exclusive — a model is in at most one of them.
 
 **Qualified**:
 Cleared Gate 1 — calibrated and stable. A property of one exact configuration,
@@ -91,7 +93,20 @@ or tolerance-tested attribution. A property of the serving code, not the model.
 
 **Deployable**:
 Qualified, Servable, and revalidated against the Gate 1 thresholds *after* export
-in its exact shipped configuration. The only state that permits serving.
+in its exact shipped configuration. The only state that permits serving both the
+ranking and the displayed percentages.
+
+**Ranking-Deployable**:
+Servable, and revalidated after export to clear the **hard** half of the Ship Floor
+(top-2 stability) while failing the **mitigable** half (ECE). Permits serving the
+*ranking only*, with displayed `matchPercent` falling back to the Formula's, per
+[ADR 0002](./docs/adr/0002-gate-1-is-a-ship-floor.md). Its machine-readable form is
+the artifact's `deployment.status: "ranking_only"`.
+Such a model is **not Qualified** — Gate 1 is calibrated *and* stable — and therefore
+**not Deployable**; this is a separate terminus, never a weaker Deployable, and it can
+never make a model the Incumbent. ADR 0002 splits the Ship Floor, not the state; this
+term is what closes that gap (DEV-98).
+_Avoid_: partly deployable, deployable with caveats, conditionally deployable
 
 **Ship Floor**:
 The properties a model must have to serve at all, independent of how it ranks

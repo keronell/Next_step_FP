@@ -1104,6 +1104,173 @@ the artifact was re-exported; the two dtype fixes moved the serialized biases, w
 is why `test_the_shipped_artifact_is_the_model_that_was_evaluated` failed until it
 was.
 
+### Reproduction record (DEV-98, 2026-08-03)
+
+The decision document — `docs/dev-23-nn-decision.md` — plus the plan's Step 4 and
+Step 6 writeups, the vocabulary fix, and one new script. **Nothing was retrained,
+re-exported, re-swept or re-tuned**; `dataset_digest` is untouched at
+`2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27` and every figure in
+the document is read back from `data/training/*.json`, the two artifacts, or the
+measurement below.
+
+#### The one number in this deliverable that had never been computed
+
+Every report in this tree, ADR 0001, plan Step 4.1, `evaluate_matchers.py`'s docstring
+and — the reason it matters — the `caveats` list **inside both exported artifacts**
+carry the claim that the panel's stage-2 vote "follows the answer key derived from
+`careers.json` bonuses ~94% of the time it speaks". Nothing computed it. It is easy to
+assume `panel_label_profiles.py` does, because it writes a superficially similar
+formula-vs-panel figure into `synthetic_agreement_report.md`; that number is 52.2% and
+answers a different question.
+
+```bash
+data/venv-training/bin/python data/scripts/measure_circularity.py
+```
+
+| reading | measured | what it is |
+|---|---|---|
+| stage-2 top-1 inside the stage-1 shortlist | 678 / 678 = **100.0%** | **structural, not evidence** — the prompt permits nothing else |
+| stage-2 top-1 follows the tie-breaker key (any bonus) | 615 / 651 = **94.5%** | the quoted "~94% of the time it speaks" |
+| the same, primary (+3) rules only | 516 / 651 = **79.3%** | the strict reading, materially weaker |
+| the consensus **label** follows the key | 206 / 217 = **94.9%** | carries the vote-level rate to what models train on |
+
+**The claim reproduces.** The script recomputes the >= 2/3 consensus filter from the
+raw vote log rather than reading `silver_labels.parquet`, and gets **232** profiles —
+so the vote log and the recorded dataset still describe one dataset, and the 94.5% is
+measured over exactly the votes that produced the shipped labels.
+
+`tests/test_measure_circularity.py` (7 tests) then pins **the shipped caveat text**
+against the measurement, parsing the rate out of both artifacts rather than
+string-matching a sentence `build_caveats` owns. Regenerating the labels now breaks the
+build instead of quietly leaving every artifact asserting a stale rate to users.
+
+The stage-1 and answer-key logic is **imported** from `panel_label_profiles`, not
+reimplemented — a reimplementation would compare two copies of the same logic and agree
+while proving nothing, the same reasoning that put the DEV-97 parity tests in the
+training venv. That import needs one disclosed shim: the module imports `requests` and
+`tqdm` for the Ollama call, which the hash-pinned training venv does not have and must
+not gain, so both are stubbed. Nothing reached from here touches either, and the
+imported code is byte-identical. **Nothing was installed into `data/venv-training`.**
+
+#### Two recorded figures were wrong, and both are corrected
+
+- **Fleiss κ.** Plan Step 4.1 and the DEV-98 ticket both say "κ ≈ 0.88–0.92". That
+  matches no run in this tree. `synthetic_agreement_report.md` records **0.857** for the
+  shipped `panel-v2.1.0` labels (pairwise Cohen's 0.843 / 0.853 / 0.875); 0.930 was the
+  rejected clone-persona `panel-v1.0.1` and 0.864 was `panel-v1.1.0`. Corrected in the
+  plan and in the decision document. The caveat's *direction* is unchanged — a κ near
+  1.0 would be a red flag for persona non-independence, not a quality guarantee.
+- **Which `logistic` clears the ECE floor.** ADR 0002 says the floor "is known
+  achievable — `logistic_tuned` clears both (ECE 0.0341, stability 0.6375)". Those
+  numbers are `gate1_verdict.json`'s **`logistic`** row, the fixed `C = 1.0`
+  configuration `matcher_logistic_v2.json` actually serialises. Gate 2's
+  `logistic_tuned` selects `C` per outer fold (4.0, 4.0, 4.0, 0.05, 0.25) and its *raw*
+  ECE is **0.103**, which would fail the same floor. Both are honest and they are
+  different configurations. **Corrected in `docs/adr/0002` itself**, in the
+  "Observed on..." style ADRs 0003 and 0004 already use — describing the error only in
+  a downstream document would have left the ADR still asserting it. The decision stands;
+  the claim survives the correction and is if anything stronger, since the floor turns
+  out to be achievable by the exact configuration that ships rather than by a nested
+  protocol with no artifact.
+
+  **This propagates to `Incumbent`.** `CONTEXT.md` defines it against **Deployable**, and
+  `logistic_tuned` — having no single configuration and no artifact — cannot be
+  Deployable. The Incumbent is therefore `matcher_logistic_v2.json`, the exported fixed
+  `C = 1.0` artifact. The consequence is a real limitation and the decision document
+  carries it: **every effect size in this deliverable is measured against
+  `logistic_tuned`, which is not the model that would actually be replaced**, and no
+  round measured the neural matcher against the artifact's configuration. The available
+  (unpaired, different-protocol) evidence points to that gap being *wider* — `C = 1.0`
+  scores top-2 0.8707 against `logistic_tuned`'s nested 0.849 — so it is stated as a
+  direction and **no δ is computed from it**.
+
+#### The vocabulary gap DEV-97 handed here, and how it is closed
+
+`CONTEXT.md` defined **Deployable** as "Qualified, Servable, and revalidated" and
+**Qualified** as "cleared Gate 1 — calibrated *and* stable". `matcher_nn_v1` is stable
+and **not** calibrated, so it is neither. But ADR 0002 says a model failing the ECE half
+"may still ship as the *ranking* source" — a real, intended condition with no name,
+because **ADR 0002 splits the ship *floor*, not the *state***.
+
+Resolved by **adding one state**, `Ranking-Deployable`, rather than amending `Qualified`
+or `Deployable`: amending either would retroactively change what every earlier record
+meant by those words, which is the four-state conflation `CONTEXT.md` exists to prevent.
+Its machine-readable form is the `deployment.status: "ranking_only"` string the artifact
+already carries, so the vocabulary term and the artifact field are one concept. It is
+explicitly **not** a weaker `Deployable`, and it can never make a model the `Incumbent`
+(defined against `Deployable`).
+
+The only deployability sentence the document asserts: *`matcher_nn_v1` is
+Ranking-Deployable — it may serve the ranking under ADR 0002's mitigation, with
+displayed percentages falling back to the formula's.*
+
+#### Thumbs on the scale, counted
+
+The document's own §9 counts eight; the three worth repeating here because they are
+about **this** ticket's honesty rather than the training runs':
+
+- **The ECE failure is reported before the stability pass** in every table it appears
+  in, and in the state sentence above — not appended as a footnote to a headline pass.
+- **Effect sizes quoted without a CI are named rather than left to be noticed**: the
+  ADR 0003 substitution cost (+0.0280 mean inner-CV, worst contest +0.0702), the
+  ensemble attributions (D5 − D6 = +0.0237, C3 − V0 = +0.0353), and every Gate-1 /
+  Gate-2 figure, which are single-partition point estimates. All are on the *selection*
+  metric, not the reported one.
+- **Which comparisons are paired is stated per comparison.** The §4 effect sizes, the
+  Round-1-vs-Round-2 δ and every learning-curve gap are exactly paired. The
+  artifact-vs-artifact and Gate-1 tables share a protocol and partition but differ in
+  estimator, so they size a change rather than transfer a verdict. The control curve's
+  two points share no profiles, so no CI is computed across them.
+
+#### Scope, stated because the temptation ran the other way
+
+`MATCHER_MODEL_PATH` is **unchanged everywhere** — blank in `.env.example`, blank by
+default in `docker-compose.yml`, and `backend/.env:23` still points at the stale
+6-career `features-v1` `matcher_logistic_v1.json`, which is correctly refused on load
+and never reaches the services anyway because compose reads the root `.env`. Production
+runs the formula. Flipping it is DEV-99 and is reserved for human approval; this
+document is the input to that approval, not the approval.
+
+No sweep was re-run (**there is no Round 3**), no model retrained, no artifact
+re-exported, and `matcher_nn.py`'s attribution maths is untouched. DEV-89 (q11–q18
+reason rendering) is untouched and remains a blocker of the serving *merge*; the
+document names it where a reader would otherwise be misled about explainability
+coverage.
+
+**What the code review changed**, since none of it was polish. **Both axes
+independently caught the same hard error**: the decision document called the Incumbent
+`logistic_tuned`, which is the exact `logistic`-vs-`logistic_tuned` conflation the same
+document was written to correct — it committed the error it documents, and
+`CONTEXT.md`'s definition of `Incumbent` (against `Deployable`) makes it a vocabulary
+violation rather than a wording slip. Fixed above, and it grew a real disclosure out of
+it: the comparator every δ uses is not the model that would be replaced. The Standards
+axis additionally caught that ADR 0002 was left carrying the wrong attribution while the
+plan's κ error had been corrected in place — an asymmetry with no defence — that a test
+docstring cited the wrong populations (678 / 226 rather than the 651 / 217 the rates are
+actually over), and that the record's venv paths broke the README's own POSIX
+convention. It also flagged `measure()` as one loop shape written twice and a 13-key
+string-indexed `stats` dict; both are gone — the two populations now run through a single
+`tally()` over a `Tally` dataclass, which is what makes it structurally impossible for
+the vote-level and label-level readings to drift apart by one acquiring a filter the
+other lacks. Every number reproduces byte-for-byte after the refactor. Three unused
+generality hooks (`measure(careers=...)`, `load_votes(prompt_version=...)`, and the
+matching CLI flag) were deleted rather than kept for a caller that does not exist.
+
+One correction the review did not raise and this record owes anyway: the decision
+document quoted DEV-94's **~200 ms/request** IG latency as though it described the
+shipped model. It does not — that was the synthetic fixture, which hit the 512-step cap
+in 507 of 640 explanations against the real artifact's 146. Cost is roughly linear in
+the steps actually taken, so the real figure is materially lower and **nobody has
+measured it**. It is now labelled an upper bound inherited from a harder fixture.
+
+**Test counts.** The five service suites are **unchanged at 298** (questionnaire 18,
+matching 138, roadmap 30, auth 31, history 81) — this ticket adds no service code and
+touches no served output. `data/scripts/tests` goes **111 → 118** under the training
+venv (the 7 new circularity tests). Under `backend/venv` it is **7 passed + 12 skipped**,
+up from 7 + 11: the new module skips whole because `panel_label_profiles` needs pandas.
+**The 7 passed did not move**, which is what shows the training/serving venv separation
+is intact and nothing un-skipped.
+
 ## Pipeline order
 
 ```
@@ -1247,3 +1414,20 @@ Audits the question bank for beginner-friendliness and quality flags.
 python data/scripts/audit_question_quality.py
 ```
 Output: `reports/question_bank_beginner_quality_*.{md,csv}`
+
+### `measure_circularity.py`
+Measures how far the silver labels reproduce the `careers.json` answer key — the
+"~94% of the time it speaks" claim that every report, ADR 0001, and the `caveats`
+inside both exported artifacts assert. Reads the raw vote log; imports
+`panel_label_profiles`'s own stage-1 shortlist and option→career key rather than
+reimplementing them. Needs the **training** venv (pandas), and installs nothing.
+
+```bash
+data/venv-training/bin/python data/scripts/measure_circularity.py
+data/venv-training/bin/python data/scripts/measure_circularity.py --json
+```
+Output: stdout only. Four readings — see the DEV-98 reproduction record above for what
+each one answers, and why shortlist containment is structural rather than evidence.
+`tests/test_measure_circularity.py` pins both artifacts' caveat text against it, so
+regenerating the labels fails the build rather than leaving a stale rate in front of
+users.

@@ -1,5 +1,32 @@
 DEV-23 NEURAL MATCHER REWORK -- WHAT IS LEFT
 Written 2026-07-31 after DEV-94 (commit 6f7ba12) on branch dev-23.
+Updated 2026-08-03 after DEV-97 and DEV-98.
+
+================================================================
+WHAT IS ACTUALLY LEFT, AS OF DEV-98
+================================================================
+Execution-order items 1-10 are DONE. Two things remain, NEITHER OF THEM AN
+AGENT'S:
+
+  (1) DEV-99 -- flip MATCHER_MODEL_PATH. Human approval only. The input to that
+      approval now exists: docs/dev-23-nn-decision.md. Read its section 7
+      (Validity) before deciding anything. Production runs the formula today.
+
+  (2) DEV-89 -- q11-q18 reason rendering. Own ticket, OWN BRANCH OFF main.
+      Hard prerequisite of MERGING the NN serving work. Still "To Do".
+
+Plus one open trade reserved for a human: the IG step cap (section 2 below).
+
+Section 0(a) below is STALE on this machine -- numpy is already installed in
+backend/venv (2.5.1). Verify before acting on it elsewhere. Section 0(c) is
+WRONG: e2e/ is untracked but NOT gitignored; .gitignore:29 is a DEV-93
+checkpoint rule. It is still not ours -- never `git add -A`.
+
+Baselines at DEV-98:
+  services/matching        -> 138 passed
+  data/scripts/tests       -> 118 passed (training venv), 7 passed + 12 skipped
+                              (backend/venv -- the 7 must not move)
+  five service suites      -> 298 total, unchanged since DEV-97
 
 NOTE: an earlier untracked todo.txt vanished during the DEV-96 session and was
 never recovered. This file is written fresh from the plan's execution order and
@@ -189,18 +216,56 @@ phrase.
 
 
 ================================================================
-4. AFTER DEV-97
+4. DONE: DEV-98 -- the decision document
 ================================================================
-Execution-order item 10: Steps 4 + 6 writeups with real numbers, and the new
-docs/dev-23-nn-decision.md. The honest-framing paragraph in plan Step 6 is the
-one thing that would make the deliverable indefensible if it is got wrong --
-these metrics can rank learned models against each other, they CANNOT justify
-replacing the formula, and the NN ships because the project requires it
-(ADR 0001).
+LANDED 2026-08-03. docs/dev-23-nn-decision.md, plus the plan's Step 4.1 / Step 6
+writeups and the CONTEXT.md vocabulary fix. Record: data/scripts/README.md
+"Reproduction record (DEV-98)". Nothing was retrained, re-exported or re-swept;
+the digest is untouched and no served output moved.
+
+  * THE VOCABULARY GAP IS CLOSED BY NAMING THE STATE, not by stretching
+    "Deployable". CONTEXT.md gains RANKING-DEPLOYABLE: Servable, revalidated,
+    clears the HARD half of the ship floor and fails the MITIGABLE one. Its
+    machine-readable form is the artifact's deployment.status "ranking_only",
+    so the word and the field are one concept. It is explicitly NOT a weaker
+    Deployable and can never make a model the Incumbent.
+    The only deployability sentence asserted anywhere: matcher_nn_v1 is
+    Ranking-Deployable -- it may serve the RANKING under ADR 0002's mitigation,
+    with displayed percentages falling back to the formula's.
+  * THE ~94% CIRCULARITY CLAIM WAS A LITERAL. Nothing computed it, and it sits
+    inside both artifacts' caveats where it reaches users. Now computed by
+    data/scripts/measure_circularity.py: 615/651 = 94.5% (94.9% at label level,
+    79.3% under the strict +3-rule reading, and 678/678 = 100% shortlist
+    containment which is STRUCTURAL, not evidence). The claim reproduces.
+    tests/test_measure_circularity.py pins the shipped caveat text against the
+    measurement, so regenerating the labels breaks the build.
+  * TWO RECORDED FIGURES WERE WRONG. Fleiss kappa is 0.857 for the shipped
+    panel-v2.1.0 labels, not the plan's "0.88-0.92" (which matches no run --
+    0.930 was the rejected clone-persona v1.0.1, 0.864 was v1.1.0). And ADR
+    0002's "logistic_tuned clears both (ECE 0.0341)" is gate1_verdict.json's
+    `logistic` row, the fixed C=1.0 config the artifact serialises; Gate 2's
+    logistic_tuned selects C per fold and its RAW ECE is 0.103, which would fail
+    the same floor. Both corrected in place (ADR 0002 gained an "Observed on..."
+    note; the decision itself is unchanged).
+  * THE INCUMBENT IS THE ARTIFACT, NOT logistic_tuned. CONTEXT.md defines
+    Incumbent against Deployable, and logistic_tuned has no single configuration
+    and no artifact, so it cannot be Deployable. The Incumbent is
+    matcher_logistic_v2.json (fixed C=1.0). CONSEQUENCE, and it is a real
+    limitation: every effect size in this deliverable is against logistic_tuned,
+    which is NOT the model that would actually be replaced, and no round measured
+    the NN against the artifact's configuration. Unpaired evidence says that gap
+    is WIDER (C=1.0 scores top-2 0.8707 vs the nested 0.849), so it is stated as
+    a direction and NO delta is computed from it. Both code-review axes caught
+    the original conflation independently.
+  * The honest-framing paragraph is section "The framing" at the top of the
+    document, before any number: these metrics can rank learned models against
+    each other, they CANNOT justify replacing the formula, and the NN ships
+    because the project requires it (ADR 0001).
 
 Execution-order item 11 / DEV-99: report and WAIT on the MATCHER_MODEL_PATH
 question. Nobody is authorised to flip it -- not .env.example, not backend/.env,
 not docker-compose.yml. It is blank today, so production runs the formula.
+The decision document is the input to that approval, not the approval.
 
 DEV-100 (separate, unrelated to the above): two_tower seeds from PROCESS-GLOBAL
 torch RNG rather than per fit, so its predictions depend on how many torch fits
@@ -234,31 +299,23 @@ pre-existing matching tests are what shows the formula path is inert.
 ================================================================
 6. STATE AS OF THIS COMMIT
 ================================================================
-Branch dev-23. Done: DEV-87, 88, 90, 91, 92, 93, 95, 96, 94, 97.
+Branch dev-23. Done: DEV-87, 88, 90, 91, 92, 93, 95, 96, 94, 97, 98.
 Service suites 298 = questionnaire 18 + matching 138 + roadmap 30 + auth 31 +
-history 81. DEV-97 adds no service CODE; the one new matching test carries the
-real artifact's caveats to a response (the existing ones used a stub). The
-pre-existing 137 matching tests are unchanged, which is what shows the formula
-path is still inert.
-data/scripts/tests = 111 (training venv, was 83), 7 passed + 11 skipped
-(backend/venv, was 7 + 9 -- the two new modules skip whole; the 7 passed did
-not move, so nothing un-skipped).
+history 81, UNCHANGED by DEV-98 -- it adds no service code and touches no served
+output. data/scripts/tests = 118 (training venv, was 111), 7 passed + 12 skipped
+(backend/venv, was 7 + 11 -- the new module skips whole because
+panel_label_profiles needs pandas; the 7 passed did not move, so nothing
+un-skipped and the venv separation is intact).
 
-CONTEXT.md's four states are distinct and none implies an earlier one.
-DEV-94 delivered the implementation half of SERVABLE. DEV-97 produced the
-first trained neural artifact, so SERVABLE now holds for real, and ran the
-post-export revalidation DEPLOYABLE requires.
+CONTEXT.md now names FIVE states. The first four are evaluated in order and none
+implies an earlier one; DEPLOYABLE and RANKING-DEPLOYABLE are the two TERMINAL
+states and are mutually exclusive.
 
-IT IS NOT DEPLOYABLE, and DEV-98 has a vocabulary problem to settle.
-CONTEXT.md defines Deployable as "Qualified, Servable, and revalidated",
-and Qualified as "cleared Gate 1 -- calibrated AND stable". matcher_nn_v1
-is stable and NOT calibrated, so it is not Qualified and not Deployable.
-ADR 0002 splits the ship FLOOR, not the STATE -- it says a model failing
-ECE "may still ship as the ranking source", which is a condition the four
-states have no name for. Do not stretch "Deployable" to cover it; name it.
-The accurate sentence is: matcher_nn_v1 may serve the RANKING under
-ADR 0002's mitigation, with displayed percentages falling back to the
-formula's.
+matcher_nn_v1 is SELECTED, SERVABLE and RANKING-DEPLOYABLE. It is NOT Qualified
+(stable, not calibrated) and therefore NOT Deployable, and it cannot become the
+Incumbent, which is defined against Deployable. The Incumbent is logistic_tuned,
+as exported to matcher_logistic_v2.json. NEITHER IS SERVED: MATCHER_MODEL_PATH is
+blank and production runs the formula.
 
 MATCHER_MODEL_PATH is unchanged: blank in .env.example, blank by default
 in docker-compose.yml, and backend/.env:23 still points at the stale
