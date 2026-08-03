@@ -47,3 +47,29 @@ floor's achievability is the sentence the whole "we apply it anyway" argument re
   protocol, is what makes the sentence true.
 - Consequence for `CONTEXT.md`'s **Incumbent**: it is the exported artifact, since
   `logistic_tuned` has no single configuration and therefore cannot be Deployable.
+
+## Observed on flip readiness (DEV-99, 2026-08-03)
+
+The decision is unchanged. **The mitigation it defines has never been implemented**, which
+was not visible while no model needed it:
+
+- "May still ship as the *ranking* source, with displayed percentages falling back to the
+  formula's" is carried by `matcher_nn_v1.json` as `deployment.status: "ranking_only"` and
+  `deployment.match_percent: "FALL BACK TO THE FORMULA"`, and by a caveat that does reach
+  the response. **No serving code reads any of it.** The `Matcher` protocol
+  (`services/matching/app/services/matcher.py`) has no `deployment` member, so both
+  implementations discard the block at load, and `matching_service.py:323` sets
+  `matchPercent` from the model's probability unconditionally.
+- Consequence: flipping `MATCHER_MODEL_PATH` to a `ranking_only` artifact today would
+  display exactly the uncalibrated percentages this ADR's mitigation exists to prevent.
+  The mitigable half is therefore currently **undermitigated**, not mitigated.
+- The fix is not a branch on one line. The formula's percentage is computed inside
+  `_match_formula`, which does not run when the model scores, and that function returns
+  only its own `TOP_N` — so a career the model ranked and the formula did not has no
+  formula percentage computed anywhere. It also raises a question this ADR does not
+  answer: substituted percentages are **not monotonic** in the model's ranking, so the UI
+  would show a lower percentage above a higher one. Sizing, options and the two
+  `xfail(strict=True)` tests pinning the gap:
+  [`docs/dev-23-flip-readiness.md`](../dev-23-flip-readiness.md).
+- **Nothing was changed in response.** Choosing between implementing this mitigation as
+  written and amending it is reserved for the human who decides the flip (DEV-99).

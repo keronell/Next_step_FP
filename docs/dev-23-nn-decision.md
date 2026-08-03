@@ -588,3 +588,17 @@ the IG passes for the top-N explained careers.
   question-feature surface.
 - Both flipping the flag and *not* flipping it are defensible on this evidence. What is
   not defensible is claiming the evidence chose.
+
+---
+
+**Added by DEV-99 (2026-08-03). Nothing above is changed.** DEV-99 went looking for the
+mechanism behind §3's mitigation and did not find one: **ADR 0002's fallback of displayed
+percentages to the formula's is documented in the artifact, the ADR and `CONTEXT.md`, and
+implemented nowhere.** The `Matcher` protocol has no `deployment` member, so the serving
+code cannot see `deployment.status`, and `matching_service.py:323` displays the model's
+probability unconditionally. The sentence in §2 — *"with displayed percentages falling
+back to the formula's"* — describes a state the serving path cannot currently honour, and
+§5.1's *"switching would not improve the displayed percentages — it would leave them
+exactly as they are today, by design"* is true of the design and **false of the code**.
+Evidence, the cost of building it, and the three mechanical criteria that *are* satisfied:
+[`dev-23-flip-readiness.md`](./dev-23-flip-readiness.md).

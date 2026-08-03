@@ -1271,6 +1271,174 @@ up from 7 + 11: the new module skips whole because `panel_label_profiles` needs 
 **The 7 passed did not move**, which is what shows the training/serving venv separation
 is intact and nothing un-skipped.
 
+### Reproduction record (DEV-99, 2026-08-03)
+
+Flip readiness for `MATCHER_MODEL_PATH`. **The flag is untouched** — blank in
+`.env.example:15`, blank by default in `docker-compose.yml:56`, and blank in the
+repo-root `.env` compose actually interpolates. Production runs the formula. DEV-99 is
+human-gated (`ready-for-human`), its Jira status is unchanged, and nothing here approves
+anything. Nothing was retrained, re-exported or re-swept; `dataset_digest` is untouched
+at `2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`.
+
+Deliverable: `docs/dev-23-flip-readiness.md`, `services/matching/tests/test_flip_readiness.py`,
+`services/matching/tests/flip_diagnostics.py`, plus an "Observed on…" note in ADR 0002
+and a pointer at the end of the decision document. Neither of the latter two changes any
+existing claim or number.
+
+#### The finding: ADR 0002's mitigation is documented in three places and built in none
+
+The artifact `matcher_nn_v1.json` carries `deployment.status: "ranking_only"`,
+`deployment.match_percent: "FALL BACK TO THE FORMULA"`, and a caveat saying its
+percentages are uncalibrated. `CONTEXT.md`'s **Ranking-Deployable** and ADR 0002 both
+define the mitigation as displayed percentages falling back to the formula's. **No
+serving code reads any of it:**
+
+- `services/matching/app/services/matcher.py` declares the `Matcher` protocol with
+  `feature_names`, `version`, `caveats`, `predict_proba`, `contributions` — and **no
+  `deployment` member**, so both implementations discard the block at load.
+- `matching_service.py:323` sets `"matchPercent": round(probs[cid] * 100)` on the model
+  path with no branch. The formula's percentage is computed at `:399`, inside
+  `_match_formula`, which does not run when the model scores.
+- `deployment`, `ranking_only` and `match_percent` appear nowhere in `services/` or
+  `frontend/src/` outside the artifact JSON.
+
+So flipping the flag today would display exactly the uncalibrated percentages the
+artifact's own caveat forbids. The decision document's *"switching would not improve the
+displayed percentages — it would leave them exactly as they are today, by design"* is
+true of the design and **false of the code**. This resizes DEV-99: its premise was
+"approve, then flip", and the flip is not yet the thing ADR 0002 authorised.
+
+**Not fixed here, deliberately.** The cheap reading ("one branch") is wrong — the fix
+needs the per-career formula score for careers `_match_formula` never returns (it returns
+only its own `TOP_N`), and it raises a question ADR 0002 does not answer: substituted
+percentages are **not monotonic** in the model's ranking, so the UI would print a lower
+percentage above a higher one. That is a product decision and possibly an ADR amendment,
+so it is surfaced rather than chosen. The gap is pinned by two `xfail(strict=True)`
+tests that turn into a loud `XPASS` failure when the mitigation lands; they deliberately
+do **not** assert today's behaviour as correct, which would turn the defect into a spec.
+
+#### Two measurements, computed rather than quoted
+
+`cd services/matching && ../../backend/venv/Scripts/python tests/flip_diagnostics.py`
+(seed 20260803, fixed so the record reproduces):
+
+Displayed top-1 `matchPercent`, 200 answer sets over the full 18-question bank:
+
+| scorer | mean | min | max |
+|---|---|---|---|
+| formula (what ADR 0002 says to display) | 73.3 | 60 | 85 |
+| `matcher_nn_v1` (what is displayed today) | **58.0** | 26 | 85 |
+| `matcher_logistic_v2` | 76.4 | 35 | 99 |
+
+**DEV-89 sized on the artifact that would ship**, 300 explanations, positive attribution
+only (negative mass is unrenderable for every question, in the bank or out, so counting
+it would inflate the gap):
+
+| reading | value |
+|---|---|
+| by feature **count** (the usual figure) | 16 of 36 discarded = **44.4%** |
+| by attribution **mass**, renderable mean | 0.293 (median 0.158) |
+| by attribution **mass**, **discarded** mean | **0.707** |
+| explanations losing the *majority* of their question mass | **248 / 300 = 82.7%** |
+
+**About 71% of the question-feature attribution the model produces is discarded before
+it reaches a sentence, not 44%.** This is the quantitative form of DEV-98's qualitative
+prediction that q11–q18 are "precisely the features a learned model has most reason to
+lean on" — they carry zero questionnaire weight and signal only through per-option
+bonuses. DEV-89 remains its own ticket on its own branch off `main`; nothing here
+touches `reason_builder.py`.
+
+**Disclosure, counted rather than argued.** Candidates come from
+`tests/conftest.make_candidates()`, whose RAG signals are canned — `chromadb` is absent
+from `backend/venv`, so the real store cannot be driven from there. Two things ride on
+that and only one is testable from here, so the script measures the one it can:
+
+| seed | formula top-1 | `matcher_nn_v1` top-1 | gap |
+|---|---|---|---|
+| 1 | 73.6 | 59.1 | 14.6 |
+| 2 | 73.8 | 61.2 | 12.6 |
+| 3 | 73.6 | 56.9 | 16.7 |
+| 4 | 72.8 | 57.9 | 14.9 |
+| **across seeds** | | | **mean 14.7, min 12.6, max 16.7** |
+
+against the headline seed's 15.3 — so **the answer-set draw is not doing the work**. The
+canned RAG signals stay a disclosure rather than a measurement: they cannot be varied
+without `chromadb`, and what they would have to shift is a ~15-point gap holding in the
+same direction across five independent draws. Ranking-agreement rates between scorers
+*are* fixture-dependent (the canned semantic similarities dominate the formula), so the
+script does not compute them and nothing in this deliverable quotes them.
+
+#### The three mechanical criteria, verified by running rather than reading
+
+All four load-failure modes (stale `features-v1` artifact, missing file, unknown
+`model_type`, feature-version mismatch) drive the real `main.lifespan` to `None` and then
+serve a response **identical to the no-model one** — not merely "a fallback engaged",
+since a fallback leaving `model_version` or `model_caveats` stamped would pass the weaker
+check while telling a user their result came from a model that never scored it. Startup
+logs the loaded version for both artifacts. Rollback is proved in a single process with no
+module reload: only the setting changes, which is what makes "no redeploy of code" true.
+
+**The rollback limit, which is not a defect but is not restored either:**
+`model_version`/`model_caveats` are embedded per recommendation and persisted verbatim
+(`SubmissionHistoryItem.recommendations: list[dict]`). Clearing the flag changes what
+**new** submissions are scored with and rewrites nothing already stored. And
+`matchPercent` reaches the UI in two places — `Results.jsx:96` and `History.jsx:187` —
+while `model_caveats` renders in **one**, so a persisted uncalibrated percentage is
+re-displayed later with no caveat beside it.
+
+#### One repo-wide wording correction
+
+Several docs say `backend/.env`'s `MATCHER_MODEL_PATH` "never reaches the services".
+Measured with `docker compose config`, it reaches **two** of them — `auth` and `roadmap`,
+via `env_file: ./backend/.env` — which ignore it, because only
+`services/matching/app/main.py:44` reads `matcher_model_path` even though
+`common/config.py:22` defines it for every service. For `matching`, compose's
+`environment:` key overrides `env_file:` and resolves to `''`. The conclusion the docs
+draw is right — **it never reaches the service that uses it** — but the literal sentence
+is not, and the stale artifact is refused on load in any case.
+
+**Test counts.** Service suites **298 → 307 passed + 2 xfailed** (matching 138 → 146 + 2,
+questionnaire 18 → 19; roadmap 30, auth 31, history 81 unchanged). The 2 xfails are the
+mitigation gap, expected-to-fail by design. `data/scripts/tests` is **unchanged**: 118
+under the training venv, 7 passed + 12 skipped under `backend/venv`. **No served output
+moved** — the 138 pre-existing matching tests all still pass, and every new test either
+adds coverage or asserts the formula path is what it was.
+
+**What the code review changed**, since none of it was polish:
+
+- **The Spec axis caught the second `xfail` resting on a false invariant.** It compared
+  `matchPercent` against `round(score * 100)`, but `score` is `round(prob, 3)` while
+  `matchPercent` is `round(prob * 100)` — the two already disagree for **33 of 600**
+  recommendations (5.5%) purely by rounding. The test XFAILed for partly the wrong
+  reason, and a future `XPASS` could have been rounding rather than the mitigation. It
+  now compares against the model's **unrounded** probability. The same overstatement
+  ("today `matchPercent == round(score * 100)` on both paths") is corrected in the
+  document, where that test was cited as though it asserted a global invariant rather
+  than one rec of one fixture.
+- **The artifact-side assertion was inside the strict `xfail`.** An exporter that
+  stopped emitting `deployment` would have raised `KeyError`, been recorded as the
+  expected failure, and left the regression green. Split into a plain passing test.
+- **The Standards axis caught this record's own first draft asserting that `deployment`
+  / `ranking_only` "appear nowhere in `services/`"** — falsified by the test file added
+  in the same diff. Rescoped to serving code, and the correction is left visible,
+  because it is the same right-conclusion-from-a-false-premise shape as the compose
+  wording below.
+- **Asymmetric correction, a failure this project has already recorded once** (DEV-98's
+  review: "ADR 0002 was left carrying the wrong attribution while the plan's κ error had
+  been corrected in place — an asymmetry with no defence"). The compose-scope wording was
+  corrected here and left standing in the *living* docs. `CLAUDE.md` and `README.md` are
+  now fixed in place; the historical records (DEV-98's above, and the decision document's
+  §10) keep their wording and carry a pointer, which is the house treatment for a record
+  versus a live instruction.
+- **The Spec axis named the cheapest remaining coverage gap** and it is now closed:
+  `test_the_real_artifacts_caveats_survive_the_response_and_reach_persistence` in
+  questionnaire-service carries the **real** artifact's caveat strings through the
+  response-level derivation and into the persisted payload. DEV-97's test stopped at
+  `/internal/match`; questionnaire's own used hand-written strings.
+- Two unused CLI flags on `flip_diagnostics.py` were deleted (Speculative Generality —
+  the same call DEV-98's review made about three hooks there), and the seed-sensitivity
+  block replaced an argued disclosure with a counted one.
+
 ## Pipeline order
 
 ```

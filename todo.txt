@@ -1,32 +1,68 @@
 DEV-23 NEURAL MATCHER REWORK -- WHAT IS LEFT
 Written 2026-07-31 after DEV-94 (commit 6f7ba12) on branch dev-23.
-Updated 2026-08-03 after DEV-97 and DEV-98.
+Updated 2026-08-03 after DEV-97, DEV-98 and DEV-99.
 
 ================================================================
-WHAT IS ACTUALLY LEFT, AS OF DEV-98
+WHAT IS ACTUALLY LEFT, AS OF DEV-99
 ================================================================
-Execution-order items 1-10 are DONE. Two things remain, NEITHER OF THEM AN
-AGENT'S:
+Execution-order items 1-11 are done AS FAR AS AN AGENT MAY TAKE THEM. Three
+things remain, NONE OF THEM AN AGENT'S:
 
-  (1) DEV-99 -- flip MATCHER_MODEL_PATH. Human approval only. The input to that
-      approval now exists: docs/dev-23-nn-decision.md. Read its section 7
-      (Validity) before deciding anything. Production runs the formula today.
+  (0) *** NEW, AND IT COMES BEFORE THE APPROVAL *** ADR 0002's mitigation is
+      DOCUMENTED IN THREE PLACES AND IMPLEMENTED IN NONE. matcher_nn_v1.json
+      declares deployment.status "ranking_only" and match_percent "FALL BACK TO
+      THE FORMULA"; the Matcher protocol has no `deployment` member, so nothing
+      reads it, and matching_service.py:323 displays the model's probability
+      unconditionally. Flipping the flag today ships the uncalibrated
+      percentages the artifact's own caveat forbids.
+
+      NOT FIXED HERE ON PURPOSE. It is not a one-liner (_match_formula returns
+      only its own TOP_N, so the formula has no percentage for a career only the
+      model ranked) and it raises a product question ADR 0002 never answered:
+      substituted percentages are NOT MONOTONIC in the model's ranking, so the
+      UI would print a lower percentage above a higher one. Implement-as-written
+      vs amend-the-ADR is a HUMAN call.
+      Pinned by 2 xfail(strict=True) tests in
+      services/matching/tests/test_flip_readiness.py -- they XPASS loudly when
+      the mitigation lands. Full design + cost: docs/dev-23-flip-readiness.md.
+
+  (1) DEV-99 -- flip MATCHER_MODEL_PATH. Human approval only, and item (0) makes
+      the approval INCOHERENT until it is settled: "approve the flip" and "ship
+      uncalibrated percentages" are currently the same action. Inputs:
+      docs/dev-23-nn-decision.md (evidence -- read section 7, Validity) and
+      docs/dev-23-flip-readiness.md (mechanism). Production runs the formula.
+      Jira status left at To Do; the finding was added as a comment.
 
   (2) DEV-89 -- q11-q18 reason rendering. Own ticket, OWN BRANCH OFF main.
       Hard prerequisite of MERGING the NN serving work. Still "To Do".
+      NOW SIZED ON THE REAL ARTIFACT (DEV-99): the usual "44% of question
+      features" understates it badly. By ATTRIBUTION MASS on matcher_nn_v1,
+      70.7% of the positive question-feature attribution is discarded, and
+      248/300 explanations lose the MAJORITY of their question mass. q11-q18
+      are the pure discriminators and the model leans on them hard.
+      Reproduce: cd services/matching && ../../backend/venv/Scripts/python
+      tests/flip_diagnostics.py
 
 Plus one open trade reserved for a human: the IG step cap (section 2 below).
+
+The three MECHANICAL DEV-99 criteria are verified and now tested (load-failure
+fallback, version logging, rollback) -- see section 7 below. They are fine. The
+switch is sound; it is wired to the wrong thing.
 
 Section 0(a) below is STALE on this machine -- numpy is already installed in
 backend/venv (2.5.1). Verify before acting on it elsewhere. Section 0(c) is
 WRONG: e2e/ is untracked but NOT gitignored; .gitignore:29 is a DEV-93
 checkpoint rule. It is still not ours -- never `git add -A`.
 
-Baselines at DEV-98:
-  services/matching        -> 138 passed
+Baselines at DEV-99:
+  services/matching        -> 146 passed + 2 xfailed  (was 138; the 2 xfails are
+                              item (0) above and are expected to fail BY DESIGN)
+  services/questionnaire   -> 19 passed (was 18)
   data/scripts/tests       -> 118 passed (training venv), 7 passed + 12 skipped
-                              (backend/venv -- the 7 must not move)
-  five service suites      -> 298 total, unchanged since DEV-97
+                              (backend/venv -- the 7 must not move). UNCHANGED.
+  five service suites      -> 307 passed + 2 xfailed  (was 298; only matching and
+                              questionnaire moved -- roadmap 30, auth 31,
+                              history 81 are all unchanged)
 
 NOTE: an earlier untracked todo.txt vanished during the DEV-96 session and was
 never recovered. This file is written fresh from the plan's execution order and
@@ -214,6 +250,28 @@ questions.json; attribution mass renderable >= 0.99 against the explainable
 universe; and a wording-drift snapshot pairing each question's text with its
 phrase.
 
+MEASURED ON THE REAL ARTIFACT (DEV-99, 2026-08-03). The "44%" above is a
+FEATURE COUNT and it understates the damage badly. By ATTRIBUTION MASS on
+matcher_nn_v1, over 300 explanations (positive mass only -- negative
+attribution is unrenderable for every question, so counting it would inflate
+the gap):
+
+    renderable share, mean   0.293   (median 0.158)
+    DISCARDED share, mean    0.707
+    explanations losing the MAJORITY of their question mass  248/300 = 82.7%
+
+So ~71% of the question attribution the model actually produces never reaches
+a sentence. That is the quantitative form of DEV-98's qualitative prediction:
+q11-q18 carry zero questionnaire weight and signal only through per-option
+bonuses, so they discriminate, and a learned model leans on them hardest.
+
+    cd services/matching && ../../backend/venv/Scripts/python \
+        tests/flip_diagnostics.py
+
+The plan's ">= 0.99 renderable" acceptance test would currently measure 0.293.
+Nothing here touches reason_builder.py -- DEV-89 is still its own ticket on its
+own branch off main.
+
 
 ================================================================
 4. DONE: DEV-98 -- the decision document
@@ -266,6 +324,53 @@ Execution-order item 11 / DEV-99: report and WAIT on the MATCHER_MODEL_PATH
 question. Nobody is authorised to flip it -- not .env.example, not backend/.env,
 not docker-compose.yml. It is blank today, so production runs the formula.
 The decision document is the input to that approval, not the approval.
+DONE as far as an agent may take it -- see section 7 below.
+
+
+================================================================
+7. DONE: DEV-99 -- flip readiness (NOT the flip)
+================================================================
+LANDED 2026-08-03. docs/dev-23-flip-readiness.md,
+services/matching/tests/test_flip_readiness.py (10 tests: 8 pass, 2 xfail),
+services/matching/tests/flip_diagnostics.py, one new questionnaire test, an
+"Observed on..." note in ADR 0002, a pointer at the end of the decision
+document, and in-place wording fixes to CLAUDE.md and README.md. Record:
+data/scripts/README.md "Reproduction record (DEV-99)". MATCHER_MODEL_PATH IS
+UNTOUCHED, Jira status left at To Do, finding added as a Jira comment.
+
+  * THE HEADLINE IS THE GAP, not the verification. See item (0) at the top of
+    this file. ADR 0002's mitigation exists in the artifact, the ADR and
+    CONTEXT.md and NOWHERE IN CODE. That makes the approval DEV-99 asks for
+    incoherent until it is settled, because the flip would ship exactly the
+    uncalibrated percentages the artifact's caveat forbids.
+  * SIZED: same request, formula displays top-1 mean 73.3% and matcher_nn_v1
+    displays 58.0%. matcher_logistic_v2 displays 76.4%. (Fixture RAG signals --
+    chromadb is absent from backend/venv -- so this sizes the two OUTPUT
+    SCALES, which is a property of the scorers. Ranking-agreement rates between
+    scorers ARE fixture-dependent and are deliberately NOT quoted anywhere.)
+  * SECOND SURFACE, easy to miss: matchPercent renders in Results.jsx:96 AND
+    History.jsx:187; model_caveats renders in Results.jsx:43 ONLY. A persisted
+    uncalibrated percentage is re-shown later with no caveat beside it.
+  * THE THREE MECHANICAL CRITERIA ARE FINE and are now tested by RUNNING the
+    real lifespan, not by reading source: all four load-failure modes (stale
+    v1, missing file, unknown model_type, feature-version mismatch) fall back
+    to output IDENTICAL to the no-model response; startup logs the loaded
+    version for both artifacts; rollback works in-process with no module
+    reload.
+  * ROLLBACK LIMIT, stated because it is not restored: model_version and
+    model_caveats are embedded per rec and persisted verbatim
+    (SubmissionHistoryItem.recommendations: list[dict]). Clearing the flag
+    changes NEW submissions only and rewrites nothing already stored. Rollback
+    is complete forward, not backward.
+  * ONE REPO-WIDE WORDING CORRECTION. Several docs say backend/.env's
+    MATCHER_MODEL_PATH "never reaches the services". `docker compose config`
+    says it reaches auth AND roadmap via env_file -- both ignore it, since only
+    services/matching/app/main.py:44 reads matcher_model_path even though
+    common/config.py:22 defines it for every service. For matching, compose's
+    `environment:` key overrides `env_file:` and resolves to ''. The
+    CONCLUSION is right (it never reaches the service that USES it); the
+    literal sentence is not.
+  * DEV-89 sized on the real artifact -- see section 3.
 
 DEV-100 (separate, unrelated to the above): two_tower seeds from PROCESS-GLOBAL
 torch RNG rather than per fit, so its predictions depend on how many torch fits
@@ -292,20 +397,23 @@ Gate 2, top-2 / cross-fitted ECE:
 
 Round 1 (nn_rework.md), Round 2 (nn_rework_round2.md) and the learning curve
 (learning_curve.md) are recorded MEASUREMENTS. So is the currently served
-output: the 297 service tests are the evidence, and within them the 108
-pre-existing matching tests are what shows the formula path is inert.
+output: the service suites are the evidence, and within them the matching
+suite is what shows the formula path is inert. (Earlier revisions of this
+file quoted 297 and 108 here; both were stale even when written. Use the
+counts in section 6, which are measured at each commit.)
 
 
 ================================================================
 6. STATE AS OF THIS COMMIT
 ================================================================
-Branch dev-23. Done: DEV-87, 88, 90, 91, 92, 93, 95, 96, 94, 97, 98.
-Service suites 298 = questionnaire 18 + matching 138 + roadmap 30 + auth 31 +
-history 81, UNCHANGED by DEV-98 -- it adds no service code and touches no served
-output. data/scripts/tests = 118 (training venv, was 111), 7 passed + 12 skipped
-(backend/venv, was 7 + 11 -- the new module skips whole because
-panel_label_profiles needs pandas; the 7 passed did not move, so nothing
-un-skipped and the venv separation is intact).
+Branch dev-23. Done: DEV-87, 88, 90, 91, 92, 93, 95, 96, 94, 97, 98, and 99 as
+far as an agent may take it (the FLIP itself is not done and is not an agent's).
+Service suites 307 passed + 2 xfailed = questionnaire 19 + matching 146+2 +
+roadmap 30 + auth 31 + history 81. Only matching (was 138) and questionnaire
+(was 18) moved; DEV-99 adds no production code and touches no served output --
+the 138 pre-existing matching tests all still pass. data/scripts/tests UNCHANGED
+at 118 (training venv) and 7 passed + 12 skipped (backend/venv -- the 7 did not
+move, so nothing un-skipped and the venv separation is intact).
 
 CONTEXT.md now names FIVE states. The first four are evaluated in order and none
 implies an earlier one; DEPLOYABLE and RANKING-DEPLOYABLE are the two TERMINAL
@@ -313,12 +421,26 @@ states and are mutually exclusive.
 
 matcher_nn_v1 is SELECTED, SERVABLE and RANKING-DEPLOYABLE. It is NOT Qualified
 (stable, not calibrated) and therefore NOT Deployable, and it cannot become the
-Incumbent, which is defined against Deployable. The Incumbent is logistic_tuned,
-as exported to matcher_logistic_v2.json. NEITHER IS SERVED: MATCHER_MODEL_PATH is
-blank and production runs the formula.
+Incumbent, which is defined against Deployable. THE INCUMBENT IS THE ARTIFACT
+matcher_logistic_v2.json (fixed C=1.0) -- NOT logistic_tuned, which is a nested
+protocol re-selecting C per outer fold, has no single configuration and no
+artifact, and therefore cannot be Deployable. (An earlier revision of this file
+said "the Incumbent is logistic_tuned, as exported to matcher_logistic_v2.json",
+which is the exact conflation DEV-98 was written to correct; fixed in DEV-99.)
+NEITHER IS SERVED: MATCHER_MODEL_PATH is blank and production runs the formula.
 
-MATCHER_MODEL_PATH is unchanged: blank in .env.example, blank by default
-in docker-compose.yml, and backend/.env:23 still points at the stale
-matcher_logistic_v1.json (which never reaches the services -- compose
-reads the root .env). Production runs the formula. Flipping it is DEV-99
-and needs human approval.
+DEV-99 CAVEAT ON "RANKING-DEPLOYABLE": that state PERMITS serving the ranking
+with displayed percentages falling back to the formula's -- and the serving path
+CANNOT DO THAT (item (0) at the top). The state is correct; the code cannot yet
+honour it.
+
+MATCHER_MODEL_PATH is unchanged: blank in .env.example, blank by default in
+docker-compose.yml, blank in the repo-root .env that compose interpolates, and
+backend/.env:23 still points at the stale matcher_logistic_v1.json. That value
+reaches auth and roadmap via env_file and is ignored by both (only
+services/matching/app/main.py:44 reads the setting); for matching, compose's
+`environment:` key overrides `env_file:` and resolves to ''. So it never reaches
+the service that USES it -- and the artifact is refused on load anyway. Earlier
+notes said "never reaches the services", which is the right conclusion from a
+false premise. Production runs the formula. Flipping it is DEV-99 and needs
+human approval.
