@@ -30,10 +30,6 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_service_key: str = ""
 
-    # OpenAI (roadmap generation). Empty = disabled; roadmaps fall back to static JSON.
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
-
     # Dapr sidecar (DEV-38). dapr_enabled=False = state/pub-sub calls are no-ops (persistence
     # off) or 503 (roadmap progress, history) — mirrors the supabase_enabled contract.
     # DAPR_HTTP_PORT is exported into the app process by `dapr run`; never hardcode 3500.

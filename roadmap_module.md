@@ -4,11 +4,18 @@ This document explains the design of the **field-level requirement enrichment** 
 being added to the roadmap module. It is an explanation of how the module will work — no
 code is being written yet.
 
+> **Superseded in part:** the LLM personalization step this document builds on top of
+> (`roadmap_service.get_roadmap` → OpenAI) has since been **removed**. Roadmaps are
+> curated static data plus the deterministic market stages described here; there is no
+> generation step and no OpenAI dependency. Phase 4 below landed as
+> `inject_requirements()`, which appends the mined skills as their own stages instead of
+> feeding them to a prompt. The rest of the design is unchanged.
+
 ## Why this module exists
 
 Today the roadmap module serves a **hardcoded "basic" roadmap per field**
 (`backend/app/data/roadmaps.json`, mirrored in `frontend/src/data.js`). The per-user
-personalization step (`roadmap_service.get_roadmap` → OpenAI) generates a roadmap from the
+personalization step (`roadmap_service.get_roadmap` → OpenAI, since removed) generated a roadmap from the
 career title + the user's `profile` + `missing_skills`. It is **not grounded in real market
 demand**, and it doesn't even read the basic roadmap.
 

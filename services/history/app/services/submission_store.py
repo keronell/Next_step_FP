@@ -436,6 +436,24 @@ def get_user_submissions(user_id: str) -> list[dict]:
     return ordered[:HISTORY_LIMIT]
 
 
+def recommended_career_ids(user_id: str) -> set[str]:
+    """Every career the user was ever recommended, UNCAPPED — the roadmap unlock
+    check (DEV-82). get_user_submissions trims to HISTORY_LIMIT, which would falsely
+    lock a career whose only recommendation is older than the newest 20; this scans
+    the whole index. Same bulk read, so no extra store cost beyond a wider fetch.
+    """
+    ids = get_state(_user_idx(user_id)) or []
+    if not ids:
+        return set()
+    records = get_bulk_state([_sub_key(rid) for rid in ids])
+    return {
+        rec["id"]
+        for record in records.values()
+        for rec in (record.get("recommendations") or [])
+        if isinstance(rec, dict) and rec.get("id")
+    }
+
+
 def delete_submission(user_id: str, request_id: str) -> bool:
     """Hard-delete a submission the requesting user owns (DEV-75).
 

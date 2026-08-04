@@ -37,8 +37,8 @@ it talks to the gateway on `:8000`, the same base URL it always used.
 |---|---|---|---|
 | **questionnaire** | question bank, submission intake | `GET /api/questions`, `POST /api/questionnaire/submit`, `POST /api/questionnaire/select` | publishes `submissions`/`selections` |
 | **matching** | ChromaDB store, embedding model, matching math, learned matcher, job_postings reads | `GET /api/health` | `POST /internal/match`, `GET /internal/field-skills?field=` |
-| **roadmap** | static+LLM roadmaps, DEV-59 market requirements, roadmap progress | `GET/POST /api/roadmap/{id}`, `GET/POST /api/roadmap/{id}/progress` | invokes matching + auth |
-| **auth** | identity: Supabase GoTrue + `user_profiles`; the DEV-60 self-input profile (`user_profile_data`) | `POST /api/auth/register\|login\|logout`, `GET /api/auth/me`, `GET/PUT /api/profile` | `GET /internal/verify` |
+| **roadmap** | curated static roadmaps, DEV-59 market requirements, roadmap progress | `GET/POST /api/roadmap/{id}`, `GET/POST /api/roadmap/{id}/progress` | invokes matching + auth |
+| **auth** | identity: Supabase GoTrue + `user_profiles` (incl. the DEV-62 `role`); the DEV-60 self-input profile (`user_profile_data`) | `POST /api/auth/register\|login\|logout`, `GET /api/auth/me`, `GET/PUT /api/profile`, `GET /api/admin/users` + `DELETE /api/admin/users/{id}` (admin only) | `GET /internal/verify` |
 | **history** | submission records in the state store | `GET /api/auth/my-submissions`, `POST /api/auth/claim-sessions` | subscribes to both topics (`/events/*`, `/dapr/subscribe`) |
 
 Key data shapes (state store, Redis — `:`-separated, `keyPrefix: none`):
@@ -103,7 +103,7 @@ the **user** rather than the job market.
 backend/venv/bin/python data/scripts/build_rag.py
 
 # secrets: cp .env.example .env  (APP_API_TOKEN — openssl rand -hex 16)
-#          backend/.env — SUPABASE_URL/SUPABASE_SERVICE_KEY (+ OPENAI_API_KEY optional)
+#          backend/.env — SUPABASE_URL/SUPABASE_SERVICE_KEY
 
 docker compose up -d --build     # 13 containers: 5 apps + 5 sidecars + redis + consul + gateway
 cd frontend && npm run dev       # SPA on :3000 -> gateway on :8000 (default base URL)

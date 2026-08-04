@@ -1,6 +1,6 @@
-"""roadmap-service: static + OpenAI-personalized roadmaps, DEV-59 market
-requirements (mined via matching-service invocation), and per-user roadmap
-progress in the Dapr state store."""
+"""roadmap-service: curated static roadmaps, DEV-59 market requirements (mined via
+matching-service invocation), and per-user roadmap progress in the Dapr state
+store."""
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI

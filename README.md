@@ -18,7 +18,7 @@ React SPA (:3000)
 nginx gateway (:8000)
    ├── questionnaire ── Dapr invoke ──▶ matching   (ChromaDB job-ad RAG + scoring)
    │        └── Dapr pub/sub (Redis) ──▶ history   (submissions in the Dapr state store)
-   ├── roadmap  ── invoke ─▶ matching (market skills)  +  OpenAI (optional)
+   ├── roadmap  ── invoke ─▶ matching (market skills)
    └── auth     (Supabase GoTrue + usernames; other services verify via invoke)
 
 infra: redis (state + broker) · consul (sidecar discovery) · 5 daprd sidecars
@@ -46,7 +46,7 @@ backend/venv/bin/python data/scripts/build_rag.py
 
 # 1. secrets
 cp .env.example .env            # set APP_API_TOKEN (openssl rand -hex 16)
-cp backend/.env.example backend/.env   # optional: SUPABASE_* (auth), OPENAI_API_KEY (LLM roadmaps)
+cp backend/.env.example backend/.env   # optional: SUPABASE_* (auth)
 
 # 2. everything at once (compose stack + Vite + browser):
 ./dev.sh                        # Windows: powershell -ExecutionPolicy Bypass -File dev.ps1
@@ -57,9 +57,9 @@ cd frontend && npm install && npm run dev   # SPA on :3000
 ```
 
 All external services are optional: without Supabase, auth routes return 503
-(the questionnaire still works anonymously); without OpenAI, roadmaps fall back
-to curated static data; without the ChromaDB store, matching returns a safe 503
-and the SPA shows its offline estimate.
+(the questionnaire still works anonymously); without the ChromaDB store, matching
+returns a safe 503 and the SPA shows its offline estimate. Roadmaps are always
+curated static data — there is no generation step and nothing to configure.
 
 Sidecars share their app's network namespace — restart pairs together:
 `docker compose restart matching matching-dapr`.
@@ -72,10 +72,11 @@ Sidecars share their app's network namespace — restart pairs together:
 | `POST /api/questionnaire/submit` | questionnaire | answers → recommendations |
 | `POST /api/questionnaire/select` | questionnaire | record the chosen career |
 | `GET /api/health` | matching | RAG store status (`rag_doc_count`) |
-| `GET/POST /api/roadmap/{id}` | roadmap | static / personalized roadmap + in-demand market skills |
+| `GET/POST /api/roadmap/{id}` | roadmap | curated roadmap (POST also adds in-demand market skills) |
 | `GET/POST /api/roadmap/{id}/progress` | roadmap | per-user completed nodes (auth) |
 | `POST /api/auth/register\|login\|logout`, `GET /api/auth/me` | auth | Supabase GoTrue + usernames |
 | `GET/PUT /api/profile` | auth | self-input profile: experience, projects, skills (auth) |
+| `GET /api/admin/users`, `DELETE /api/admin/users/{id}` | auth | account list + deletion (admin role only — DEV-62) |
 | `POST /api/auth/claim-sessions`, `GET /api/auth/my-submissions` | history | link anonymous submissions, submission history (auth) |
 
 `/internal/*` (service-to-service), `/events/*` and `/dapr/*` (sidecar surface)
@@ -203,7 +204,7 @@ Two scopes (they do not overlap):
 | Scope | File | Keys |
 |---|---|---|
 | docker-compose interpolation | repo-root `.env` | `APP_API_TOKEN` — **required**; gates history-service's event-ingestion endpoints. Also `MATCHER_MODEL_PATH` — see below |
-| services (via `env_file`) + data pipeline | `backend/.env` | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` (auth + job_postings; service-role key, server-only), `OPENAI_API_KEY` / `OPENAI_MODEL` (LLM roadmaps), `CHROMA_*`, `RAG_TOP_K`, `REQUIREMENTS_*` (market-skill thresholds), `MATCHER_MODEL_PATH` (**local `dapr run` / uvicorn only** — see below) |
+| services (via `env_file`) + data pipeline | `backend/.env` | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` (auth + job_postings; service-role key, server-only), `OPENAI_API_KEY` (read only by `backend/scripts/generate_expert_answers.py`, an offline quiz-data script — no service reads it), `CHROMA_*`, `RAG_TOP_K`, `REQUIREMENTS_*` (market-skill thresholds), `MATCHER_MODEL_PATH` (**local `dapr run` / uvicorn only** — see below) |
 | frontend | `frontend/.env` | `VITE_API_BASE_URL` (default `http://localhost:8000` — the gateway) |
 
 Container-specific values (`CHROMA_PATH=/store/chroma`, `DAPR_ENABLED`,
@@ -224,8 +225,7 @@ today — production runs the formula; flipping it is DEV-99 and is human-gated
 
 **Services:** FastAPI, Dapr 1.17 (invocation · pub/sub · state store, etag CAS),
 Redis, Consul, nginx, ChromaDB + sentence-transformers (`all-MiniLM-L6-v2`),
-Supabase (GoTrue auth + Postgres `job_postings`), OpenAI (optional roadmaps),
-pytest, Docker Compose.
+Supabase (GoTrue auth + Postgres `job_postings`), pytest, Docker Compose.
 
 **Frontend:** React 18, Vite, Tailwind CSS, framer-motion, lucide-react.
 
@@ -240,7 +240,7 @@ Next_step_FP/
 │   ├── common/            # shared wire contracts: models, topics, config, Dapr client, auth dep, data JSONs
 │   ├── questionnaire/     # questions + submit/select (publishes to Redis)
 │   ├── matching/          # ChromaDB RAG + scoring (+ /internal/match, /internal/field-skills)
-│   ├── roadmap/           # static/LLM roadmaps + market requirements + progress
+│   ├── roadmap/           # curated roadmaps + market requirements + progress
 │   ├── auth/              # Supabase GoTrue + usernames + self-input profile (+ /internal/verify)
 │   ├── history/           # submissions in the Dapr state store (subscribers + history routes)
 │   ├── gateway/nginx.conf # path routing on :8000

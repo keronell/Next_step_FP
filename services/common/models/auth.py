@@ -47,12 +47,28 @@ class AuthTokenResponse(BaseModel):
     user_id: str
     email: str
     username: str
+    # DEV-62: lets the SPA decide on the admin entry point straight after sign-in,
+    # without a second /me round trip.
+    role: str = "user"
 
 
 class UserResponse(BaseModel):
     user_id: str
     email: str
     username: str
+    # DEV-62 authorization role — `user` or `admin`. NOT an occupation (CONTEXT.md
+    # reserves "Career" for that). Defaulted so every existing construction and
+    # every service that parses this off /internal/verify keeps working untouched.
+    role: str = "user"
+
+
+class AdminUserItem(BaseModel):
+    """One row of the admin account list: GoTrue identity + user_profiles fields."""
+    user_id: str
+    email: str
+    username: str
+    role: str
+    created_at: datetime | None = None
 
 
 class ClaimSessionsRequest(BaseModel):

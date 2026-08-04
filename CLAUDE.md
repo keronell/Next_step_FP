@@ -62,3 +62,17 @@ Root `requirements.txt` deliberately does not reference it. The recorded digest,
 ## Branches
 
 Active branches: `main`, `Ronen`, `vlad`. The current SPA frontend came from the `Ronen` redesign; `vlad` contributed the adaptive quiz and data pipeline. When merging frontend work, keep `main` and `Ronen` in sync.
+
+## Agent skills
+
+### Issue tracker
+
+Jira project `DEV` on `s-team-at2qc4hd.atlassian.net`, via the Atlassian Rovo MCP tools. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, as Jira labels with their default names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

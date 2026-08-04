@@ -1,7 +1,4 @@
-import Eyebrow from './Eyebrow.jsx'
-
 export default function SectionHeading({
-  eyebrow,
   title,
   lede,
   align = 'center',
@@ -12,7 +9,6 @@ export default function SectionHeading({
   const alignCls = align === 'left' ? 'text-left items-start' : 'text-center items-center'
   return (
     <div className={['flex flex-col gap-4', alignCls, className].filter(Boolean).join(' ')}>
-      {eyebrow && <Eyebrow dot>{eyebrow}</Eyebrow>}
       {title && (
         <h2
           className={[

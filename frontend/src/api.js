@@ -74,13 +74,11 @@ export function selectCareer(careerId) {
 }
 
 // Fetch + optionally personalize a career roadmap via the backend.
-export async function fetchRoadmap(careerId, missingSkills = [], profile = null) {
-  const body = { missing_skills: missingSkills }
-  if (profile && !isProfileEmpty(profile)) body.profile_data = profile
-  return _request(`${BASE_URL}/api/roadmap/${careerId}`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
+// POST, not GET, because only the POST adds the job-ad market stages (DEV-59).
+// It carries no body: roadmaps are curated and identical for every user, so there
+// is nothing left to personalize with.
+export async function fetchRoadmap(careerId) {
+  return _request(`${BASE_URL}/api/roadmap/${careerId}`, { method: 'POST' })
 }
 
 // ── Self-input profile (DEV-60) ──────────────────────────────────────────────
@@ -160,10 +158,32 @@ export async function fetchMySubmissions() {
   return _request(`${BASE_URL}/api/auth/my-submissions`)
 }
 
+// The career ids the user was ever recommended, UNCAPPED — the roadmap unlock
+// check (DEV-82). Distinct from fetchMySubmissions (capped at 20), which can't
+// answer eligibility for a heavy user's older recommendation. Returns string[].
+export async function fetchRecommendedCareers() {
+  const { careers } = await _request(`${BASE_URL}/api/auth/recommended-careers`)
+  return careers || []
+}
+
 // Delete one of the current user's submissions (auth required; the server enforces
 // that the submission belongs to the caller). Resolves on 204, throws on 4xx/5xx.
 export async function deleteSubmission(requestId) {
   return _request(`${BASE_URL}/api/auth/my-submissions/${encodeURIComponent(requestId)}`, {
+    method: 'DELETE',
+  })
+}
+
+// ── Admin (DEV-62) ───────────────────────────────────────────────────────────
+// Both throw 403 for a non-admin caller — require_admin on the server is the gate,
+// the hidden UI is only presentation.
+
+export async function fetchAccounts() {
+  return _request(`${BASE_URL}/api/admin/users`)
+}
+
+export async function deleteAccount(userId) {
+  return _request(`${BASE_URL}/api/admin/users/${encodeURIComponent(userId)}`, {
     method: 'DELETE',
   })
 }

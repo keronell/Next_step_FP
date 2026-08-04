@@ -3,29 +3,17 @@ from pydantic import BaseModel
 
 from common.auth_dep import get_current_user
 from common.models.auth import UserResponse
-from common.models.profile import UserProfile
-from common.profile_text import profile_sentences
 from app.services import roadmap_progress_service
 from app.services.roadmap_service import get_roadmap, inject_requirements
 
 router = APIRouter(prefix="/roadmap")
 
-
-class RoadmapContext(BaseModel):
-    """Optional personalization signals from the matching result."""
-
-    profile: str | None = None
-    missing_skills: list[str] = []
-    # DEV-60 self-input profile. Sent structured rather than pre-rendered so the
-    # prose is built by the SAME helper matching uses — the frontend never has to
-    # know how a profile reads as a sentence.
-    profile_data: UserProfile | None = None
-
-    def profile_text(self) -> str | None:
-        if self.profile:
-            return self.profile
-        sentences = profile_sentences(self.profile_data)
-        return " ".join(sentences) if sentences else None
+# DEV-82: every route here is behind the login wall, matching the assessment that
+# leads to them. The API stops at *authentication* — it does not check that the
+# caller was actually recommended this career. That stricter "unlocked" rule
+# (CONTEXT.md) lives in the SPA, which already holds the recommendation; enforcing
+# it here would make every roadmap fetch call history-service. See
+# docs/adr/0002-roadmap-access.md.
 
 
 class ProgressUpdate(BaseModel):
@@ -35,8 +23,8 @@ class ProgressUpdate(BaseModel):
 
 
 @router.get("/{career_id}")
-def roadmap(career_id: str) -> dict:
-    """Static roadmap (no personalization)."""
+def roadmap(career_id: str, _: UserResponse = Depends(get_current_user)) -> dict:
+    """The curated roadmap, bare. Requires auth."""
     data = get_roadmap(career_id)
     if data is None:
         raise HTTPException(status_code=404, detail=f"no roadmap for career '{career_id}'")
@@ -44,24 +32,22 @@ def roadmap(career_id: str) -> dict:
 
 
 @router.post("/{career_id}")
-def roadmap_personalized(career_id: str, ctx: RoadmapContext, request: Request) -> dict:
-    """Personalized roadmap when OpenAI is configured; static fallback otherwise.
+def roadmap_with_market(
+    career_id: str, request: Request, _: UserResponse = Depends(get_current_user)
+) -> dict:
+    """The curated roadmap enriched with job-ad-derived requirements (DEV-59): an
+    'In Demand Now' section of Required/Advantage skills mined from the career field's
+    job ads. The requirements source is absent in tests / when the RAG store is down,
+    so this degrades to the plain roadmap.
 
-    Also enriches the roadmap with job-ad-derived requirements (DEV-59): an 'In Demand
-    Now' section of Required/Advantage skills mined from the career field's job ads.
-    The requirements source is absent in tests / when the RAG store is down, so this
-    degrades to the plain roadmap.
+    This is the only thing separating it from the GET above — the roadmap itself no
+    longer varies per user, so any request body is ignored (older clients still send
+    one). It stays a POST because that is what the SPA already calls.
     """
     req_service = getattr(request.app.state, "requirements", None)
     requirements = req_service.get_requirements(career_id) if req_service else None
-    market_required = [r["skill"] for r in (requirements or {}).get("required", [])]
 
-    data = get_roadmap(
-        career_id,
-        profile=ctx.profile_text(),
-        missing_skills=ctx.missing_skills,
-        market_required=market_required,
-    )
+    data = get_roadmap(career_id)
     if data is None:
         raise HTTPException(status_code=404, detail=f"no roadmap for career '{career_id}'")
     return inject_requirements(data, requirements)

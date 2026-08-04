@@ -5,7 +5,6 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from '../components/ui/Button.jsx'
-import Eyebrow from '../components/ui/Eyebrow.jsx'
 import { EMPTY_PROFILE, fetchProfile, isProfileEmpty, saveProfile } from '../api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -186,7 +185,6 @@ function Profile({ phase, onComplete, onSkip }) {
           <div className="h-1 bg-gradient-to-r from-gold to-gold-light" />
 
           <div className="px-8 pt-8 pb-5 border-b border-navy/[0.06]">
-            <Eyebrow dot className="mb-2">Optional step</Eyebrow>
             <h2 className="font-display font-bold text-h2 md:text-h1 text-navy tracking-tight text-balance">
               Tell us what you’ve <span className="italic text-gold">already done</span>
             </h2>
