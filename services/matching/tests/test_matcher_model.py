@@ -1,42 +1,26 @@
-"""Unit tests for the learned-matcher artifact loader and reason builder."""
-import json
+"""Unit tests for the linear matcher's inference/attribution and the reason builder.
+
+Loading and dispatch live in test_matcher.py, at the seam.
+"""
+import math
 
 import pytest
 
 from common.data import load_careers, load_questions
-from app.services.feature_builder import FEATURE_VERSION, feature_names
-from app.services.matcher_model import MatcherModel, MatcherModelError
+from app.services.feature_builder import feature_names
+from app.services.matcher_model import (
+    KNOWN_DEPLOYMENT_STATUSES,
+    MatcherModel,
+    MatcherModelError,
+)
 from app.services.reason_builder import build_reasons
+
+from tests.conftest import tiny_artifact
 
 CAREERS = load_careers()
 QUESTIONS = {q["id"]: q for q in load_questions()}
 NAMES = feature_names(CAREERS)
 CIDS = [c["id"] for c in CAREERS]
-
-
-def tiny_artifact(**overrides) -> dict:
-    """A structurally valid artifact: zero coefs except +1 on each career's own fit."""
-    coef = [[0.0] * len(NAMES) for _ in CIDS]
-    for i, cid in enumerate(CIDS):
-        coef[i][NAMES.index(f"{cid}_fit")] = 1.0
-    artifact = {
-        "model_version": "test-v0",
-        "feature_version": FEATURE_VERSION,
-        "feature_names": NAMES,
-        "careers": CIDS,
-        "scaler_mean": [0.0] * len(NAMES),
-        "scaler_scale": [1.0] * len(NAMES),
-        "coef": coef,
-        "intercept": [0.0] * len(CIDS),
-        "label_source": "synthetic_llm",
-    }
-    artifact.update(overrides)
-    return artifact
-
-
-def test_load_missing_file_raises(tmp_path):
-    with pytest.raises(MatcherModelError):
-        MatcherModel.load(tmp_path / "nope.json")
 
 
 def test_feature_version_mismatch_raises():
@@ -75,6 +59,39 @@ def test_predict_proba_sums_to_one_and_ranks_fit():
     assert max(probs, key=probs.get) == "frontend"
 
 
+def test_temperature_divides_logits_before_the_softmax():
+    """T=2 on a hand-worked artifact: only frontend_fit fires, so the logits are
+    2.0 for frontend and 0.0 for the other 15 careers. Tempered, that is 1.0 and
+    0.0, giving frontend e/(e+15). Expected value derived from the softmax
+    definition, not from the implementation."""
+    model = MatcherModel(tiny_artifact(temperature=2.0))
+    vec = [0.0] * len(NAMES)
+    vec[NAMES.index("frontend_fit")] = 2.0
+    probs = model.predict_proba(vec)
+    expected = math.e / (math.e + (len(CIDS) - 1))
+    assert probs["frontend"] == pytest.approx(expected)
+    assert sum(probs.values()) == pytest.approx(1.0)
+
+
+def test_temperature_defaults_to_one_and_is_inert():
+    """The shipped artifact carries T=1.0, so the default path must be identical
+    to an explicit 1.0 — this is what makes applying it a no-op change today."""
+    vec = [0.0] * len(NAMES)
+    vec[NAMES.index("frontend_fit")] = 2.0
+    assert MatcherModel(tiny_artifact()).predict_proba(vec) == (
+        MatcherModel(tiny_artifact(temperature=1.0)).predict_proba(vec)
+    )
+
+
+@pytest.mark.parametrize("bad", [0, -1.0, "2.0", None, True, float("inf"), float("nan")])
+def test_malformed_temperature_fails_at_load(bad):
+    # Same contract as caveats: reject at load so the formula fallback engages,
+    # rather than serving percentages divided by a nonsense scalar. T=0 divides by
+    # zero and T<0 inverts the ranking outright.
+    with pytest.raises(MatcherModelError):
+        MatcherModel(tiny_artifact(temperature=bad))
+
+
 def test_wrong_vector_length_raises():
     model = MatcherModel(tiny_artifact())
     with pytest.raises(MatcherModelError):
@@ -92,11 +109,24 @@ def test_contributions_center_to_zero_across_classes():
     assert all(abs(t) < 1e-9 for t in total)
 
 
-def test_roundtrip_via_file(tmp_path):
-    p = tmp_path / "artifact.json"
-    p.write_text(json.dumps(tiny_artifact()), encoding="utf-8")
-    model = MatcherModel.load(p)
-    assert model.careers == CIDS
+def test_contributions_stay_complete_under_temperature():
+    """Attribution must explain the logit that actually produced the served
+    probability, at any T. Anchored on the softmax identity
+    log(P(a)/P(b)) == logit_a - logit_b: centering cancels in the difference and
+    tiny_artifact's intercepts are zero, so the summed contributions must
+    reproduce that log-ratio exactly. Fails if only one of the two methods is
+    tempered — which is the regression DEV-91's non-1.0 T would otherwise ship.
+    """
+    model = MatcherModel(tiny_artifact(temperature=2.5))
+    vec = [0.0] * len(NAMES)
+    for i, cid in enumerate(CIDS):
+        vec[NAMES.index(f"{cid}_fit")] = 0.5 * i
+    probs = model.predict_proba(vec)
+    a, b = CIDS[0], CIDS[-1]
+    summed = sum(model.contributions(vec, a).values()) - sum(
+        model.contributions(vec, b).values()
+    )
+    assert summed == pytest.approx(math.log(probs[a] / probs[b]))
 
 
 def test_reasons_quote_answer_and_cap_at_four():
@@ -124,3 +154,171 @@ def test_negative_contributions_never_surface():
     contributions = {"frontend_fit": -1.0, "frontend_sem": -0.5, "q2": -2.0}
     reasons = build_reasons(frontend, {"q2": 1}, contributions, [], QUESTIONS)
     assert reasons == ["A direction worth exploring based on your responses"]
+
+
+# ------------------------------------------------- deployment block (ADR 0005)
+def test_deployment_absent_means_unrestricted():
+    """Silence must keep meaning today's behaviour.
+
+    `matcher_logistic_v2.json` carries no `deployment` block and is Deployable, so a
+    default of "restricted" would change the served output of the incumbent artifact
+    the moment this parsing landed.
+    """
+    assert MatcherModel(tiny_artifact()).deployment is None
+
+
+def test_deployment_ranking_only_is_kept():
+    artifact = tiny_artifact(deployment={"status": "ranking_only", "ranking": "this model"})
+    assert MatcherModel(artifact).deployment["status"] == "ranking_only"
+
+
+def test_a_fully_qualified_artifact_loads_and_may_show_its_own_percentages():
+    """The both-floors-clear case, which no shipped artifact exercises yet.
+
+    `export_nn_model.gate1_decision()` emits "ranking_and_percentages" when a retrain
+    clears ECE *and* stability. Because an unknown status fails the load, a mismatch
+    here would take the best possible model and silently serve the formula instead --
+    the fail-closed rule doing exactly the harm it exists to prevent. Asserted through
+    `displays_own_percentages` rather than on the string, because the point is that
+    such a model is allowed to put its own numbers on screen.
+    """
+    from app.services.matcher import displays_own_percentages
+
+    model = MatcherModel(tiny_artifact(deployment={"status": "ranking_and_percentages"}))
+    assert model.deployment["status"] == "ranking_and_percentages"
+    assert displays_own_percentages(model)
+
+
+def test_deployment_vocabulary_matches_the_exporter():
+    """Producer and consumer are held to one vocabulary, by reading the producer.
+
+    The exporter lives in `data/scripts/` and cannot be imported from a service (it
+    is a different interpreter and dependency set), so this parses its source for the
+    statuses `gate1_decision` can emit. "refused" is deliberately excluded: that
+    branch sets `may_write` False and no such artifact is ever written, so a file
+    claiming it should fail to load.
+    """
+    import ast
+    from pathlib import Path
+
+    exporter = Path(__file__).resolve().parents[3] / "data" / "scripts" / "export_nn_model.py"
+    if not exporter.exists():
+        pytest.skip("export_nn_model.py not present")
+    tree = ast.parse(exporter.read_text(encoding="utf-8"))
+    fn = next(
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "gate1_decision"
+    )
+    emitted = {
+        n.value for n in ast.walk(fn)
+        if isinstance(n, ast.Constant) and isinstance(n.value, str)
+    }
+    writable = {s for s in emitted if s in {"ranking_and_percentages", "ranking_only"}}
+    assert writable == set(KNOWN_DEPLOYMENT_STATUSES), (
+        f"exporter emits {sorted(writable)} but the runtime accepts "
+        f"{sorted(KNOWN_DEPLOYMENT_STATUSES)} - an artifact would be refused at load"
+    )
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"status": "rankingonly"},   # the typo that must not grant permission
+        {"status": "RANKING_ONLY"},  # status matching is exact, not case-folded
+        {"status": None},
+        {},                          # a block with no status decides nothing
+        "ranking_only",              # a bare string, not the object the schema says
+        [],
+    ],
+)
+def test_unrecognised_deployment_fails_at_load(bad):
+    """Fail closed, at load, so the formula fallback engages.
+
+    The permissive alternative -- treat anything unrecognised as unrestricted -- would
+    let a single typo silently hand an uncalibrated model permission to display its own
+    percentages, which is the exact harm ADR 0005's mitigation exists to prevent. A
+    load failure is loud and lands on the safe side.
+    """
+    with pytest.raises(MatcherModelError):
+        MatcherModel(tiny_artifact(deployment=bad))
+
+
+# ------------------------------------------------- temperature (shared parsing)
+@pytest.mark.parametrize(
+    "bad",
+    [
+        10**400,        # valid JSON integer, too large for a C double
+        -(10**400),
+        float("nan"),   # json.loads accepts NaN/Infinity by default
+        float("inf"),
+        0,              # would divide the logits by zero
+        -1.0,
+        True,           # bool is an int subclass and must not read as 1.0
+        "0.8",
+        None,
+    ],
+)
+def test_unusable_temperature_fails_as_a_matcher_error(bad):
+    """Every rejection must be a MatcherModelError, not just most of them.
+
+    `main.py`'s lifespan catches MatcherModelError and nothing else, so a rejection
+    raised as any other type takes service startup DOWN instead of falling back to
+    the formula. A large-integer temperature used to escape as OverflowError out of
+    `math.isfinite` -- syntactically valid JSON that aborted the service.
+    """
+    with pytest.raises(MatcherModelError):
+        MatcherModel(tiny_artifact(temperature=bad))
+
+
+def test_the_dispatch_seam_never_lets_a_foreign_exception_escape():
+    """`load_matcher`'s contract is that EVERY failure arrives as MatcherModelError.
+
+    Asserted against a constructor that raises something the seam has no reason to
+    anticipate, because the guarantee is what the lifespan relies on -- not the
+    completeness of any particular except-tuple.
+    """
+    import json as _json
+    import tempfile
+    from pathlib import Path as _Path
+
+    import app.services.matcher as matcher_module
+
+    class Exploding:
+        def __init__(self, artifact):
+            raise RuntimeError("something the seam never predicted")
+
+    original = dict(matcher_module._IMPLEMENTATIONS)
+    matcher_module._IMPLEMENTATIONS["exploding"] = Exploding
+    try:
+        p = _Path(tempfile.mkdtemp()) / "a.json"
+        p.write_text(_json.dumps(tiny_artifact(model_type="exploding")), encoding="utf-8")
+        with pytest.raises(MatcherModelError):
+            matcher_module.load_matcher(p)
+    finally:
+        matcher_module._IMPLEMENTATIONS.clear()
+        matcher_module._IMPLEMENTATIONS.update(original)
+
+
+@pytest.mark.parametrize("field", ["scaler_mean", "scaler_scale", "intercept"])
+def test_non_finite_artifact_arrays_fail_at_load(field):
+    """NaN/Infinity in an artifact must engage the formula fallback, not serve.
+
+    `json.loads` accepts `NaN` and `Infinity` by default, so these arrive from a
+    syntactically valid file and poison every probability. On a `ranking_only`
+    artifact nothing downstream raises -- the formula supplies every displayed field
+    -- so the NaN survives into `score_breakdown.model_probability` and fails during
+    response serialization, which is OUTSIDE `match()`'s fallback. The user gets a
+    500 instead of the formula's answer.
+    """
+    artifact = tiny_artifact()
+    artifact[field] = list(artifact[field])
+    artifact[field][0] = float("nan")
+    with pytest.raises(MatcherModelError):
+        MatcherModel(artifact)
+
+
+def test_non_finite_coefficients_fail_at_load():
+    artifact = tiny_artifact()
+    artifact["coef"][0][0] = float("inf")
+    with pytest.raises(MatcherModelError):
+        MatcherModel(artifact)

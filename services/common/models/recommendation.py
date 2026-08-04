@@ -15,6 +15,14 @@ class ScoreBreakdown(BaseModel):
     # persisted record (raw dicts, never revalidated) would keep a field the live
     # response had thrown away.
     user_skill_match: float | None = None
+    # ADR 0005 mitigation: present only when a `ranking_only` artifact scored this
+    # request, where every displayed figure is the formula's. This is the model's own
+    # probability — the number that selected and ordered nothing else on screen — kept
+    # so the selection stays auditable from the response and the persisted history.
+    # Declared here for the same reason user_skill_match is: an undeclared key is
+    # dropped at serialization, and the persisted jsonb would then disagree with the
+    # live response about how the recommendation was produced.
+    model_probability: float | None = None
 
 
 class Recommendation(BaseModel):

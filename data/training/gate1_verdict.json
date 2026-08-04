@@ -1,7 +1,8 @@
 {
   "passed": true,
   "qualifiers": [
-    "logistic"
+    "logistic",
+    "small_nn"
   ],
   "preferred": "logistic",
   "thresholds": {
@@ -16,8 +17,38 @@
     "lightgbm": {
       "ece": 0.128155228434309,
       "top2_stability": 0.5566450817144618
+    },
+    "small_nn": {
+      "ece": 0.06183095636038942,
+      "top2_stability": 0.6153150375167026
     }
   },
   "dataset_digest": "2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27",
-  "created_at": "2026-07-19T15:58:54.951616+00:00"
+  "environment": {
+    "python": "3.14.0",
+    "python_full": "3.14.0 (tags/v3.14.0:ebf955d, Oct 7 2025, 10:15:03) [MSC v.1944 64 bit (AMD64)]",
+    "implementation": "cpython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "packages": {
+      "numpy": "2.4.6",
+      "pandas": "2.3.3",
+      "pyarrow": "24.0.0",
+      "scikit-learn": "1.8.0",
+      "scipy": "1.18.0",
+      "joblib": "1.5.3",
+      "threadpoolctl": "3.6.0",
+      "lightgbm": "4.6.0",
+      "torch": "2.12.0"
+    }
+  },
+  "reported_not_gated": {
+    "small_nn_reseeded_top2_stability": 0.6670161373214101,
+    "reseed_seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "created_at": "2026-07-27T20:48:05.721209+00:00"
 }

@@ -1,6 +1,6 @@
 """Attribution-driven `reasons` for the learned matcher (rework Phase 4).
 
-Turns MatcherModel.contributions() into the same shape the frontend already
+Turns Matcher.contributions() into the same shape the frontend already
 renders: a list of up to 4 short human sentences. Only human-explainable features
 become reasons:
 

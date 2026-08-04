@@ -1,5 +1,14 @@
-"""Phase 5 serving tests: learned-model path, formula fallback, shape parity."""
+"""Phase 5 serving tests: learned-model path, formula fallback, shape parity.
+
+"Shape parity" here means the *response* shape. Numerical parity between a fitted
+estimator and the code that serves it lives with the exporters, in
+`data/scripts/tests/test_export_model.py` (linear) and `test_export_nn_model.py`
+(neural) — only the training venv has both runtimes.
+"""
 from collections import Counter
+from pathlib import Path
+
+import pytest
 
 from common.data import load_careers
 from app.repositories.career_repository import CareerCandidate
@@ -121,3 +130,76 @@ def test_model_path_dedupes_candidates():
     cands = candidates() + [CareerCandidate(frontend, 0.9, Counter())]
     recs = match(ANSWERS, cands, model=make_model())
     assert len([r for r in recs if r["id"] == frontend["id"]]) == 1
+
+
+# ------------------------------------------------- the shipped artifact, end to end
+# The tests above prove the plumbing with a stub whose caveats are hand-set. This one
+# closes the chain on the REAL exported artifact, which is what DEV-97's acceptance
+# criterion actually asks ("a test proves they reach the recommendations response").
+# The distinction matters here specifically: matcher_nn_v1 fails Gate 1's mitigable
+# ECE half, and the caveat carrying that mitigation is the only thing that tells a
+# consumer its percentages are uncalibrated. If it were dropped anywhere between the
+# artifact and the response, the model would look calibrated all the way to the UI.
+NN_ARTIFACT = Path(__file__).resolve().parents[3] / "data" / "models" / "matcher_nn_v1.json"
+
+
+def test_the_shipped_neural_artifacts_caveats_reach_the_recommendations(client_with_repo):
+    if not NN_ARTIFACT.exists():
+        pytest.skip(f"{NN_ARTIFACT} not present — run data/scripts/export_nn_model.py")
+    from app.main import app
+    from app.services.matcher import load_matcher
+
+    matcher = load_matcher(NN_ARTIFACT)
+    app.state.matcher_model = matcher
+    try:
+        recs = _match(client_with_repo)
+        assert recs
+        for r in recs:
+            assert r["model_caveats"] == matcher.caveats
+            assert r["model_version"] == matcher.version
+        # Named rather than merely non-empty: "some caveats arrived" would still pass
+        # if the ADR 0005 mitigation were the one that went missing.
+        assert any("NOT calibrated" in c for c in recs[0]["model_caveats"])
+        assert any("bank-consistent" in c for c in recs[0]["model_caveats"])
+    finally:
+        app.state.matcher_model = None
+
+
+def test_non_finite_probabilities_fall_back_to_the_formula():
+    """Load-time validation cannot catch inf/NaN produced DURING inference.
+
+    Finite weights can still overflow, and on the ranking_only path nothing else
+    raises -- the formula supplies matchPercent, score and the breakdown -- so a NaN
+    probability would reach `score_breakdown.model_probability` and fail at response
+    serialization, outside the fallback. `_match_model` raises instead, which
+    `match()` catches, so the user gets the formula's answer and valid JSON.
+    """
+    import json
+
+    from app.services import feature_builder
+    from app.services.matching_service import FORMULA_VERSION, match
+    from common.data import load_careers
+
+    class NonFinite:
+        version = "non-finite-v1"
+        caveats: list[str] = []
+        deployment = {"status": "ranking_only"}
+
+        def __init__(self, names):
+            self.feature_names = names
+
+        def predict_proba(self, vector):
+            return {"frontend": float("nan")}
+
+        def contributions(self, vector, career_id):
+            return {}
+
+    from tests.conftest import make_candidates
+
+    names = feature_builder.feature_names(load_careers())
+    answers = {f"q{i}": i % 4 for i in range(1, 19)}
+    recs = match(answers, make_candidates(), model=NonFinite(names))
+
+    assert recs, "expected the formula's recommendations, not an empty list"
+    assert all(r["model_version"] == FORMULA_VERSION for r in recs)
+    json.dumps(recs, allow_nan=False)  # would raise if a NaN survived

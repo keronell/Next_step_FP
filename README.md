@@ -203,12 +203,23 @@ Two scopes (they do not overlap):
 
 | Scope | File | Keys |
 |---|---|---|
-| docker-compose interpolation | repo-root `.env` | `APP_API_TOKEN` — **required**; gates history-service's event-ingestion endpoints |
-| services (via `env_file`) + data pipeline | `backend/.env` | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` (auth + job_postings; service-role key, server-only), `OPENAI_API_KEY` (read only by `backend/scripts/generate_expert_answers.py`, an offline quiz-data script — no service reads it), `CHROMA_*`, `RAG_TOP_K`, `REQUIREMENTS_*` (market-skill thresholds), `MATCHER_MODEL_PATH` |
+| docker-compose interpolation | repo-root `.env` | `APP_API_TOKEN` — **required**; gates history-service's event-ingestion endpoints. Also `MATCHER_MODEL_PATH` — see below |
+| services (via `env_file`) + data pipeline | `backend/.env` | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` (auth + job_postings; service-role key, server-only), `OPENAI_API_KEY` (read only by `backend/scripts/generate_expert_answers.py`, an offline quiz-data script — no service reads it), `CHROMA_*`, `RAG_TOP_K`, `REQUIREMENTS_*` (market-skill thresholds), `MATCHER_MODEL_PATH` (**local `dapr run` / uvicorn only** — see below) |
 | frontend | `frontend/.env` | `VITE_API_BASE_URL` (default `http://localhost:8000` — the gateway) |
 
 Container-specific values (`CHROMA_PATH=/store/chroma`, `DAPR_ENABLED`,
 `CORS_ORIGINS`) are pinned per service in `docker-compose.yml`.
+
+**`MATCHER_MODEL_PATH` appears in both scopes and only one of them wins under
+compose.** `backend/.env`'s value reaches `auth` and `roadmap` through `env_file`,
+and both ignore it — only `services/matching/app/main.py` reads the setting, even
+though `common/config.py` defines it for every service. For `matching`,
+`docker-compose.yml`'s `environment:` key overrides `env_file:` and interpolates
+the **repo-root** `.env` instead, which needs a *container* path
+(`/store/models/...`; `data/models` is mounted read-only at `/store/models`).
+Verify with `docker compose config` rather than by reading. It is blank in both
+today — production runs the formula; flipping it is DEV-99 and is human-gated
+(`docs/dev-23-flip-readiness.md`).
 
 ## Tech stack
 

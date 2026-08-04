@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.matcher_model import MatcherModel
+from app.services.matcher import Matcher, load_matcher
 from app.services.reason_builder import QUESTION_PHRASES, build_reasons
 from common.data import load_careers, load_questions
 from tests.reason_diagnostics import (
@@ -82,14 +82,14 @@ def test_every_question_can_render_a_reason(qid):
 
 # ----------------------------------------------------------- attribution mass
 @pytest.fixture(scope="module")
-def shipped_model() -> MatcherModel:
+def shipped_model() -> Matcher:
     """The artifact actually checked in, not a fixture with invented coefficients.
 
     Deliberately not skipped when absent: the whole criterion is about where a real
     model's mass lands, so a silent skip would retire the acceptance test.
     """
     assert DEFAULT_ARTIFACT.exists(), f"shipped artifact missing: {DEFAULT_ARTIFACT}"
-    return MatcherModel.load(DEFAULT_ARTIFACT)
+    return load_matcher(DEFAULT_ARTIFACT)
 
 
 def test_renderable_attribution_mass_clears_the_bar(shipped_model):

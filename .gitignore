@@ -1,6 +1,9 @@
 node_modules/
 backend/node_modules/
 backend/venv/
+# Isolated training stack (data/requirements-training.txt) — kept out of
+# backend/venv so service-test installs can never move numpy under the dataset digest.
+data/venv-training/
 backend/__pycache__/
 backend/**/__pycache__/
 *.pyc
@@ -23,3 +26,16 @@ data/jobs/chroma/
 
 # Local scratch / PR-review temp (zips, extracted PRs, pytest temp dirs)
 .tmp/
+
+# Resume artifact for the DEV-93 Variant sweep. Holds per-profile indicator arrays
+# for every (seed, model) so a killed run resumes instead of restarting — an
+# intermediate, not a deliverable. The deliverables are round1_results.json and
+# nn_rework.md, which are tracked.
+data/training/round1_checkpoint.json
+data/training/round2_scoreboard_checkpoint.json
+data/training/round2_checkpoint.json
+# Same role for the DEV-96 learning curve: one (point, seed) unit per entry, so a
+# killed run resumes instead of refitting the nested comparator legs. The
+# deliverables are learning_curve_results.json and learning_curve.md, both tracked,
+# and `--stage report` reads only those.
+data/training/learning_curve_checkpoint.json

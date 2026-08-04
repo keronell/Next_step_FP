@@ -1,0 +1,871 @@
+{
+  "dataset_digest": "2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27",
+  "experiment_seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "n_profiles": 232,
+  "variant_selection_counts": {
+    "A1_84_16_16": 0,
+    "A2_84_32_16": 0,
+    "A3_84_64_16": 0,
+    "V0_control": 0,
+    "B1_dropout_0.1": 0,
+    "B2_dropout_0.5": 0,
+    "B3_wd_1e-3": 0,
+    "B4_wd_1e-2": 0,
+    "B5_input_noise_0.1": 0,
+    "C0_batch_16": 0,
+    "C1_full_batch": 0,
+    "C2_sgd_cosine": 0,
+    "C3_seed_ensemble": 2,
+    "C4_residual_matcher": 23
+  },
+  "modal_variant": "C4_residual_matcher",
+  "modal_residual_config": [
+    0.0,
+    0.25
+  ],
+  "comparisons": {
+    "logistic_tuned": {
+      "delta": -0.0025862068965517237,
+      "ci_low": -0.009482758620689657,
+      "ci_high": 0.004310344827586207,
+      "ci_level": 0.95,
+      "n_profiles": 232,
+      "n_rows": 1160,
+      "n_resamples": 10000,
+      "sampling_unit": "profile",
+      "per_seed_delta": [
+        -0.017241379310344862,
+        -0.004310344827586188,
+        0.0,
+        0.0,
+        0.008620689655172376
+      ],
+      "seeds_agreeing_with_pooled_sign": 2,
+      "sign_holds_in_majority": false,
+      "clears_materiality": false,
+      "ci_excludes_zero": false
+    },
+    "gbt_tuned": {
+      "delta": -0.028448275862068963,
+      "ci_low": -0.059482758620689656,
+      "ci_high": 0.0025862068965517245,
+      "ci_level": 0.95,
+      "n_profiles": 232,
+      "n_rows": 1160,
+      "n_resamples": 10000,
+      "sampling_unit": "profile",
+      "per_seed_delta": [
+        -0.06034482758620696,
+        -0.012931034482758563,
+        -0.0387931034482758,
+        -0.012931034482758674,
+        -0.017241379310344862
+      ],
+      "seeds_agreeing_with_pooled_sign": 5,
+      "sign_holds_in_majority": true,
+      "clears_materiality": true,
+      "ci_excludes_zero": false
+    }
+  },
+  "ship_floor": {
+    "configuration": "C4_residual_matcher",
+    "residual_config": [
+      0.0,
+      0.25
+    ],
+    "random_state": 42,
+    "determinism_assertion": "passed",
+    "ece": 0.12160147380017726,
+    "ece_floor": 0.1,
+    "ece_clears": false,
+    "top2_stability": 0.654784664405386,
+    "stability_floor": 0.6,
+    "stability_clears": true
+  },
+  "ship_floor_across_seeds": {
+    "per_seed": {
+      "42": {
+        "top2_stability": 0.654784664405386,
+        "ece": 0.12160147380017726,
+        "stability_clears": true,
+        "ece_clears": false
+      },
+      "43": {
+        "top2_stability": 0.6622880049337033,
+        "ece": 0.09719783911687876,
+        "stability_clears": true,
+        "ece_clears": true
+      },
+      "44": {
+        "top2_stability": 0.6811902559358618,
+        "ece": 0.09583900809481585,
+        "stability_clears": true,
+        "ece_clears": true
+      },
+      "45": {
+        "top2_stability": 0.6592147188816939,
+        "ece": 0.09998821045174021,
+        "stability_clears": true,
+        "ece_clears": true
+      },
+      "46": {
+        "top2_stability": 0.6701510946654331,
+        "ece": 0.08402022012866839,
+        "stability_clears": true,
+        "ece_clears": true
+      }
+    },
+    "stability_mean": 0.6655257477644156,
+    "stability_sd": 0.0093000385604583,
+    "stability_min": 0.654784664405386,
+    "seeds_clearing_stability": 5,
+    "ece_mean": 0.09972935031845609,
+    "ece_sd": 0.01222110369049139,
+    "ece_max": 0.12160147380017726,
+    "seeds_clearing_ece": 4,
+    "n_seeds": 5
+  },
+  "calibration_sensitivity_to_C": {
+    "0.05": {
+      "ece": 0.2897982155274042,
+      "top2": 0.8448275862068966,
+      "top2_stability": 0.687881591119334
+    },
+    "0.25": {
+      "ece": 0.12160147380017726,
+      "top2": 0.8663793103448276,
+      "top2_stability": 0.654784664405386
+    },
+    "1.0": {
+      "ece": 0.03409941366293177,
+      "top2": 0.8706896551724138,
+      "top2_stability": 0.637516702641587
+    },
+    "4.0": {
+      "ece": 0.09832579483499317,
+      "top2": 0.8706896551724138,
+      "top2_stability": 0.6250693802035151
+    }
+  },
+  "collapse_to_logistic": {
+    "per_seed": {
+      "42": {
+        "folds_collapsed_to_logistic": 4,
+        "rows_disagreeing_with_logistic_tuned": 4,
+        "n_rows": 232
+      },
+      "43": {
+        "folds_collapsed_to_logistic": 4,
+        "rows_disagreeing_with_logistic_tuned": 1,
+        "n_rows": 232
+      },
+      "44": {
+        "folds_collapsed_to_logistic": 2,
+        "rows_disagreeing_with_logistic_tuned": 4,
+        "n_rows": 232
+      },
+      "45": {
+        "folds_collapsed_to_logistic": 5,
+        "rows_disagreeing_with_logistic_tuned": 0,
+        "n_rows": 232
+      },
+      "46": {
+        "folds_collapsed_to_logistic": 3,
+        "rows_disagreeing_with_logistic_tuned": 6,
+        "n_rows": 232
+      }
+    },
+    "folds_collapsed_to_logistic": 18,
+    "total_folds": 25
+  },
+  "alpha_zero_verdict": {
+    "variant": "C4_residual_matcher",
+    "leads_round_1": true,
+    "per_seed": {
+      "42": {
+        "per_fold_alpha": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "per_fold_logistic_C": [
+          4.0,
+          4.0,
+          4.0,
+          0.05,
+          0.25
+        ],
+        "n_folds_at_zero": 5,
+        "no_non_linear_signal": true,
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
+      },
+      "43": {
+        "per_fold_alpha": [
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "per_fold_logistic_C": [
+          0.05,
+          1.0,
+          0.25,
+          0.05,
+          0.25
+        ],
+        "n_folds_at_zero": 4,
+        "no_non_linear_signal": true,
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
+      },
+      "44": {
+        "per_fold_alpha": [
+          0.0,
+          0.25,
+          0.0,
+          0.5,
+          0.5
+        ],
+        "per_fold_logistic_C": [
+          1.0,
+          0.05,
+          4.0,
+          1.0,
+          1.0
+        ],
+        "n_folds_at_zero": 2,
+        "no_non_linear_signal": false,
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
+      },
+      "45": {
+        "per_fold_alpha": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "per_fold_logistic_C": [
+          4.0,
+          4.0,
+          0.05,
+          0.25,
+          0.05
+        ],
+        "n_folds_at_zero": 5,
+        "no_non_linear_signal": true,
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
+      },
+      "46": {
+        "per_fold_alpha": [
+          0.5,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "per_fold_logistic_C": [
+          1.0,
+          0.25,
+          0.25,
+          0.25,
+          0.05
+        ],
+        "n_folds_at_zero": 4,
+        "no_non_linear_signal": true,
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
+      }
+    },
+    "seeds_where_rule_fired": [
+      "42",
+      "43",
+      "45",
+      "46"
+    ],
+    "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
+  },
+  "per_seed": {
+    "42": {
+      "sweep_nn": {
+        "top2": 0.8318965517241379,
+        "top1": 0.7198275862068966,
+        "ece_cross_fitted": 0.06054352429010722,
+        "ece_raw": 0.11392079839323113,
+        "fold_temperatures": [
+          0.8,
+          1.4000000000000001,
+          1.3,
+          0.5,
+          0.8500000000000001
+        ],
+        "per_fold_variant": [
+          "C3_seed_ensemble",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher"
+        ],
+        "per_fold_residual_config": {
+          "C4_residual_matcher": [
+            [
+              0.0,
+              4.0
+            ],
+            [
+              0.0,
+              4.0
+            ],
+            [
+              0.0,
+              4.0
+            ],
+            [
+              0.0,
+              0.05
+            ],
+            [
+              0.0,
+              0.25
+            ]
+          ]
+        }
+      },
+      "logistic_tuned": {
+        "top2": 0.8491379310344828,
+        "top1": 0.7241379310344828,
+        "ece_cross_fitted": 0.06134246809539425,
+        "ece_raw": 0.10251566169717065,
+        "fold_temperatures": [
+          1.4000000000000001,
+          1.4000000000000001,
+          1.3,
+          0.5,
+          0.8500000000000001
+        ],
+        "per_fold_config": [
+          4.0,
+          4.0,
+          4.0,
+          0.05,
+          0.25
+        ]
+      },
+      "gbt_tuned": {
+        "top2": 0.8922413793103449,
+        "top1": 0.771551724137931,
+        "ece_cross_fitted": 0.040377190704083174,
+        "ece_raw": 0.13477999002388885,
+        "fold_temperatures": [
+          1.9500000000000002,
+          1.7000000000000002,
+          1.75,
+          1.9000000000000001,
+          1.85
+        ],
+        "per_fold_config": [
+          [
+            200,
+            0.07,
+            7,
+            3
+          ],
+          [
+            200,
+            0.03,
+            7,
+            3
+          ],
+          [
+            200,
+            0.03,
+            15,
+            3
+          ],
+          [
+            200,
+            0.07,
+            7,
+            10
+          ],
+          [
+            200,
+            0.07,
+            15,
+            3
+          ]
+        ]
+      }
+    },
+    "43": {
+      "sweep_nn": {
+        "top2": 0.8663793103448276,
+        "top1": 0.6853448275862069,
+        "ece_cross_fitted": 0.0440371825537528,
+        "ece_raw": 0.11836029395230346,
+        "fold_temperatures": [
+          0.6000000000000001,
+          1.15,
+          0.8500000000000001,
+          0.55,
+          0.75
+        ],
+        "per_fold_variant": [
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher"
+        ],
+        "per_fold_residual_config": {
+          "C4_residual_matcher": [
+            [
+              0.0,
+              0.05
+            ],
+            [
+              1.0,
+              1.0
+            ],
+            [
+              0.0,
+              0.25
+            ],
+            [
+              0.0,
+              0.05
+            ],
+            [
+              0.0,
+              0.25
+            ]
+          ]
+        }
+      },
+      "logistic_tuned": {
+        "top2": 0.8706896551724138,
+        "top1": 0.6853448275862069,
+        "ece_cross_fitted": 0.0491527611742161,
+        "ece_raw": 0.12490196457855733,
+        "fold_temperatures": [
+          0.6000000000000001,
+          1.05,
+          0.8500000000000001,
+          0.55,
+          0.75
+        ],
+        "per_fold_config": [
+          0.05,
+          1.0,
+          0.25,
+          0.05,
+          0.25
+        ]
+      },
+      "gbt_tuned": {
+        "top2": 0.8793103448275862,
+        "top1": 0.7629310344827587,
+        "ece_cross_fitted": 0.05294617468664138,
+        "ece_raw": 0.12136454887202332,
+        "fold_temperatures": [
+          2.0,
+          1.6,
+          1.7000000000000002,
+          1.75,
+          1.75
+        ],
+        "per_fold_config": [
+          [
+            200,
+            0.03,
+            7,
+            3
+          ],
+          [
+            200,
+            0.03,
+            15,
+            3
+          ],
+          [
+            200,
+            0.03,
+            7,
+            3
+          ],
+          [
+            200,
+            0.03,
+            7,
+            10
+          ],
+          [
+            200,
+            0.03,
+            7,
+            3
+          ]
+        ]
+      }
+    },
+    "44": {
+      "sweep_nn": {
+        "top2": 0.8405172413793104,
+        "top1": 0.6939655172413793,
+        "ece_cross_fitted": 0.045215650885280755,
+        "ece_raw": 0.052570149528473414,
+        "fold_temperatures": [
+          1.0,
+          0.7,
+          1.35,
+          1.2000000000000002,
+          1.1
+        ],
+        "per_fold_variant": [
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher"
+        ],
+        "per_fold_residual_config": {
+          "C4_residual_matcher": [
+            [
+              0.0,
+              1.0
+            ],
+            [
+              0.25,
+              0.05
+            ],
+            [
+              0.0,
+              4.0
+            ],
+            [
+              0.5,
+              1.0
+            ],
+            [
+              0.5,
+              1.0
+            ]
+          ]
+        }
+      },
+      "logistic_tuned": {
+        "top2": 0.8405172413793104,
+        "top1": 0.7112068965517241,
+        "ece_cross_fitted": 0.05606932373258506,
+        "ece_raw": 0.08769518999423648,
+        "fold_temperatures": [
+          1.0,
+          0.55,
+          1.35,
+          1.1,
+          1.05
+        ],
+        "per_fold_config": [
+          1.0,
+          0.05,
+          4.0,
+          1.0,
+          1.0
+        ]
+      },
+      "gbt_tuned": {
+        "top2": 0.8793103448275862,
+        "top1": 0.7758620689655172,
+        "ece_cross_fitted": 0.05876712563056913,
+        "ece_raw": 0.13533990388575648,
+        "fold_temperatures": [
+          1.6500000000000001,
+          1.7000000000000002,
+          1.7000000000000002,
+          1.6500000000000001,
+          1.85
+        ],
+        "per_fold_config": [
+          [
+            400,
+            0.03,
+            15,
+            3
+          ],
+          [
+            200,
+            0.03,
+            7,
+            3
+          ],
+          [
+            200,
+            0.03,
+            7,
+            3
+          ],
+          [
+            200,
+            0.03,
+            7,
+            10
+          ],
+          [
+            200,
+            0.03,
+            7,
+            3
+          ]
+        ]
+      }
+    },
+    "45": {
+      "sweep_nn": {
+        "top2": 0.8577586206896551,
+        "top1": 0.7112068965517241,
+        "ece_cross_fitted": 0.040842715339521746,
+        "ece_raw": 0.12618857842180392,
+        "fold_temperatures": [
+          1.4000000000000001,
+          1.4000000000000001,
+          0.5,
+          0.8,
+          0.5
+        ],
+        "per_fold_variant": [
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher"
+        ],
+        "per_fold_residual_config": {
+          "C4_residual_matcher": [
+            [
+              0.0,
+              4.0
+            ],
+            [
+              0.0,
+              4.0
+            ],
+            [
+              0.0,
+              0.05
+            ],
+            [
+              0.0,
+              0.25
+            ],
+            [
+              0.0,
+              0.05
+            ]
+          ]
+        }
+      },
+      "logistic_tuned": {
+        "top2": 0.8577586206896551,
+        "top1": 0.7112068965517241,
+        "ece_cross_fitted": 0.040842715339521746,
+        "ece_raw": 0.12618857842180392,
+        "fold_temperatures": [
+          1.4000000000000001,
+          1.4000000000000001,
+          0.5,
+          0.8,
+          0.5
+        ],
+        "per_fold_config": [
+          4.0,
+          4.0,
+          0.05,
+          0.25,
+          0.05
+        ]
+      },
+      "gbt_tuned": {
+        "top2": 0.8706896551724138,
+        "top1": 0.771551724137931,
+        "ece_cross_fitted": 0.03760141790690047,
+        "ece_raw": 0.11722505409296868,
+        "fold_temperatures": [
+          1.85,
+          1.6500000000000001,
+          1.7000000000000002,
+          1.85,
+          1.75
+        ],
+        "per_fold_config": [
+          [
+            200,
+            0.03,
+            15,
+            3
+          ],
+          [
+            200,
+            0.03,
+            15,
+            3
+          ],
+          [
+            200,
+            0.03,
+            7,
+            3
+          ],
+          [
+            200,
+            0.07,
+            7,
+            10
+          ],
+          [
+            200,
+            0.03,
+            7,
+            3
+          ]
+        ]
+      }
+    },
+    "46": {
+      "sweep_nn": {
+        "top2": 0.875,
+        "top1": 0.7025862068965517,
+        "ece_cross_fitted": 0.08089793151039203,
+        "ece_raw": 0.07335843411532947,
+        "fold_temperatures": [
+          1.15,
+          0.8500000000000001,
+          0.8,
+          0.8500000000000001,
+          0.9
+        ],
+        "per_fold_variant": [
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C4_residual_matcher",
+          "C3_seed_ensemble"
+        ],
+        "per_fold_residual_config": {
+          "C4_residual_matcher": [
+            [
+              0.5,
+              1.0
+            ],
+            [
+              0.0,
+              0.25
+            ],
+            [
+              0.0,
+              0.25
+            ],
+            [
+              0.0,
+              0.25
+            ],
+            [
+              0.0,
+              0.05
+            ]
+          ]
+        }
+      },
+      "logistic_tuned": {
+        "top2": 0.8663793103448276,
+        "top1": 0.6982758620689655,
+        "ece_cross_fitted": 0.06636366378853915,
+        "ece_raw": 0.10916616205113627,
+        "fold_temperatures": [
+          1.05,
+          0.8500000000000001,
+          0.8,
+          0.8500000000000001,
+          0.55
+        ],
+        "per_fold_config": [
+          1.0,
+          0.25,
+          0.25,
+          0.25,
+          0.05
+        ]
+      },
+      "gbt_tuned": {
+        "top2": 0.8922413793103449,
+        "top1": 0.7844827586206896,
+        "ece_cross_fitted": 0.04136450427418868,
+        "ece_raw": 0.12640323875002635,
+        "fold_temperatures": [
+          1.85,
+          1.7000000000000002,
+          1.5,
+          1.8,
+          1.8
+        ],
+        "per_fold_config": [
+          [
+            200,
+            0.07,
+            15,
+            3
+          ],
+          [
+            200,
+            0.03,
+            7,
+            10
+          ],
+          [
+            200,
+            0.03,
+            7,
+            10
+          ],
+          [
+            200,
+            0.07,
+            15,
+            3
+          ],
+          [
+            400,
+            0.03,
+            7,
+            3
+          ]
+        ]
+      }
+    }
+  },
+  "environment": {
+    "python": "3.14.0",
+    "python_full": "3.14.0 (tags/v3.14.0:ebf955d, Oct 7 2025, 10:15:03) [MSC v.1944 64 bit (AMD64)]",
+    "implementation": "cpython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "packages": {
+      "numpy": "2.4.6",
+      "pandas": "2.3.3",
+      "pyarrow": "24.0.0",
+      "scikit-learn": "1.8.0",
+      "scipy": "1.18.0",
+      "joblib": "1.5.3",
+      "threadpoolctl": "3.6.0",
+      "lightgbm": "4.6.0",
+      "torch": "2.12.0"
+    }
+  },
+  "created_at": "2026-07-29T17:02:30.982216+00:00"
+}

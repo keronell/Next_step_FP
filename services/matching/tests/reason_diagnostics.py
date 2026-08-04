@@ -16,8 +16,10 @@ THE DENOMINATOR, which is the whole point of the exercise
 DEV-89's acceptance criterion measures against the *explainable universe*:
 own-career `fit`/`sem`/`skill` plus all question features. That is deliberately
 WIDER than a question-only denominator, so a question-only figure is not comparable
-to this one and neither substitutes for the other -- the sibling measurement taken
-during DEV-99 reports the narrow reading and is a different number by design.
+to this one and neither substitutes for the other -- `flip_diagnostics.py`'s
+`attribution` table reports the narrow reading (0.293 on `matcher_nn_v1`) and is a
+different number by design. That file did not exist on `main` when this module was
+written, which is why the reference reads as a pointer rather than an assumption.
 Cross-career coefficients (devops_fit pushing against frontend) are excluded from
 both: they are real model behavior withheld on purpose as honest-but-unreadable, so
 counting them as "lost" would charge `reason_builder` for a decision it did not make.
@@ -91,7 +93,7 @@ sys.path[:0] = [str(_SERVICE.parent), str(_SERVICE)]
 from app.repositories.career_repository import CareerCandidate  # noqa: E402
 from app.services import reason_builder  # noqa: E402
 from app.services import feature_builder  # noqa: E402
-from app.services.matcher_model import MatcherModel  # noqa: E402
+from app.services.matcher import Matcher, load_matcher  # noqa: E402
 from app.services.matching_service import TOP_N, _skill_signals  # noqa: E402
 from app.services.reason_builder import MIN_CONTRIBUTION, build_reasons  # noqa: E402
 from common.data import load_careers, load_questions  # noqa: E402
@@ -269,7 +271,7 @@ def renderable_share(units: dict[str, float], renderable: frozenset[str]) -> flo
 
 
 def measure(
-    model: MatcherModel,
+    model: Matcher,
     cands: list[CareerCandidate],
     sets: list[dict],
     phrased: frozenset[str] | None = None,
@@ -338,7 +340,7 @@ def _row(label: str, stats: dict) -> str:
 
 
 def report(artifact: Path, skill_rich: bool, with_seeds: bool) -> None:
-    model = MatcherModel.load(artifact)
+    model = load_matcher(artifact)
     cands = candidates(skill_rich=skill_rich)
     sets = answer_sets(ANSWER_SETS)
     phrases = reason_builder.QUESTION_PHRASES

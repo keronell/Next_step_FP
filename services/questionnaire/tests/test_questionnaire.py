@@ -74,6 +74,44 @@ def test_submit_derives_response_caveats_from_model_scored_recs(
     assert r.json()["model_caveats"] == ["warning one", "warning two"]
 
 
+def test_the_real_artifacts_caveats_survive_the_response_and_reach_persistence(
+    client, valid_answers, persisted, monkeypatch
+):
+    """DEV-99: the test above proves the derivation with hand-written strings. This one
+    uses the REAL artifact's caveats, which is what a flip would actually carry.
+
+    It closes the one hop matching-service's own end-to-end test cannot reach: that
+    suite stops at /internal/match, and this service is where the response-level field
+    is derived and where the persisted record is handed off. The caveats are prose with
+    punctuation and a non-ASCII character, so "it is a list of strings" is not the same
+    assurance as "these exact strings arrive".
+
+    Reads the artifact rather than importing matching-service's loader — the two
+    services do not share a venv or a package path, and the JSON is the contract.
+    """
+    import json
+    from pathlib import Path
+
+    artifact = Path(__file__).resolve().parents[3] / "data" / "models" / "matcher_nn_v1.json"
+    if not artifact.exists():
+        pytest.skip("matcher_nn_v1.json not present - run data/scripts/export_nn_model.py")
+    caveats = json.loads(artifact.read_text(encoding="utf-8"))["caveats"]
+    assert caveats, "the shipped artifact carries no caveats to propagate"
+
+    model_recs = [dict(CANNED_RECS[0], model_version="matcher-nn-v1", model_caveats=caveats)]
+    monkeypatch.setattr(q_routes, "match_remote", lambda answers, profile=None: model_recs)
+
+    r = client.post("/api/questionnaire/submit", json={"answers": valid_answers})
+    assert r.status_code == 200
+    assert r.json()["model_caveats"] == caveats
+    # Named, not merely non-empty: the ADR 0005 mitigation caveat is the one whose loss
+    # would leave an uncalibrated model looking calibrated all the way to the UI.
+    assert any("NOT calibrated" in c for c in r.json()["model_caveats"])
+    # And the same strings are what persistence is handed, per-rec.
+    assert persisted[0]["recs"][0]["model_caveats"] == caveats
+    assert persisted[0]["recs"][0]["model_version"] == "matcher-nn-v1"
+
+
 def test_submit_forwards_the_self_input_profile_to_matching(
     client, valid_answers, matching_ok, persisted
 ):
