@@ -1283,9 +1283,29 @@ def rebuild_report() -> None:
     end up holding two versions of one derivation.
     """
     import train_models as tm
+    from dataset_guards import dataset_digest
 
     df, _X, y, _soft, _careers, _arch, meta = tm.load_data()
     results = json.loads(OUT_JSON.read_text(encoding="utf-8"))
+
+    # This stage refits nothing, but it is NOT purely a re-render: class balance and
+    # the delta-gap context are recomputed from the CURRENT `y`, then written back
+    # beside the OLD per-seed metrics and the old digest. Profile ids are the join
+    # key, so a rebuild whose ids still line up but whose labels have moved produces
+    # a report describing two different datasets at once -- and stamps it with the
+    # digest of the earlier one. Nothing downstream could tell.
+    digest = dataset_digest(df, meta["feature_names"])
+    if digest != results.get("dataset_digest"):
+        raise SystemExit(
+            "learning_curve_results.json was measured on a different dataset build:\n"
+            f"  results: {results.get('dataset_digest')}\n"
+            f"  current: {digest}\n"
+            "`--stage report` derives class balance and the delta gap from the CURRENT "
+            "labels, so rebuilding now would mix them with the recorded per-seed "
+            "metrics and keep the old digest. Re-measure the curve, or check out the "
+            "dataset build the results were computed on."
+        )
+
     profile_ids = df["profile_id"].tolist()
     index = {pid: i for i, pid in enumerate(profile_ids)}
 

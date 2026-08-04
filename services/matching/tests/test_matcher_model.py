@@ -8,7 +8,11 @@ import pytest
 
 from common.data import load_careers, load_questions
 from app.services.feature_builder import feature_names
-from app.services.matcher_model import MatcherModel, MatcherModelError
+from app.services.matcher_model import (
+    KNOWN_DEPLOYMENT_STATUSES,
+    MatcherModel,
+    MatcherModelError,
+)
 from app.services.reason_builder import build_reasons
 
 from tests.conftest import tiny_artifact
@@ -166,6 +170,54 @@ def test_deployment_absent_means_unrestricted():
 def test_deployment_ranking_only_is_kept():
     artifact = tiny_artifact(deployment={"status": "ranking_only", "ranking": "this model"})
     assert MatcherModel(artifact).deployment["status"] == "ranking_only"
+
+
+def test_a_fully_qualified_artifact_loads_and_may_show_its_own_percentages():
+    """The both-floors-clear case, which no shipped artifact exercises yet.
+
+    `export_nn_model.gate1_decision()` emits "ranking_and_percentages" when a retrain
+    clears ECE *and* stability. Because an unknown status fails the load, a mismatch
+    here would take the best possible model and silently serve the formula instead --
+    the fail-closed rule doing exactly the harm it exists to prevent. Asserted through
+    `displays_own_percentages` rather than on the string, because the point is that
+    such a model is allowed to put its own numbers on screen.
+    """
+    from app.services.matcher import displays_own_percentages
+
+    model = MatcherModel(tiny_artifact(deployment={"status": "ranking_and_percentages"}))
+    assert model.deployment["status"] == "ranking_and_percentages"
+    assert displays_own_percentages(model)
+
+
+def test_deployment_vocabulary_matches_the_exporter():
+    """Producer and consumer are held to one vocabulary, by reading the producer.
+
+    The exporter lives in `data/scripts/` and cannot be imported from a service (it
+    is a different interpreter and dependency set), so this parses its source for the
+    statuses `gate1_decision` can emit. "refused" is deliberately excluded: that
+    branch sets `may_write` False and no such artifact is ever written, so a file
+    claiming it should fail to load.
+    """
+    import ast
+    from pathlib import Path
+
+    exporter = Path(__file__).resolve().parents[3] / "data" / "scripts" / "export_nn_model.py"
+    if not exporter.exists():
+        pytest.skip("export_nn_model.py not present")
+    tree = ast.parse(exporter.read_text(encoding="utf-8"))
+    fn = next(
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "gate1_decision"
+    )
+    emitted = {
+        n.value for n in ast.walk(fn)
+        if isinstance(n, ast.Constant) and isinstance(n.value, str)
+    }
+    writable = {s for s in emitted if s in {"ranking_and_percentages", "ranking_only"}}
+    assert writable == set(KNOWN_DEPLOYMENT_STATUSES), (
+        f"exporter emits {sorted(writable)} but the runtime accepts "
+        f"{sorted(KNOWN_DEPLOYMENT_STATUSES)} - an artifact would be refused at load"
+    )
 
 
 @pytest.mark.parametrize(

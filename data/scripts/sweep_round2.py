@@ -1293,6 +1293,24 @@ def run_round2(recompute_comparators: bool = False) -> dict:
             "round2_scoreboard.json was computed on a different dataset build - re-run "
             "`--stage scoreboard` before Round 2."
         )
+    # The digest alone is not enough. It pins the DATA; the scoreboard's Round 1
+    # replay pins the CODE AND ENVIRONMENT that consume it. Under a library or
+    # code change the digest can match while the replayed selections move, and the
+    # report below already says so in as many words ("SELECTIONS MOVED -- nothing
+    # below is comparable to Round 1") -- while continuing anyway, which is how an
+    # incomparable model reaches the record and, from there, the exporter.
+    # Declaring incomparability and then proceeding is the contradiction; refuse.
+    reproduction = scoreboard.get("round_1_reproduction") or {}
+    if not reproduction.get("all_identical"):
+        raise SystemExit(
+            "round2_scoreboard.json does NOT reproduce Round 1's selections, so every "
+            "Round 2 number computed against it would be incomparable to Round 1 - the "
+            "comparison this stage exists to make. The dataset digest matches, so this "
+            "is code or environment drift, not a data change. Re-run `--stage "
+            "scoreboard` in the pinned training venv (data/scripts/README.md) and only "
+            "proceed once the reproduction table is identical. If the drift is "
+            "deliberate, Round 1 has to be re-baselined first and said so out loud."
+        )
 
     state = _load_checkpoint(CHECKPOINT, digest)
     comparator_check = state.get("comparator_check", {})

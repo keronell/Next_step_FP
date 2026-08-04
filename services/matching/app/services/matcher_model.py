@@ -23,10 +23,15 @@ class MatcherModelError(RuntimeError):
     """Artifact missing, malformed, or incompatible with the current features."""
 
 
-#: `deployment.status` values the serving path knows how to honour.
-DEPLOYABLE = "deployable"
+#: `deployment.status` values the serving path knows how to honour. These are the
+#: exporter's vocabulary, not this module's invention -- `export_nn_model.py`'s
+#: `gate1_decision()` emits exactly "ranking_and_percentages" (both floors clear),
+#: "ranking_only" (stability only) or "refused" (neither, and never written, since
+#: `may_write` is False). A status this set does not contain fails the load, so
+#: inventing a name here would reject a perfectly good artifact.
+RANKING_AND_PERCENTAGES = "ranking_and_percentages"
 RANKING_ONLY = "ranking_only"
-KNOWN_DEPLOYMENT_STATUSES = frozenset({DEPLOYABLE, RANKING_ONLY})
+KNOWN_DEPLOYMENT_STATUSES = frozenset({RANKING_AND_PERCENTAGES, RANKING_ONLY})
 
 
 def parse_deployment(artifact: dict) -> dict | None:
@@ -39,6 +44,12 @@ def parse_deployment(artifact: dict) -> dict | None:
     block and is Deployable, so silence has to keep meaning today's behaviour --
     otherwise landing this would change the incumbent's served output, which is
     exactly what this change must not do.
+
+    THE ACCEPTED SET IS THE EXPORTER'S, NOT THIS MODULE'S. A neural retrain that
+    clears BOTH floors exports "ranking_and_percentages"; rejecting that would take a
+    fully-qualified model and silently serve the formula instead, which is the
+    fail-closed rule doing precise harm. `data/scripts/tests/test_export_nn_model.py`
+    and `test_deployment_vocabulary_matches_the_exporter` hold the two ends together.
 
     AN UNRECOGNISED STATUS IS A LOAD FAILURE, not a default-to-permissive. A typo
     like "rankingonly" must not silently grant an uncalibrated model permission to
