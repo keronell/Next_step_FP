@@ -602,3 +602,25 @@ back to the formula's"* — describes a state the serving path cannot currently 
 exactly as they are today, by design"* is true of the design and **false of the code**.
 Evidence, the cost of building it, and the three mechanical criteria that *are* satisfied:
 [`dev-23-flip-readiness.md`](./dev-23-flip-readiness.md).
+
+**Added by DEV-99 (2026-08-04). Nothing above is changed.** The mitigation was built,
+the approval this document is the input to **was given**, and `MATCHER_MODEL_PATH` now
+points at `matcher_nn_v1.json`. Three sentences above are therefore no longer true of
+the present, and are left standing as the record of when they were:
+
+- §2's *"Neither is served: `MATCHER_MODEL_PATH` is blank and production runs the
+  formula"* — the neural artifact is now served.
+- §10's *"The variable is blank in `.env.example`, defaults blank in
+  `docker-compose.yml`"* — the compose **default** is still blank, deliberately, so
+  rollback stays a one-line edit; `.env` and `.env.example` now carry the artifact path.
+- §10's parenthetical that `backend/.env`'s value *"never reaches the services"* was
+  already corrected by the flip-readiness document: it reaches `auth` and `roadmap`,
+  which ignore it, and never reaches `matching`.
+
+§5.1's *"switching would not improve the displayed percentages — it would leave them
+exactly as they are today, by design"* is now true of the code as well as the design,
+which it was not when DEV-99 first appended to this document. Measured on the live
+stack, a fixed answer set returns identical top-two rows and numbers under both scorers
+and differs only in the third selection. **What §7 says about validity is unaffected by
+any of this** — the labels are as circular as they were, and the approval was given on
+the grounds §10 names: the ADR 0004 requirement, stability, and maintainability.

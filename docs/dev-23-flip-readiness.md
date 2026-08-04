@@ -371,3 +371,103 @@ percentage — which this document correctly said was not yet expressible.
 **`MATCHER_MODEL_PATH` is still blank and the flip is still DEV-99's**, needing its own
 human approval. This work removes the incoherence that blocked that approval; it does
 not grant it.
+
+---
+
+## Closed: the flip happened (2026-08-04)
+
+Approval was given by the human who owns the decision, after the two prerequisites this
+document ordered had merged — the ADR 0005 mitigation (PR #37) and DEV-89 (PR #36). The
+repo-root `.env` now reads `MATCHER_MODEL_PATH=/store/models/matcher_nn_v1.json` and the
+neural matcher serves. `.env.example` and the `docker-compose.yml` comment name the same
+value; the compose **default** stays `${MATCHER_MODEL_PATH:-}` deliberately, so blanking
+one line is still a complete rollback.
+
+Everything below was produced against the running 13-container stack with the real RAG
+store (1853 job ads), not from the fixture this document had to use above.
+
+### The finding this ticket did not predict: a restart is not always enough
+
+The first restart with the flag set logged:
+
+```
+WARNING [app.main] Matcher model unavailable, using formula:
+    malformed model artifact /store/models/matcher_nn_v1.json: 'coef'
+```
+
+`'coef'` is the **linear** loader's missing key. The running image had been built before
+DEV-88, so it contained `matcher_model.py` and no `matcher.py` — no dispatch seam, and
+therefore no `probability_averaged_mlp_ensemble` entry to dispatch to. The flag was set
+correctly and the artifact was fine; the *image* predated the model family.
+
+This is worth naming because of how it fails. The fallback behaved exactly as designed —
+the service came up on the formula and served correct results — so nothing was broken,
+and the only evidence of a no-op flip was one WARNING line whose text points at the
+artifact rather than at the build. **`docker compose restart` cannot flip this flag on a
+stale image; `up -d --build` can.** Step 4 of "What would make a flip coherent" above
+said "restart", and that was incomplete.
+
+### The five acceptance criteria, verified against the live stack
+
+| AC | evidence |
+|---|---|
+| Human approval | given 2026-08-04, recorded on DEV-99 |
+| Flag set, environments named | `docker compose config` resolves `matching` to `/store/models/matcher_nn_v1.json`; `auth` and `roadmap` still show `backend/.env`'s stale value and still ignore it |
+| Service logs the version; failed load falls back | `INFO [app.main] Learned matcher loaded: matcher-nn-v1`, and the stale-image episode above is an unplanned live proof of the fallback |
+| Caveats and version propagate end-to-end | a real submit returns 4 caveats and `model_version: matcher-nn-v1`; the persisted redis hash `sub:<id>` carries both verbatim |
+| Rollback documented | **drilled, not just documented** — see below |
+
+### The rollback drill
+
+Blanked the line, `up -d matching matching-dapr`, and the service logged
+*"MATCHER_MODEL_PATH unset — matching uses the deterministic formula"*. A real submit then
+returned `model_version: formula-v1`, zero caveats and no `model_probability`. Restoring
+the line and restarting brought `matcher-nn-v1` back. No image was rebuilt between those
+three states, so the rollback claim — no code redeploy — is now exercised rather than
+asserted.
+
+**Two operational notes the drill surfaced.** Restarting `matching` + `matching-dapr`
+leaves a window of roughly 15–30 seconds in which `questionnaire`'s Dapr invoke fails and
+the gateway answers **503**; the SPA degrades to its offline estimate for that window, so
+this is a visible blip rather than an outage, but it is not zero-downtime. And the
+rollback limit this document already recorded held exactly as described: submissions
+persisted while the model was serving still carry `matcher-nn-v1` and its caveats.
+
+### What actually changed for users
+
+The mitigation makes the flip much narrower than the raw scorer comparison above
+suggests. On a fixed all-zero answer set through the real stack:
+
+| rank | formula | neural matcher |
+|---|---|---|
+| 1 | UX Designer — 71% | UX Designer — **71%** |
+| 2 | Frontend Developer — 67% | Frontend Developer — **67%** |
+| 3 | Mobile Developer — 59% | Product Manager — 51% |
+
+Identical numbers where the selections agree, because every displayed number is the
+formula's either way. **The flip changes which careers are shortlisted, not the
+percentages beside them** — which is what ADR 0005's mitigation is for, and it is the
+concrete form of the ~15-point scale gap measured above no longer reaching a user.
+
+Note the model's own ordering is *not* what is displayed: its highest probability in
+that response was UX Designer at 0.353, but in a separate fixture run its top pick by
+probability (devops, 0.765) displayed **second** at 24% behind product-manager at 42%.
+The formula ranks within the model's shortlist, per the ADR amendment.
+
+### Also done here
+
+The artifact's fourth caveat was reworded. It said displayed percentages *"should fall
+back to the formula's"* — an instruction to code that did not exist when it was written
+and did by the time it shipped, and it renders to every user at `Results.jsx:43`. It now
+describes the behaviour and says **SELECTION** rather than RANKING. Fixed at the source
+(`export_nn_model.py::calibration_caveat`) and regenerated into the artifact through that
+function, so a future re-export reproduces it; one line of the artifact changed and no
+weight moved. `test_the_calibration_caveat_appears_only_when_ece_fails` asserted the
+imperative `"FALL BACK"` and now asserts the caveat names the formula and the selection —
+the test's intent was always "name the mitigation, don't just flag a problem", and only
+its mood changed.
+
+**Still open, and still not this ticket's:** the IG step-cap trade (~1 in 9 careers get no
+model-derived reasons), and the unmeasured real-artifact latency. `History.jsx` still
+renders `matchPercent` with no caveat beside it — now less severe, since the persisted
+percentage is the formula's, but the stored `model_caveats` are still never shown there.
