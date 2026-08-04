@@ -609,15 +609,43 @@ def _load_checkpoint(digest: str) -> dict:
     checkpoint written against another build of the features is silently wrong rather
     than obviously wrong, so it is discarded instead of merged.
     """
+    fingerprint = _protocol_fingerprint()
+    fresh = {"dataset_digest": digest, "protocol_fingerprint": fingerprint, "units": {}}
     if not CHECKPOINT.exists():
-        return {"dataset_digest": digest, "units": {}}
+        return fresh
     saved = json.loads(CHECKPOINT.read_text(encoding="utf-8"))
     if saved.get("dataset_digest") != digest:
         print("checkpoint was written against a different dataset build - discarding")
-        return {"dataset_digest": digest, "units": {}}
+        return fresh
+    # Same reasoning as the dataset key, one level up: a completed (point, seed) is
+    # a FIT, and the curve's protocol constants, the fitting code and the installed
+    # packages all decide what that fit is. Resuming across a change to any of them
+    # mixes protocols inside one curve.
+    if saved.get("protocol_fingerprint") != fingerprint:
+        print("checkpoint was written under a different protocol or environment "
+              "- discarding rather than mixing old units with new ones")
+        return fresh
     if saved.get("units"):
         print(f"resuming: {len(saved['units'])} (point, seed) units already complete")
     return saved
+
+
+def _protocol_fingerprint() -> str:
+    """See `env_manifest.fit_fingerprint`. Covers this module's curve constants, the
+    frozen configuration it evaluates, the fitting code, and the packages."""
+    from pathlib import Path
+
+    from env_manifest import fit_fingerprint
+
+    here = Path(__file__).resolve().parent
+    return fit_fingerprint(
+        [here / n for n in ("learning_curve.py", "nn_model.py", "train_models.py")],
+        {"experiment_seeds": list(EXPERIMENT_SEEDS),
+         "curve_folds": CURVE_FOLDS,
+         "curve_inner_splits": CURVE_INNER_SPLITS,
+         "class_floor": CLASS_FLOOR,
+         "val_fraction": DEFAULT_VAL_FRACTION},
+    )
 
 
 # -------------------------------------------------------------------------- report

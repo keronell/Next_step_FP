@@ -121,30 +121,109 @@ def _load_checkpoint(path: Path, digest: str) -> dict:
     return saved
 
 
+#: Modules whose source decides how a fit is produced. A registry value can stay
+#: identical while the code that consumes it changes, so the values alone are not
+#: enough to make a cached fit reusable.
+_FIT_SOURCES = ("sweep_round2.py", "sweep_variants.py", "nn_model.py", "train_models.py")
+
+
+def _refinement_drift(recorded: dict, current: dict) -> tuple[list, list]:
+    """Compare recorded refinement specifications against the live registry.
+
+    Returns `(changed, appeared)`. `changed` is disqualifying: a recorded key whose
+    VALUE moved, or a refinement added/removed outright, means `_report()` would
+    relabel recorded fold scores with a configuration that never produced them.
+    `appeared` is a key the constructor has gained since — real drift, but not
+    evidence about any axis the run recorded, so it is reported and not enforced.
+
+    Both sides are normalised through JSON first. `full_specification` reads live
+    defaults, so a tuple like `hidden_sizes=(64, 32)` compares unequal to the `[64,
+    32]` the recorded file necessarily holds — a difference in serialisation, not in
+    configuration, and one that would otherwise block every rebuild.
+    """
+    def normalised(value):
+        return json.loads(json.dumps(value, default=repr))
+
+    recorded, current = normalised(recorded), normalised(current)
+    changed = sorted(set(recorded) ^ set(current))
+    appeared: set[str] = set()
+
+    def walk(rec, cur, path: str) -> None:
+        if isinstance(rec, dict) and isinstance(cur, dict):
+            for key in rec.keys() | cur.keys():
+                where = f"{path}.{key}" if path else key
+                if key not in rec:
+                    appeared.add(where)
+                elif key not in cur:
+                    changed.append(f"{where} (removed)")
+                else:
+                    walk(rec[key], cur[key], where)
+        elif rec != cur:
+            changed.append(f"{path}: {rec!r} -> {cur!r}")
+
+    for name in sorted(set(recorded) & set(current)):
+        walk(recorded[name], current[name], name)
+    return sorted(changed), sorted(appeared)
+
+
+def _fit_sources() -> list[Path]:
+    here = Path(__file__).resolve().parent
+    return [here / name for name in _FIT_SOURCES]
+
+
+def _artifact_digest(path: Path) -> str | None:
+    """SHA-256 of a prerequisite artifact's bytes, or None when it is absent."""
+    import hashlib
+
+    if not path.exists():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _scoreboard_fingerprint() -> str:
+    """The scoreboard's half of the protocol: everything `_protocol_fingerprint`
+    covers EXCEPT the scoreboard artifact itself, which cannot fingerprint its own
+    bytes. Written by `--stage scoreboard` and re-derived by `--stage round2`.
+    """
+    from env_manifest import fit_fingerprint
+
+    return fit_fingerprint(_fit_sources(), {
+        "registry": {
+            name: full_specification(variant)
+            for name, variant in sorted(round2_registry().items())
+        },
+        "experiment_seeds": list(EXPERIMENT_SEEDS),
+    })
+
+
 def _protocol_fingerprint() -> str:
     """What a resumed checkpoint must match, beyond the dataset digest.
 
-    Covers the Variant registry (names AND full specifications, so a changed default
-    in `nn_model.py` is caught rather than a changed name only), the experiment
-    seeds, and the package/interpreter manifest. Hashed rather than stored whole so
-    the checkpoint stays small; the mismatch message names the categories, and the
-    committed results file records the environment in full for anyone diffing.
+    Four things, because a cached fit is only reusable if all of them held when it
+    was produced:
+
+      registry     names AND full specifications, so a changed default in
+                   `nn_model.py` is caught rather than a changed name only
+      source       the modules that decide how a fit is produced -- registry VALUES
+                   can be identical while the code consuming them has changed
+      prerequisite `round2_scoreboard.json`, which Round 2 reads and compares
+                   against; a regenerated one makes cached seeds incomparable
+      environment  interpreter and package versions
+
+    Hashed rather than stored whole so the checkpoint stays small; the mismatch
+    message names the categories, and the committed results file records the
+    environment in full for anyone diffing.
     """
-    import hashlib
+    from env_manifest import fit_fingerprint
 
-    from env_manifest import environment_manifest
-
-    registry = round2_registry()
-    payload = {
+    return fit_fingerprint(_fit_sources(), {
         "registry": {
             name: full_specification(variant)
-            for name, variant in sorted(registry.items())
+            for name, variant in sorted(round2_registry().items())
         },
+        "scoreboard": _artifact_digest(SCOREBOARD_JSON),
         "experiment_seeds": list(EXPERIMENT_SEEDS),
-        "environment": environment_manifest(),
-    }
-    blob = json.dumps(payload, sort_keys=True, default=repr)
-    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+    })
 
 
 def _save_checkpoint(path: Path, state: dict) -> None:
@@ -364,6 +443,10 @@ def run_scoreboard() -> dict:
     scoreboard = state["seeds"]
     out = {
         "dataset_digest": digest,
+        # What `--stage round2` compares against, so its `round_1_reproduction`
+        # verdict describes THIS code and environment rather than being a boolean of
+        # unknown vintage.
+        "protocol_fingerprint": _scoreboard_fingerprint(),
         "experiment_seeds": list(EXPERIMENT_SEEDS),
         "round_1_reproduction": reproduces_round_1(scoreboard),
         "variant_ranking": rank_variants(scoreboard),
@@ -1342,6 +1425,27 @@ def run_round2(recompute_comparators: bool = False) -> dict:
     # below is comparable to Round 1") -- while continuing anyway, which is how an
     # incomparable model reaches the record and, from there, the exporter.
     # Declaring incomparability and then proceeding is the contradiction; refuse.
+    # `all_identical` is a boolean recorded by the scoreboard RUN, so it describes
+    # the code and packages that ran then -- not the process about to consume it.
+    # Under drift the stored True stays True while the replay it summarises has gone
+    # stale, and Round-2 fits get compared against it. The scoreboard's own
+    # fingerprint is what makes the boolean mean something here.
+    recorded_fp = scoreboard.get("protocol_fingerprint")
+    if recorded_fp is None:
+        print(
+            "WARNING: round2_scoreboard.json predates protocol fingerprinting, so "
+            "its Round-1 replay CANNOT be verified against the current code and "
+            "environment. The reproduction flag below describes the run that wrote "
+            "the file. Re-run `--stage scoreboard` if anything has changed since."
+        )
+    elif recorded_fp != _scoreboard_fingerprint():
+        raise SystemExit(
+            "round2_scoreboard.json was produced under a different protocol or "
+            "environment than this process is running. Its Round-1 replay therefore "
+            "says nothing about whether Round 2's fits are comparable to Round 1. "
+            "Re-run `--stage scoreboard` before `--stage round2`."
+        )
+
     reproduction = scoreboard.get("round_1_reproduction") or {}
     if not reproduction.get("all_identical"):
         raise SystemExit(
@@ -1369,6 +1473,25 @@ def run_round2(recompute_comparators: bool = False) -> dict:
         if check:
             comparator_check = check
             state["comparator_check"] = check
+            # The verification exists to establish that Round 1's comparator legs are
+            # still reproducible, because every seed REUSES them. Recording a failure
+            # and continuing would price Round-2 models against baselines the script
+            # has just shown to be stale -- and would do it for the remaining seeds
+            # too, since they reuse the same legs. Refuse; `--recompute-comparators`
+            # is the supported way through.
+            if not check["all_identical"]:
+                diverged = {
+                    m: v for m, v in check["per_model"].items()
+                    if not (v["identical_top2"] and v["profiles_disagreeing"] == 0)
+                }
+                raise SystemExit(
+                    f"comparator replay diverged on seed {seed}: {json.dumps(diverged)}\n"
+                    "Round 1's comparator legs are reused for EVERY seed, so every "
+                    "effect size from here would compare Round-2 models against "
+                    "baselines this check just invalidated. Re-run with "
+                    "`--recompute-comparators` to refit every leg in this "
+                    "environment, or restore the tree the legs were measured on."
+                )
         leg["fold_scoreboard"] = [
             {"winner": f["winner"], "scores": {n: float(s) for n, s in f["scores"].items()}}
             for f in board
@@ -1534,6 +1657,31 @@ def rebuild_report() -> None:
             f"  registry_size: results {results.get('registry_size')} != "
             f"current {len(registry)}"
         )
+    # Size alone is far too weak: a refinement can change specification, axis or
+    # rationale while the count holds, and `_report()` reads those from the LIVE
+    # REFINEMENTS -- relabelling recorded fold scores with a configuration that never
+    # produced them. The results file records every refinement's FULL specification,
+    # so compare that rather than counting.
+    recorded_refinements = results.get("refinements") or {}
+    if recorded_refinements:
+        current_refinements = {
+            name: full_specification(variant) for name, variant in REFINEMENTS.items()
+        }
+        changed, appeared = _refinement_drift(recorded_refinements, current_refinements)
+        if changed:
+            mismatches.append(f"  refinement specifications changed: {changed}")
+        if appeared:
+            # A constructor gaining a parameter is real drift, but it is NOT evidence
+            # that the recorded run differs on any axis it recorded -- the run simply
+            # predates the parameter. Refusing on it would make the committed results
+            # unrenderable for a reason that does not touch a single number. The
+            # checkpoint's source digest is what stops such a change being reused
+            # inside a FIT; here it is worth saying out loud and no more.
+            print(
+                "WARNING: refinement specifications have gained keys since this run: "
+                f"{appeared}. Recorded values on recorded keys are unchanged, so the "
+                "report is still rendering the configuration that produced it."
+            )
     if mismatches:
         raise SystemExit(
             "round2_results.json was produced against different inputs:\n"
@@ -1542,10 +1690,7 @@ def rebuild_report() -> None:
             "incidence from the LIVE registry and re-renders the row count and "
             "feature version from the CURRENT dataframe, so rebuilding now would "
             "describe a run that never happened. Re-run `--stage round2`, or check "
-            "out the tree the results were produced on.\n"
-            "Note: a registry whose SIZE is unchanged but whose specifications moved "
-            "is not detectable from what this file records - the checkpoint's "
-            "protocol fingerprint is what guards that for runs from here on."
+            "out the tree the results were produced on."
         )
 
     board = results["per_seed_fold_scoreboard"]

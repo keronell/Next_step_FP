@@ -101,9 +101,19 @@ def _as_array(value, what: str) -> np.ndarray:
     path is allowed to raise. Ragged and non-numeric input raise ValueError, which
     `load_matcher` does not catch."""
     try:
-        return np.asarray(value, dtype=np.float64)
+        array = np.asarray(value, dtype=np.float64)
     except (ValueError, TypeError) as exc:
         raise MatcherModelError(f"{what} is not a numeric array: {exc}") from exc
+    # `json.loads` accepts NaN and Infinity by default and numpy carries them
+    # happily, so a non-finite weight reaches inference intact and poisons the
+    # probabilities. On a ranking_only artifact nothing downstream raises -- the
+    # formula supplies every displayed field -- so the NaN survives into
+    # `score_breakdown.model_probability` and blows up during response
+    # serialization, outside `match()`'s fallback. Rejecting here keeps a malformed
+    # artifact on the formula, which is what CLAUDE.md promises.
+    if array.size and not np.isfinite(array).all():
+        raise MatcherModelError(f"{what} contains non-finite values (NaN or Infinity)")
+    return array
 
 
 @dataclass(frozen=True)

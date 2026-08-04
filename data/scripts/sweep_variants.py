@@ -460,18 +460,44 @@ def _load_checkpoint(digest: str) -> dict:
     `train_features.parquet` is silently wrong rather than obviously wrong, so it is
     discarded instead of merged.
     """
+    fingerprint = _protocol_fingerprint()
+    fresh = {"dataset_digest": digest, "protocol_fingerprint": fingerprint, "seeds": {}}
     if not CHECKPOINT.exists():
-        return {"dataset_digest": digest, "seeds": {}}
+        return fresh
     saved = json.loads(CHECKPOINT.read_text(encoding="utf-8"))
     if saved.get("dataset_digest") != digest:
         print("checkpoint was written against a different dataset build - discarding")
-        return {"dataset_digest": digest, "seeds": {}}
+        return fresh
+    # The digest pins the DATA; a completed seed is a FIT. Reusing one across a
+    # change to the Variant registry, the code that consumes it, or the installed
+    # packages blends two protocols into one output and stamps the current
+    # environment on all of it -- silently wrong rather than obviously wrong, which
+    # is the same reason the digest is a key at all.
+    if saved.get("protocol_fingerprint") != fingerprint:
+        print("checkpoint was written under a different protocol or environment "
+              "- discarding rather than mixing old fits with new ones")
+        return fresh
     if saved.get("seeds"):
         print(f"resuming: seeds {sorted(saved['seeds'])} already complete")
     return saved
 
 
+def _protocol_fingerprint() -> str:
+    """See `env_manifest.fit_fingerprint`. Covers the Variant registry's full
+    specifications, the experiment seeds, this module and the fitting code it calls,
+    and the installed packages."""
+    from env_manifest import fit_fingerprint
+
+    here = Path(__file__).resolve().parent
+    return fit_fingerprint(
+        [here / n for n in ("sweep_variants.py", "nn_model.py", "train_models.py")],
+        {"variants": {n: repr(v) for n, v in sorted(VARIANTS.items())},
+         "experiment_seeds": list(EXPERIMENT_SEEDS)},
+    )
+
+
 def _save_checkpoint(state: dict) -> None:
+    state.setdefault("protocol_fingerprint", _protocol_fingerprint())
     CHECKPOINT.write_text(json.dumps(state), encoding="utf-8")
 
 

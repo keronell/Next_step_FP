@@ -297,3 +297,28 @@ def test_the_dispatch_seam_never_lets_a_foreign_exception_escape():
     finally:
         matcher_module._IMPLEMENTATIONS.clear()
         matcher_module._IMPLEMENTATIONS.update(original)
+
+
+@pytest.mark.parametrize("field", ["scaler_mean", "scaler_scale", "intercept"])
+def test_non_finite_artifact_arrays_fail_at_load(field):
+    """NaN/Infinity in an artifact must engage the formula fallback, not serve.
+
+    `json.loads` accepts `NaN` and `Infinity` by default, so these arrive from a
+    syntactically valid file and poison every probability. On a `ranking_only`
+    artifact nothing downstream raises -- the formula supplies every displayed field
+    -- so the NaN survives into `score_breakdown.model_probability` and fails during
+    response serialization, which is OUTSIDE `match()`'s fallback. The user gets a
+    500 instead of the formula's answer.
+    """
+    artifact = tiny_artifact()
+    artifact[field] = list(artifact[field])
+    artifact[field][0] = float("nan")
+    with pytest.raises(MatcherModelError):
+        MatcherModel(artifact)
+
+
+def test_non_finite_coefficients_fail_at_load():
+    artifact = tiny_artifact()
+    artifact["coef"][0][0] = float("inf")
+    with pytest.raises(MatcherModelError):
+        MatcherModel(artifact)

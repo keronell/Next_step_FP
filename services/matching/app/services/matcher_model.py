@@ -34,6 +34,27 @@ RANKING_ONLY = "ranking_only"
 KNOWN_DEPLOYMENT_STATUSES = frozenset({RANKING_AND_PERCENTAGES, RANKING_ONLY})
 
 
+def require_finite(values: list, what: str) -> None:
+    """Reject NaN/Infinity in an artifact's numeric arrays, at LOAD time.
+
+    `json.loads` accepts `NaN`, `Infinity` and `-Infinity` by default, so these
+    arrive from a syntactically valid artifact and propagate silently: the scaler
+    produces NaN, every logit becomes NaN, and every probability with it. On a
+    `ranking_only` artifact nothing raises -- the formula supplies matchPercent,
+    score and the breakdown -- so the NaN survives into
+    `score_breakdown.model_probability` and fails during response serialization,
+    which is OUTSIDE `match()`'s fallback. The user gets a 500 rather than the
+    formula's answer.
+    """
+    for i, v in enumerate(values):
+        if isinstance(v, (list, tuple)):
+            require_finite(v, f"{what}[{i}]")
+        elif not isinstance(v, (int, float)) or isinstance(v, bool):
+            raise MatcherModelError(f"{what}[{i}] is not a number")
+        elif not math.isfinite(v):
+            raise MatcherModelError(f"{what}[{i}] is not finite: {v!r}")
+
+
 def parse_temperature(artifact: dict) -> float:
     """The artifact's calibration temperature, validated at LOAD time.
 
@@ -134,6 +155,10 @@ class MatcherModel:
                 f"artifact feature_version {artifact.get('feature_version')!r} != "
                 f"code {FEATURE_VERSION!r} — retrain/re-export required"
             )
+        require_finite(self.mean, "scaler_mean")
+        require_finite(self.scale, "scaler_scale")
+        require_finite(self.coef, "coef")
+        require_finite(self.intercept, "intercept")
         if len(self.mean) != n_f or len(self.scale) != n_f:
             raise MatcherModelError("scaler shape mismatch")
         if len(self.coef) != n_c or any(len(row) != n_f for row in self.coef):

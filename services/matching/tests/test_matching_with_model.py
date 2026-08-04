@@ -163,3 +163,43 @@ def test_the_shipped_neural_artifacts_caveats_reach_the_recommendations(client_w
         assert any("bank-consistent" in c for c in recs[0]["model_caveats"])
     finally:
         app.state.matcher_model = None
+
+
+def test_non_finite_probabilities_fall_back_to_the_formula():
+    """Load-time validation cannot catch inf/NaN produced DURING inference.
+
+    Finite weights can still overflow, and on the ranking_only path nothing else
+    raises -- the formula supplies matchPercent, score and the breakdown -- so a NaN
+    probability would reach `score_breakdown.model_probability` and fail at response
+    serialization, outside the fallback. `_match_model` raises instead, which
+    `match()` catches, so the user gets the formula's answer and valid JSON.
+    """
+    import json
+
+    from app.services import feature_builder
+    from app.services.matching_service import FORMULA_VERSION, match
+    from common.data import load_careers
+
+    class NonFinite:
+        version = "non-finite-v1"
+        caveats: list[str] = []
+        deployment = {"status": "ranking_only"}
+
+        def __init__(self, names):
+            self.feature_names = names
+
+        def predict_proba(self, vector):
+            return {"frontend": float("nan")}
+
+        def contributions(self, vector, career_id):
+            return {}
+
+    from tests.conftest import make_candidates
+
+    names = feature_builder.feature_names(load_careers())
+    answers = {f"q{i}": i % 4 for i in range(1, 19)}
+    recs = match(answers, make_candidates(), model=NonFinite(names))
+
+    assert recs, "expected the formula's recommendations, not an empty list"
+    assert all(r["model_version"] == FORMULA_VERSION for r in recs)
+    json.dumps(recs, allow_nan=False)  # would raise if a NaN survived

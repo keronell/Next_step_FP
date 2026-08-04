@@ -96,3 +96,42 @@ recorded history (see docs/dev-23-nn-rework-plan.md Step 1).
 |---|---|
 {packages}
 """
+
+
+def fit_fingerprint(sources, extra: dict | None = None) -> str:
+    """A key a cached fit must still match before it may be reused.
+
+    `dataset_digest()` pins the DATA. A completed seed is a FIT, and a fit is only
+    reusable if everything that produced it also held: the configuration values, the
+    CODE that consumes them, the prerequisite artifacts it read, and the installed
+    packages. Keying a checkpoint on the digest alone lets a resume blend fits from
+    two different protocols into one output and stamp the current environment onto
+    all of them -- which is silently wrong rather than obviously wrong, the same
+    reasoning that made the digest a key in the first place.
+
+    `sources` are paths to the modules that decide how a fit is produced; their
+    bytes are hashed, so a changed default deep in a constructor moves the key even
+    when every recorded configuration value is identical. `extra` carries whatever
+    else the caller considers protocol -- registry specifications, seeds,
+    prerequisite artifact digests. Non-JSON values fall back to `repr`, so the key
+    is conservative (an unrepresentable object changes it) rather than silently
+    ignoring them.
+
+    Stdlib-only, like the rest of this module.
+    """
+    import hashlib
+    import json
+    from pathlib import Path
+
+    h = hashlib.sha256()
+    for source in sources:
+        p = Path(source)
+        h.update(p.name.encode("utf-8"))
+        h.update(p.read_bytes())
+    payload = {
+        "sources": h.hexdigest(),
+        "environment": environment_manifest(),
+        "extra": extra or {},
+    }
+    blob = json.dumps(payload, sort_keys=True, default=repr)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()

@@ -36,6 +36,7 @@ Assumptions / notes:
 """
 from __future__ import annotations
 
+import math
 import re
 
 from common.logging import get_logger
@@ -297,6 +298,16 @@ def _match_model(
     market = {c.career["id"]: c.market_skills for c in unique}
     vector = feature_builder.build_feature_vector(answers, careers, semantic, market)
     probs = model.predict_proba(vector)
+    # Load-time validation rejects non-finite artifact weights, but finite weights
+    # can still overflow to inf/NaN during inference. Raising here reaches `match()`,
+    # which falls back to the formula; letting it through would put NaN in
+    # `score_breakdown.model_probability` on the ranking_only path -- where nothing
+    # else raises, because the formula supplies every displayed field -- and fail at
+    # response serialization instead, outside the fallback.
+    if any(not math.isfinite(p) for p in probs.values()):
+        raise ValueError(
+            f"{model.version} produced non-finite probabilities; falling back"
+        )
 
     fits = feature_builder.questionnaire_fits(careers, answers)
     questions_by_id = {q["id"]: q for q in load_questions()}
