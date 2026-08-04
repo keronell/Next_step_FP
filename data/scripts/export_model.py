@@ -102,7 +102,7 @@ def main() -> None:
     if calibration.get("deployment_temperature") is None:
         raise SystemExit(
             "gate2_winner.json records no calibration.deployment_temperature — it "
-            "predates the cross-fitted-temperature re-baseline (DEV-91, ADR 0004). "
+            "predates the cross-fitted-temperature re-baseline (DEV-91, ADR 0007). "
             "Rerun train_models.py before exporting."
         )
     if calibration.get("deployment_temperature_model") != gate2["deployable"]:

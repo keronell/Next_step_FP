@@ -5,7 +5,7 @@ predictions and then ECE was scored on those same predictions. That is Leakage i
 the strict sense `CONTEXT.md` reserves the word for — data used to score a model
 influenced that model's fitting — and it is *differential*: a worse-calibrated
 model gains more from fitting T on its own evaluation data. Since scaled ECE is
-the Gate-2 tiebreak, the bias could flip a winner. ADR 0004 records the decision.
+the Gate-2 tiebreak, the bias could flip a winner. ADR 0007 records the decision.
 
 What these tests hold is the property, not the implementation. The load-bearing
 one is `test_the_per_fold_temperature_is_blind_to_the_rows_it_will_score`: it
@@ -201,7 +201,7 @@ def test_export_refits_temperature_for_its_selected_fixed_c(tmp_path, monkeypatc
 # ------------------------------------------------------- the leakage contract
 
 def test_the_per_fold_temperature_is_blind_to_the_rows_it_will_score():
-    """THE regression test for ADR 0004.
+    """THE regression test for ADR 0007.
 
     Corrupt one fold's held-out rows beyond recognition and require that fold's
     temperature back bit-identical — then repeat for all five. A temperature fitted
@@ -239,7 +239,7 @@ def test_the_per_fold_temperature_is_blind_to_the_rows_it_will_score():
 
         assert temps_dirty[k] == temps_clean[k], (
             f"fold {k}'s temperature moved when only fold {k}'s TEST rows changed — "
-            "it is being fitted on data it will score (ADR 0004)"
+            "it is being fitted on data it will score (ADR 0007)"
         )
         # Guard against passing vacuously: the corruption must actually have
         # reached the predictions this fold scores, or the assertion above is

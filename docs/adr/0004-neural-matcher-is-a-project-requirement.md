@@ -19,7 +19,7 @@ conclusion drawn from the evidence. We ship it, and we say so.
   name the requirement as the reason it serves.
 - There are no kill criteria, because abandoning the NN is not an available
   outcome. What replaces them is a **ship floor** — see
-  [0002](./0002-gate-1-is-a-ship-floor.md).
+  [0005](./0005-gate-1-is-a-ship-floor.md).
 - The effect-size bar that would have gated displacement becomes a reporting
   standard: it sizes the gap rather than authorising the switch.
 - Serving work (`matcher_nn.py`, export, integrated-gradients attribution) is

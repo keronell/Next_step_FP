@@ -30,7 +30,7 @@ match `round1_results.json` exactly, or no number it produces is comparable to R
 **round2** is the refinement contest, under the IDENTICAL nested protocol, fold
 structure and seed count -- only the model configurations differ, which is the only
 latitude DEV-95's acceptance criteria allow. Its registry is Round 1's Variants
-**minus the Residual Matcher**, plus the refinements: ADR 0003 disqualified the
+**minus the Residual Matcher**, plus the refinements: ADR 0006 disqualified the
 residual from being the shipped neural model, and a contest whose winner may not take
 the prize cannot select anything. See `round2_registry`.
 
@@ -75,7 +75,7 @@ MODELS = ("sweep_nn", "logistic_tuned", "gbt_tuned")
 COMPARATOR_VERIFY_SEED = 42
 
 
-# ADR 0003 disqualifies the **Residual Matcher** from being the shipped neural model,
+# ADR 0006 disqualifies the **Residual Matcher** from being the shipped neural model,
 # not merely the alpha=0 point of its grid. So the substitution set is every Variant
 # that is not the residual: each of them carries live neural capacity in every
 # configuration, which is exactly what "genuinely non-linear" has to mean if the
@@ -203,7 +203,7 @@ def margin_over_best_non_linear(scoreboard: dict, variants=None) -> dict:
     """Per contest: what the winner scored, and what the best genuinely non-linear
     Variant scored in the same contest.
 
-    This is the **cost of the substitution** ADR 0003 requires to be reported
+    This is the **cost of the substitution** ADR 0006 requires to be reported
     explicitly, measured on the selection metric itself and per fold rather than
     inferred from two pooled means. Paired by construction: both numbers come from
     the same inner splits of the same training partition.
@@ -266,7 +266,7 @@ def deliverable_substitution_cost(round2_seeds: dict, profile_ids) -> dict | Non
 
     `margin_over_best_non_linear` prices the substitution on the inner-CV selection
     metric, which is the quantity the choice was made on but not the quantity the
-    deliverable reports. ADR 0003 asks for the cost of the substitution explicitly, and
+    deliverable reports. ADR 0006 asks for the cost of the substitution explicitly, and
     the honest version of that is the held-out one: Round 1's selected model against
     Round 2's, over the same profiles.
 
@@ -417,7 +417,7 @@ def round2_registry() -> dict:
     """Round 1's eligible Variants plus the refinements.
 
     **The Residual Matcher is not in it, and that is the pre-registered rule
-    executing rather than a judgement call.** ADR 0003 disqualifies it from being the
+    executing rather than a judgement call.** ADR 0006 disqualifies it from being the
     shipped neural model, and Round 2's job is to produce a configuration that ships;
     a contest whose winner may not take the prize cannot select anything. Its Round-1
     numbers stand, its counterfactual score is reported per contest as the
@@ -603,9 +603,9 @@ def _report(r: dict, seeds: dict, meta: dict, n_rows: int) -> str:
         if floor["stability_clears"] and floor["ece_clears"] else
         (f"`{selected}` clears the hard stability floor but FAILS the mitigable ECE "
          "floor, so it may ship as the RANKING source with displayed percentages "
-         "falling back to the formula's (ADR 0002)"
+         "falling back to the formula's (ADR 0005)"
          if floor["stability_clears"] else
-         "**NO configuration clears the hard stability floor. Per ADR 0002 and the "
+         "**NO configuration clears the hard stability floor. Per ADR 0005 and the "
          "plan's Step 2.7 this ESCALATES as a project-level finding -- 'this dataset "
          "cannot support a stable 16-class neural matcher at n=232' -- rather than "
          "shipping something arbitrary. The floor is not lowered to make something "
@@ -720,14 +720,14 @@ indicators line up row for row.
   {dc['n_resamples']} resamples of {dc['n_profiles']} profile ids. The CI
   {"EXCLUDES" if dc['ci_excludes_zero'] else "INCLUDES"} zero.
 - Per-seed deltas: {", ".join(f"{d:+.4f}" for d in dc['per_seed_delta'])}.
-- Read as: obeying ADR 0003's disqualification costs
+- Read as: obeying ADR 0006's disqualification costs
   {abs(dc['delta']) * r['n_profiles']:.1f} profiles out of {r['n_profiles']}
   {"against" if dc['delta'] < 0 else "in favour of"} the model Round 1 would have
   shipped.
 
 **This is not the two rounds presented as a series.** It is the price of a candidate
 set that excludes the Residual Matcher, measured against one that included it -- which
-is precisely what ADR 0003 asks to be reported explicitly, and it is the reason the
+is precisely what ADR 0006 asks to be reported explicitly, and it is the reason the
 "not a continuation" warning above forbids reading the `sweep_nn` columns as one model
 improving rather than forbidding this comparison."""
     else:
@@ -896,7 +896,7 @@ profile -- {detail}."""
   resamples of {c['n_profiles']} profile ids.
 - The CI {"EXCLUDES" if c['ci_excludes_zero'] else "INCLUDES"} zero.
 - Materiality marker (Step 2.5, |delta| >= {MATERIALITY_DELTA}): **{"cleared" if c['clears_materiality'] else "not cleared"}**
-  (|delta| = {abs(c['delta']):.4f}). A reporting standard, not a gate: under ADR 0001
+  (|delta| = {abs(c['delta']):.4f}). A reporting standard, not a gate: under ADR 0004
   the neural matcher ships either way, so this sizes the gap rather than authorising
   anything.
 - Per-seed deltas: {", ".join(f"{d:+.4f}" for d in c['per_seed_delta'])}.
@@ -936,8 +936,8 @@ profile -- {detail}."""
 > below measures fidelity to a hand-authored bonus table. A second round of search
 > does not make the labels less circular, and this one does not claim to.
 
-DEV-95, plan `docs/dev-23-nn-rework-plan.md` Step 2.7. Ship Floor from ADR 0002, the
-disqualification clause from ADR 0003. Vocabulary is `CONTEXT.md`'s.
+DEV-95, plan `docs/dev-23-nn-rework-plan.md` Step 2.7. Ship Floor from ADR 0005, the
+disqualification clause from ADR 0006. Vocabulary is `CONTEXT.md`'s.
 
 Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 Dataset: {n_rows} rows, feature `{meta["feature_version"]}`, digest `{r["dataset_digest"]}`.
@@ -954,7 +954,7 @@ Experiment seeds: {list(r["experiment_seeds"])} -- identical to Round 1's.
    selections reproduced**{"" if rep["all_identical"] else " -- NO, see the reproduction table, and treat every number below as incomparable to Round 1"}.
 2. **The best genuinely non-linear Variant is `{round1_best_nl}`** at mean inner-CV
    top-2 {sb[round1_best_nl]['mean_score']:.4f} +/- {sb[round1_best_nl]['sd_score']:.4f}.
-   That is the substitution ADR 0003 owed and Round 1 could not name. Its cost, paired
+   That is the substitution ADR 0006 owed and Round 1 could not name. Its cost, paired
    per contest: the disqualified Residual Matcher scored on average
    {sub['mean_margin']:+.4f} above the best non-linear Variant on the selection metric,
    with the two level in {sub['contests_with_zero_margin']} of {sub['n_contests']} contests.
@@ -992,7 +992,7 @@ numbers in `nn_rework.md` are unchanged and are not superseded by anything here.
 {manifest_markdown(r["environment"])}
 ## Why the Residual Matcher is not in this contest
 
-ADR 0003 pre-registered that `alpha = 0` in >= 3 of 5 outer folds is "no non-linear
+ADR 0006 pre-registered that `alpha = 0` in >= 3 of 5 outer folds is "no non-linear
 signal found" and **disqualifies the Residual Matcher from being the shipped neural
 model**. Round 1 fired that rule in 4 of 5 seeds. A contest selects the model that
 ships; entering a candidate that may not ship would produce a selection nobody could
@@ -1037,7 +1037,7 @@ Variant that was second in every fold and for one that was last in every fold.
 
 ### The cost of the substitution, paired per contest
 
-ADR 0003 requires the cost of replacing the disqualified winner to be reported
+ADR 0006 requires the cost of replacing the disqualified winner to be reported
 explicitly. Measured on the selection metric, in the same contests:
 
 - mean margin of the contest winner over the best genuinely non-linear Variant:
@@ -1057,11 +1057,11 @@ literally that instruction no longer parses: **the round-1 best is the Residual
 Matcher at `alpha = 0`, which is logistic regression** -- bit-identical to it, at a `C`
 inherited from the same selection call `logistic_tuned` uses. Refining around it would
 mean either tuning logistic regression, which is not a neural matcher and is not what
-this step exists for, or widening the `alpha` grid, which ADR 0003 explicitly calls a
+this step exists for, or widening the `alpha` grid, which ADR 0006 explicitly calls a
 protocol change rather than a tuning tweak.
 
 **The reading adopted here, stated rather than applied silently: refine around the
-best genuinely non-linear Variant** -- `{round1_best_nl}` -- because ADR 0003's
+best genuinely non-linear Variant** -- `{round1_best_nl}` -- because ADR 0006's
 disqualification clause makes that the model which actually ships. "The round-1 best"
 is read as "the best of the models still eligible to be the deliverable", which is the
 only reading under which a refinement round has a purpose.
@@ -1134,7 +1134,7 @@ change of {refinement_gain:+.4f} on the selection metric.
 ## Per-seed results
 
 Each row is a complete nested run on the same folds for all three models. **The ECE
-columns are CROSS-FITTED** (ADR 0004) -- a different quantity from the raw ECE the
+columns are CROSS-FITTED** (ADR 0007) -- a different quantity from the raw ECE the
 Ship Floor gates on. Do not read across the two tables.
 
 | seed | top-2 selected | top-2 logistic | top-2 gbt | x-fit ECE selected | x-fit ECE logistic | x-fit ECE gbt |
@@ -1156,7 +1156,7 @@ the per-seed table above is reported separately rather than summarised into it.
 
 {effect("gbt_tuned")}
 
-## FINAL Ship Floor verdict (Step 2.7 / ADR 0002)
+## FINAL Ship Floor verdict (Step 2.7 / ADR 0005)
 
 Evaluated on **one exact configuration** -- `{floor['configuration']}` -- because
 Qualified is a property of a configuration and is never inherited by a reconfigured

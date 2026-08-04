@@ -5,43 +5,53 @@ Updated 2026-08-03 after DEV-97, DEV-98 and DEV-99.
 ================================================================
 WHAT IS ACTUALLY LEFT, AS OF DEV-99
 ================================================================
-Execution-order items 1-11 are done AS FAR AS AN AGENT MAY TAKE THEM. Three
-things remain, NONE OF THEM AN AGENT'S:
+Execution-order items 1-11 are done AS FAR AS AN AGENT MAY TAKE THEM. Updated
+2026-08-04: items (0) and (2) are now DONE. One thing remains, and it is not an
+agent's:
 
-  (0) *** NEW, AND IT COMES BEFORE THE APPROVAL *** ADR 0002's mitigation is
-      DOCUMENTED IN THREE PLACES AND IMPLEMENTED IN NONE. matcher_nn_v1.json
-      declares deployment.status "ranking_only" and match_percent "FALL BACK TO
-      THE FORMULA"; the Matcher protocol has no `deployment` member, so nothing
-      reads it, and matching_service.py:323 displays the model's probability
-      unconditionally. Flipping the flag today ships the uncalibrated
-      percentages the artifact's own caveat forbids.
+  (0) DONE 2026-08-04, branch feat/adr-0005-ranking-only-percentages. NO JIRA
+      TICKET YET -- DEV-101 is an unrelated chatbot ticket; do not cite it.
+      ADR 0005's mitigation is now IMPLEMENTED. Was: documented in three places
+      and built in none, so flipping the flag would have shipped the
+      uncalibrated percentages the artifact's own caveat forbids.
 
-      NOT FIXED HERE ON PURPOSE. It is not a one-liner (_match_formula returns
-      only its own TOP_N, so the formula has no percentage for a career only the
-      model ranked) and it raises a product question ADR 0002 never answered:
-      substituted percentages are NOT MONOTONIC in the model's ranking, so the
-      UI would print a lower percentage above a higher one. Implement-as-written
-      vs amend-the-ADR is a HUMAN call.
-      Pinned by 2 xfail(strict=True) tests in
-      services/matching/tests/test_flip_readiness.py -- they XPASS loudly when
-      the mitigation lands. Full design + cost: docs/dev-23-flip-readiness.md.
+      What landed: Matcher gained a `deployment` member parsed at load by the
+      shared parse_deployment (an unrecognised status FAILS the load rather than
+      defaulting permissive); _formula_scored was extracted from _match_formula
+      so a career only the model ranked still gets a formula percentage; and for
+      a ranking_only artifact matchPercent/score/score_breakdown are all the
+      formula's while `reasons` stay model-derived.
 
-  (1) DEV-99 -- flip MATCHER_MODEL_PATH. Human approval only, and item (0) makes
-      the approval INCOHERENT until it is settled: "approve the flip" and "ship
-      uncalibrated percentages" are currently the same action. Inputs:
+      THE HUMAN CALL WAS MADE, AND IT AMENDED THE ADR. The non-monotonic-display
+      question is answered by ordering the model's selected set by the formula's
+      percentage, so the top row always carries the highest number. That means a
+      ranking_only model supplies the SELECTION, not the ranking -- narrower than
+      ADR 0005 as originally written. Recorded in the ADR and in CONTEXT.md's
+      Ranking-Deployable entry. The 2 xfail(strict=True) tests XPASSed on landing
+      and their markers were removed; the second is now asserted in its positive
+      form (equality with the formula's percentage).
+
+      MATCHER_MODEL_PATH IS STILL BLANK. This removes the incoherence blocking
+      item (1); it does not approve it.
+
+  (1) DEV-99 -- flip MATCHER_MODEL_PATH. Human approval only. Item (0) used to
+      make this approval INCOHERENT -- "approve the flip" and "ship uncalibrated
+      percentages" were the same action. AS OF 2026-08-04 THEY NO LONGER ARE, so
+      the question is now the genuine one: is the evidence good enough? Inputs:
       docs/dev-23-nn-decision.md (evidence -- read section 7, Validity) and
       docs/dev-23-flip-readiness.md (mechanism). Production runs the formula.
       Jira status left at To Do; the finding was added as a comment.
 
-  (2) DEV-89 -- q11-q18 reason rendering. Own ticket, OWN BRANCH OFF main.
-      Hard prerequisite of MERGING the NN serving work. Still "To Do".
-      NOW SIZED ON THE REAL ARTIFACT (DEV-99): the usual "44% of question
-      features" understates it badly. By ATTRIBUTION MASS on matcher_nn_v1,
-      70.7% of the positive question-feature attribution is discarded, and
-      248/300 explanations lose the MAJORITY of their question mass. q11-q18
-      are the pure discriminators and the model leans on them hard.
-      Reproduce: cd services/matching && ../../backend/venv/Scripts/python
-      tests/flip_diagnostics.py
+  (2) DEV-89 -- q11-q18 reason rendering. DONE 2026-08-04, ON ITS OWN BRANCH OFF
+      main (fix/dev-89-question-phrase-coverage, commit 4a5fc0d), Jira at Code
+      Review. NOT on dev-23 and deliberately not merged into it -- it must reach
+      main on its own. dev-23 picks it up when main merges.
+      Measured against DEV-89's OWN acceptance denominator (the explainable
+      universe: own-career fit/sem/skill PLUS all question features), renderable
+      share went 0.572 -> 1.000. That is NOT comparable to the 0.293 DEV-99
+      measured, which is the narrower question-only reading -- see the DEV-89
+      reproduction record in data/scripts/README.md on main.
+      Still a prerequisite of MERGING the NN serving work, now satisfied.
 
 Plus one open trade reserved for a human: the IG step cap (section 2 below).
 
@@ -121,7 +131,7 @@ data/models/matcher_nn_v1.json. Record: data/scripts/README.md
   * Gate-1 revalidation reproduced the DEV-95 ship floor at max drift 0:
     stability 0.7345667591736047 CLEARS the hard floor, ECE
     0.13922660469462908 FAILS the mitigable one. The exporter refuses on
-    stability and records-and-mitigates on ECE, per ADR 0002 and the
+    stability and records-and-mitigates on ECE, per ADR 0005 and the
     ticket's own scope note. deployment.status is "ranking_only" and a
     caveat carries the mitigation to the response.
   * Deployment temperature 0.80, fitted on ensemble-averaged OOF. It
@@ -153,12 +163,12 @@ whose served explanation describes a different model:
     g_c = log(mean_i softmax(z_i)_c) / T.  Therefore:
       - fit `temperature` on ENSEMBLE-AVERAGED OOF probabilities (that is
         export_model.py's deployment-temperature use of temperature_scale --
-        ADR 0004 sanctions it for exactly this), and
+        ADR 0007 sanctions it for exactly this), and
       - revalidate Gate 1 on SeedEnsemble.predict_proba, i.e. the mean of the
         members' probabilities.
     Do NOT revalidate mean-of-members'-logits. mean(softmax(z)) is not
     softmax(mean(z)), and the whole DEV-94 attribution rests on which one.
-    ADR 0004's per-outer-fold cross-fitting still governs any REPORTED ECE;
+    ADR 0007's per-outer-fold cross-fitting still governs any REPORTED ECE;
     the shipped constant is the pooled deployment one. Two different fits.
 
 The artifact schema matcher_nn.py already reads and validates (see
@@ -232,11 +242,17 @@ reproduction record in data/scripts/README.md.
 
 
 ================================================================
-3. THE MERGE BLOCKER: DEV-89 -- q11-q18 attribution
+3. THE MERGE BLOCKER: DEV-89 -- q11-q18 attribution  [DONE 2026-08-04]
 ================================================================
-STILL "To Do". Own ticket, OWN BRANCH OFF main, own schedule -- it is a
+DONE on fix/dev-89-question-phrase-coverage (commit 4a5fc0d, off main), Jira at
+Code Review, awaiting merge to main. Renderable share of the AC's explainable
+universe went 0.572 -> 1.000; do NOT quote that against DEV-99's 0.293, which
+measures the narrower question-only denominator. Everything below is the
+ORIGINAL sizing, kept because it is why the ticket existed.
+
+Own ticket, OWN BRANCH OFF main, own schedule -- it is a
 prerequisite of MERGING the NN serving work, not of building it, and it
-degrades production output RIGHT NOW on the currently-served path.
+degraded production output on the currently-served path.
 
 reason_builder.py:18 defines QUESTION_PHRASES for q1-q10 only AND that dict is
 also the iteration set (reason_builder.py:71 -- the plan said :72, corrected in
@@ -288,7 +304,7 @@ the digest is untouched and no served output moved.
     so the word and the field are one concept. It is explicitly NOT a weaker
     Deployable and can never make a model the Incumbent.
     The only deployability sentence asserted anywhere: matcher_nn_v1 is
-    Ranking-Deployable -- it may serve the RANKING under ADR 0002's mitigation,
+    Ranking-Deployable -- it may serve the RANKING under ADR 0005's mitigation,
     with displayed percentages falling back to the formula's.
   * THE ~94% CIRCULARITY CLAIM WAS A LITERAL. Nothing computed it, and it sits
     inside both artifacts' caveats where it reaches users. Now computed by
@@ -303,7 +319,7 @@ the digest is untouched and no served output moved.
     0002's "logistic_tuned clears both (ECE 0.0341)" is gate1_verdict.json's
     `logistic` row, the fixed C=1.0 config the artifact serialises; Gate 2's
     logistic_tuned selects C per fold and its RAW ECE is 0.103, which would fail
-    the same floor. Both corrected in place (ADR 0002 gained an "Observed on..."
+    the same floor. Both corrected in place (ADR 0005 gained an "Observed on..."
     note; the decision itself is unchanged).
   * THE INCUMBENT IS THE ARTIFACT, NOT logistic_tuned. CONTEXT.md defines
     Incumbent against Deployable, and logistic_tuned has no single configuration
@@ -318,7 +334,7 @@ the digest is untouched and no served output moved.
   * The honest-framing paragraph is section "The framing" at the top of the
     document, before any number: these metrics can rank learned models against
     each other, they CANNOT justify replacing the formula, and the NN ships
-    because the project requires it (ADR 0001).
+    because the project requires it (ADR 0004).
 
 Execution-order item 11 / DEV-99: report and WAIT on the MATCHER_MODEL_PATH
 question. Nobody is authorised to flip it -- not .env.example, not backend/.env,
@@ -333,13 +349,13 @@ DONE as far as an agent may take it -- see section 7 below.
 LANDED 2026-08-03. docs/dev-23-flip-readiness.md,
 services/matching/tests/test_flip_readiness.py (10 tests: 8 pass, 2 xfail),
 services/matching/tests/flip_diagnostics.py, one new questionnaire test, an
-"Observed on..." note in ADR 0002, a pointer at the end of the decision
+"Observed on..." note in ADR 0005, a pointer at the end of the decision
 document, and in-place wording fixes to CLAUDE.md and README.md. Record:
 data/scripts/README.md "Reproduction record (DEV-99)". MATCHER_MODEL_PATH IS
 UNTOUCHED, Jira status left at To Do, finding added as a Jira comment.
 
   * THE HEADLINE IS THE GAP, not the verification. See item (0) at the top of
-    this file. ADR 0002's mitigation exists in the artifact, the ADR and
+    this file. ADR 0005's mitigation exists in the artifact, the ADR and
     CONTEXT.md and NOWHERE IN CODE. That makes the approval DEV-99 asks for
     incoherent until it is settled, because the flip would ship exactly the
     uncalibrated percentages the artifact's caveat forbids.
@@ -429,10 +445,12 @@ said "the Incumbent is logistic_tuned, as exported to matcher_logistic_v2.json",
 which is the exact conflation DEV-98 was written to correct; fixed in DEV-99.)
 NEITHER IS SERVED: MATCHER_MODEL_PATH is blank and production runs the formula.
 
-DEV-99 CAVEAT ON "RANKING-DEPLOYABLE": that state PERMITS serving the ranking
-with displayed percentages falling back to the formula's -- and the serving path
-CANNOT DO THAT (item (0) at the top). The state is correct; the code cannot yet
-honour it.
+DEV-99 CAVEAT ON "RANKING-DEPLOYABLE" -- RESOLVED 2026-08-04. That
+state permitted serving the ranking with displayed percentages falling back to
+the formula's, and the serving path could not do it. It can now. The resolution
+AMENDED the state rather than just implementing it: a ranking_only model supplies
+the SELECTION and the formula ranks within it, so the displayed percentages are
+monotonic. CONTEXT.md's entry and ADR 0005 both say so.
 
 MATCHER_MODEL_PATH is unchanged: blank in .env.example, blank by default in
 docker-compose.yml, blank in the repo-root .env that compose interpolates, and

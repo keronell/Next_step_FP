@@ -70,7 +70,7 @@ def test_selection_is_blind_to_every_row_outside_the_training_partition():
 def test_the_residual_alpha_is_recorded_even_when_another_variant_wins_the_fold():
     """The pre-registered >=3-of-5 rule needs a record without holes in it.
 
-    ADR 0003 disqualifies the Residual Matcher when `alpha=0` is selected in >= 3 of
+    ADR 0006 disqualifies the Residual Matcher when `alpha=0` is selected in >= 3 of
     5 outer folds. "This fold did not pick the Residual Matcher" is a different
     finding from "this fold picked alpha=0", and a record that conflates them can
     make the rule fire, or fail to fire, on evidence that was never gathered.

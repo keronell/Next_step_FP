@@ -104,7 +104,7 @@ def test_the_real_artifacts_caveats_survive_the_response_and_reach_persistence(
     r = client.post("/api/questionnaire/submit", json={"answers": valid_answers})
     assert r.status_code == 200
     assert r.json()["model_caveats"] == caveats
-    # Named, not merely non-empty: the ADR 0002 mitigation caveat is the one whose loss
+    # Named, not merely non-empty: the ADR 0005 mitigation caveat is the one whose loss
     # would leave an uncalibrated model looking calibrated all the way to the UI.
     assert any("NOT calibrated" in c for c in r.json()["model_caveats"])
     # And the same strings are what persistence is handed, per-rec.

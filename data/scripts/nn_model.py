@@ -435,7 +435,7 @@ def frozen_logistic(C: float, random_state: int):
     """The Residual Matcher's linear branch — and `train_models.fit_logistic`'s
     estimator, from this one construction site.
 
-    ADR 0003's argument for the Residual Matcher rests on its base being *exactly*
+    ADR 0006's argument for the Residual Matcher rests on its base being *exactly*
     the Incumbent's configuration on the same partition, which is what turns "does
     the residual add anything?" into an exactly paired comparison. A second
     definition that drifted by one keyword would leave that claim quietly false
@@ -458,7 +458,7 @@ class ResidualMatcher(NNClassifier):
     Both branches see the same input and emit a full per-career logit vector. The
     linear branch is fitted on whatever partition the MLP trains on and then held
     fixed; `alpha` is a **hyperparameter** selected by inner CV from the grid in
-    `train_models.RESIDUAL_ALPHA_GRID`. Full rationale in ADR 0003; the vocabulary
+    `train_models.RESIDUAL_ALPHA_GRID`. Full rationale in ADR 0006; the vocabulary
     ("Residual Matcher", not "C4" or "hybrid") is `CONTEXT.md`'s.
 
     ## Three things that are load-bearing, not incidental

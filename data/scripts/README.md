@@ -133,7 +133,7 @@ just empirically: it gates on RAW ECE, has never applied a temperature, and
 `evaluate_matchers.py` does not import `train_models.py` in either direction.
 
 **Moved, deliberately.** Every Gate-2 `ece_scaled`/`temperature` in
-`model_selection.md` and `gate2_winner.json`, per ADR 0004. All four models were
+`model_selection.md` and `gate2_winner.json`, per ADR 0007. All four models were
 re-baselined in ONE run. Three results worth carrying forward:
 
 - **`gbt_tuned` and `logistic_tuned` reproduce the old protocol exactly.** The new
@@ -153,7 +153,7 @@ re-baselined in ONE run. Three results worth carrying forward:
   rather than a measurement. Cross-fitting leaves that family — five per-fold
   constants absorb fold-specific miscalibration one constant cannot — so it can
   score lower, and here it does: cross-fitted ECE is lower for three of four models
-  and cross-fitted NLL is lower for `logistic_tuned`. ADR 0004's "optimistic" is
+  and cross-fitted NLL is lower for `logistic_tuned`. ADR 0007's "optimistic" is
   annotated accordingly. The decision is unaffected: the defect is that the number
   was never a held-out estimate, which holds whichever way it moves.
 
@@ -174,7 +174,7 @@ reproduces **1.05**; the regenerated artifact now slightly softens served
 
 ### Reproduction record (DEV-92, 2026-07-29)
 
-The Residual Matcher (`nn_model.ResidualMatcher`, plan Step 2.3, ADR 0003). Adding
+The Residual Matcher (`nn_model.ResidualMatcher`, plan Step 2.3, ADR 0006). Adding
 a model must not perturb the models already scored, and it didn't — **nothing moved
 at all**, in either gate. Both re-runs were made from `data/venv-training` (the
 hash-pinned stack of DEV-87; `Scripts/` on this Windows machine) on the final state
@@ -262,7 +262,7 @@ model, `residual_matcher`, and a `residual_alpha_verdict` key. The Gate-2 winner
 `export_model.py` is unaffected.
 
 **The finding, and it is negative.** `alpha = 0` was selected in **5 of 5** outer
-folds, so the pre-registered ADR 0003 rule fires: *no non-linear signal found*, and
+folds, so the pre-registered ADR 0006 rule fires: *no non-linear signal found*, and
 the Residual Matcher is disqualified from being the shipped neural model. Its row is
 identical to `logistic_tuned`'s in every column — which the report now *computes*
 and explains rather than leaving two matching lines for a reader to puzzle over. At
@@ -330,7 +330,7 @@ mechanically helps explain 23/25. It is **not Leakage** in `CONTEXT.md`'s sense 
 held-out row is touched — but selection optimism inside the training partition, and
 calling it merely "one extra search" (as an earlier draft did) understated it. It is
 left in place because removing it means selecting `alpha` at a third nesting level,
-which ADR 0003 considered and declined. It does not change the direction of the
+which ADR 0006 considered and declined. It does not change the direction of the
 finding: the Residual Matcher won mostly *at `alpha = 0`*, so the extra freedom it
 enjoyed was the freedom to switch its neural branch off.
 
@@ -387,7 +387,7 @@ three ways rather than argued once:
   DEV-92 record raised is unchanged. Still unfixed, still worth its own ticket.
 
 **The instrumentation, and why it is an out-parameter.** Round 1 computed a 14-way
-inner-CV contest 25 times and kept only the argmax, so when ADR 0003's rule
+inner-CV contest 25 times and kept only the argmax, so when ADR 0006's rule
 disqualified the winner its own output could not name the replacement the rule owes.
 `select_by_inner_cv` gained `scores_out=`, an optional list receiving `(params, score)`
 for every grid point. It has six call sites and `test_residual_matcher.py` asserts on
@@ -405,7 +405,7 @@ Round 1's numbers stand unchanged.
 - **The recovered scoreboard reproduces Round 1 exactly**: all 25 per-fold selections
   identical, which is the gate on every other number in the round.
 - **The best genuinely non-linear Variant is `C3_seed_ensemble`** (mean inner-CV top-2
-  0.7991 +/- 0.0236). That is the substitution ADR 0003 owed. Its cost, paired per
+  0.7991 +/- 0.0236). That is the substitution ADR 0006 owed. Its cost, paired per
   contest: the disqualified Residual Matcher scored **+0.0280** above it on the
   selection metric, level in 2 of 25 contests.
 - **The finding Round 1's selection counts could not express:** ensembling V0 is worth
@@ -432,7 +432,7 @@ Round 1's numbers stand unchanged.
   CI [−0.0440, +0.0060], sign in 4 of 5 seeds, materiality marker NOT cleared. vs
   `gbt_tuned` delta −0.0440, CI [−0.0750, −0.0138] (excludes zero), sign in 5 of 5.
 - **The substitution priced on the deliverable's own metric, not just the selection
-  one.** ADR 0003 asks for the cost explicitly, and the inner-CV margin is the quantity
+  one.** ADR 0006 asks for the cost explicitly, and the inner-CV margin is the quantity
   the choice was made on rather than the one a model is read by. Round-2 selected minus
   Round-1 selected, exactly paired over the same seeds and partitions and refitting
   nothing: delta **−0.0155** on pooled OOF top-2, CI [−0.0388, +0.0060] — 3.6 profiles
@@ -746,8 +746,8 @@ plan; the second is a finding, not a preference.
    model the served explanation does not describe. To be exact about which fit that
    is: the *shipped constant* is `export_model.py`'s deployment temperature —
    `temperature_scale` on pooled OOF from the exact configuration being serialized,
-   which ADR 0004 names as one of its two remaining honest uses. It is **not** the
-   per-outer-fold cross-fitted temperature ADR 0004 requires for a *reported* ECE;
+   which ADR 0007 names as one of its two remaining honest uses. It is **not** the
+   per-outer-fold cross-fitted temperature ADR 0007 requires for a *reported* ECE;
    that one stays per-fold, and satisfying this instruction must not be read as
    licence to pool the reported number.
 2. **"Relative" residual means relative to the delta being explained**, not to the
@@ -876,14 +876,14 @@ exact four-state conflation `CONTEXT.md` exists to prevent:
 > **Qualified**: Cleared Gate 1 — calibrated and stable.
 
 `matcher_nn_v1` is stable and **not calibrated**, so it is not Qualified, so it is
-not Deployable. **ADR 0002 splits the ship *floor*; it does not split the *state*.**
-The two documents are in genuine tension — ADR 0002 says a model failing ECE "may
+not Deployable. **ADR 0005 splits the ship *floor*; it does not split the *state*.**
+The two documents are in genuine tension — ADR 0005 says a model failing ECE "may
 still ship as the *ranking* source", which describes something the four states have
 no name for. This record does not invent one, and does not stretch "Deployable" to
 cover it. **Reconciling that vocabulary belongs to DEV-98**, which writes the
 decision document; flagged here rather than quietly resolved.
 
-The accurate sentence: *`matcher_nn_v1` may serve the ranking under ADR 0002's
+The accurate sentence: *`matcher_nn_v1` may serve the ranking under ADR 0005's
 mitigation, with displayed percentages falling back to the formula's.*
 
 `MATCHER_MODEL_PATH` is unchanged everywhere and **production still runs the
@@ -906,14 +906,14 @@ evidence it is inert.
 
 | half | measured | floor | verdict |
 |---|---|---|---|
-| top-2 stability (**hard**, ADR 0002) | **0.7345667591736047** | >= 0.60 | **CLEARS** |
-| pooled OOF ECE (**mitigable**, ADR 0002) | **0.13922660469462908** | <= 0.10 | **FAILS** |
+| top-2 stability (**hard**, ADR 0005) | **0.7345667591736047** | >= 0.60 | **CLEARS** |
+| pooled OOF ECE (**mitigable**, ADR 0005) | **0.13922660469462908** | <= 0.10 | **FAILS** |
 
 Both reproduce DEV-95 to the last digit. DEV-97's acceptance criterion says export
 "refuses to write when it fails"; taken flat that refuses to write the model the
 project has already decided to ship, and the ticket's own scope-note comment says
 so. So the exporter distinguishes the halves: it **refuses on stability**, which
-ADR 0002 gives no mitigation, and on **ECE it writes and records the failure**.
+ADR 0005 gives no mitigation, and on **ECE it writes and records the failure**.
 
 The mitigation is carried where a consumer cannot miss it. The artifact has no bare
 `deployable: true` to misread — `deployment.status` is the string `"ranking_only"`,
@@ -926,8 +926,8 @@ percentages are not calibrated and must not be displayed as if they were.**
 ensemble-averaged OOF — `SeedEnsemble.predict_proba`, the mean of the members'
 probabilities, which is the quantity DEV-94's attribution takes the logit of. It is
 the same-pool fit `train_models.temperature_scale`'s docstring still calls honest
-for choosing one shipped constant, and it is **not** ADR 0004's per-outer-fold
-cross-fitted temperature, which still governs any *reported* ECE. (ADR 0004 itself
+for choosing one shipped constant, and it is **not** ADR 0007's per-outer-fold
+cross-fitted temperature, which still governs any *reported* ECE. (ADR 0007 itself
 enumerates no "two honest uses" — that phrasing belongs to the `temperature_scale`
 docstring, and the DEV-94 record above miscites it the same way. Left as written
 there, corrected here.) Note the direction: the linear artifact's 1.05 softens, this one
@@ -1115,7 +1115,7 @@ measurement below.
 
 #### The one number in this deliverable that had never been computed
 
-Every report in this tree, ADR 0001, plan Step 4.1, `evaluate_matchers.py`'s docstring
+Every report in this tree, ADR 0004, plan Step 4.1, `evaluate_matchers.py`'s docstring
 and — the reason it matters — the `caveats` list **inside both exported artifacts**
 carry the claim that the panel's stage-2 vote "follows the answer key derived from
 `careers.json` bonuses ~94% of the time it speaks". Nothing computed it. It is easy to
@@ -1160,7 +1160,7 @@ imported code is byte-identical. **Nothing was installed into `data/venv-trainin
   rejected clone-persona `panel-v1.0.1` and 0.864 was `panel-v1.1.0`. Corrected in the
   plan and in the decision document. The caveat's *direction* is unchanged — a κ near
   1.0 would be a red flag for persona non-independence, not a quality guarantee.
-- **Which `logistic` clears the ECE floor.** ADR 0002 says the floor "is known
+- **Which `logistic` clears the ECE floor.** ADR 0005 says the floor "is known
   achievable — `logistic_tuned` clears both (ECE 0.0341, stability 0.6375)". Those
   numbers are `gate1_verdict.json`'s **`logistic`** row, the fixed `C = 1.0`
   configuration `matcher_logistic_v2.json` actually serialises. Gate 2's
@@ -1188,9 +1188,9 @@ imported code is byte-identical. **Nothing was installed into `data/venv-trainin
 
 `CONTEXT.md` defined **Deployable** as "Qualified, Servable, and revalidated" and
 **Qualified** as "cleared Gate 1 — calibrated *and* stable". `matcher_nn_v1` is stable
-and **not** calibrated, so it is neither. But ADR 0002 says a model failing the ECE half
+and **not** calibrated, so it is neither. But ADR 0005 says a model failing the ECE half
 "may still ship as the *ranking* source" — a real, intended condition with no name,
-because **ADR 0002 splits the ship *floor*, not the *state***.
+because **ADR 0005 splits the ship *floor*, not the *state***.
 
 Resolved by **adding one state**, `Ranking-Deployable`, rather than amending `Qualified`
 or `Deployable`: amending either would retroactively change what every earlier record
@@ -1201,7 +1201,7 @@ explicitly **not** a weaker `Deployable`, and it can never make a model the `Inc
 (defined against `Deployable`).
 
 The only deployability sentence the document asserts: *`matcher_nn_v1` is
-Ranking-Deployable — it may serve the ranking under ADR 0002's mitigation, with
+Ranking-Deployable — it may serve the ranking under ADR 0005's mitigation, with
 displayed percentages falling back to the formula's.*
 
 #### Thumbs on the scale, counted
@@ -1212,7 +1212,7 @@ about **this** ticket's honesty rather than the training runs':
 - **The ECE failure is reported before the stability pass** in every table it appears
   in, and in the state sentence above — not appended as a footnote to a headline pass.
 - **Effect sizes quoted without a CI are named rather than left to be noticed**: the
-  ADR 0003 substitution cost (+0.0280 mean inner-CV, worst contest +0.0702), the
+  ADR 0006 substitution cost (+0.0280 mean inner-CV, worst contest +0.0702), the
   ensemble attributions (D5 − D6 = +0.0237, C3 − V0 = +0.0353), and every Gate-1 /
   Gate-2 figure, which are single-partition point estimates. All are on the *selection*
   metric, not the reported one.
@@ -1244,7 +1244,7 @@ document was written to correct — it committed the error it documents, and
 `CONTEXT.md`'s definition of `Incumbent` (against `Deployable`) makes it a vocabulary
 violation rather than a wording slip. Fixed above, and it grew a real disclosure out of
 it: the comparator every δ uses is not the model that would be replaced. The Standards
-axis additionally caught that ADR 0002 was left carrying the wrong attribution while the
+axis additionally caught that ADR 0005 was left carrying the wrong attribution while the
 plan's κ error had been corrected in place — an asymmetry with no defence — that a test
 docstring cited the wrong populations (678 / 226 rather than the 651 / 217 the rates are
 actually over), and that the record's venv paths broke the README's own POSIX
@@ -1281,15 +1281,15 @@ anything. Nothing was retrained, re-exported or re-swept; `dataset_digest` is un
 at `2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`.
 
 Deliverable: `docs/dev-23-flip-readiness.md`, `services/matching/tests/test_flip_readiness.py`,
-`services/matching/tests/flip_diagnostics.py`, plus an "Observed on…" note in ADR 0002
+`services/matching/tests/flip_diagnostics.py`, plus an "Observed on…" note in ADR 0005
 and a pointer at the end of the decision document. Neither of the latter two changes any
 existing claim or number.
 
-#### The finding: ADR 0002's mitigation is documented in three places and built in none
+#### The finding: ADR 0005's mitigation is documented in three places and built in none
 
 The artifact `matcher_nn_v1.json` carries `deployment.status: "ranking_only"`,
 `deployment.match_percent: "FALL BACK TO THE FORMULA"`, and a caveat saying its
-percentages are uncalibrated. `CONTEXT.md`'s **Ranking-Deployable** and ADR 0002 both
+percentages are uncalibrated. `CONTEXT.md`'s **Ranking-Deployable** and ADR 0005 both
 define the mitigation as displayed percentages falling back to the formula's. **No
 serving code reads any of it:**
 
@@ -1306,11 +1306,11 @@ So flipping the flag today would display exactly the uncalibrated percentages th
 artifact's own caveat forbids. The decision document's *"switching would not improve the
 displayed percentages — it would leave them exactly as they are today, by design"* is
 true of the design and **false of the code**. This resizes DEV-99: its premise was
-"approve, then flip", and the flip is not yet the thing ADR 0002 authorised.
+"approve, then flip", and the flip is not yet the thing ADR 0005 authorised.
 
 **Not fixed here, deliberately.** The cheap reading ("one branch") is wrong — the fix
 needs the per-career formula score for careers `_match_formula` never returns (it returns
-only its own `TOP_N`), and it raises a question ADR 0002 does not answer: substituted
+only its own `TOP_N`), and it raises a question ADR 0005 does not answer: substituted
 percentages are **not monotonic** in the model's ranking, so the UI would print a lower
 percentage above a higher one. That is a product decision and possibly an ADR amendment,
 so it is surfaced rather than chosen. The gap is pinned by two `xfail(strict=True)`
@@ -1326,7 +1326,7 @@ Displayed top-1 `matchPercent`, 200 answer sets over the full 18-question bank:
 
 | scorer | mean | min | max |
 |---|---|---|---|
-| formula (what ADR 0002 says to display) | 73.3 | 60 | 85 |
+| formula (what ADR 0005 says to display) | 73.3 | 60 | 85 |
 | `matcher_nn_v1` (what is displayed today) | **58.0** | 26 | 85 |
 | `matcher_logistic_v2` | 76.4 | 35 | 99 |
 
@@ -1424,7 +1424,7 @@ adds coverage or asserts the formula path is what it was.
   because it is the same right-conclusion-from-a-false-premise shape as the compose
   wording below.
 - **Asymmetric correction, a failure this project has already recorded once** (DEV-98's
-  review: "ADR 0002 was left carrying the wrong attribution while the plan's κ error had
+  review: "ADR 0005 was left carrying the wrong attribution while the plan's κ error had
   been corrected in place — an asymmetry with no defence"). The compose-scope wording was
   corrected here and left standing in the *living* docs. `CLAUDE.md` and `README.md` are
   now fixed in place; the historical records (DEV-98's above, and the decision document's
@@ -1585,7 +1585,7 @@ Output: `reports/question_bank_beginner_quality_*.{md,csv}`
 
 ### `measure_circularity.py`
 Measures how far the silver labels reproduce the `careers.json` answer key — the
-"~94% of the time it speaks" claim that every report, ADR 0001, and the `caveats`
+"~94% of the time it speaks" claim that every report, ADR 0004, and the `caveats`
 inside both exported artifacts assert. Reads the raw vote log; imports
 `panel_label_profiles`'s own stage-1 shortlist and option→career key rather than
 reimplementing them. Needs the **training** venv (pandas), and installs nothing.
@@ -1599,3 +1599,74 @@ each one answers, and why shortlist containment is structural rather than eviden
 `tests/test_measure_circularity.py` pins both artifacts' caveat text against it, so
 regenerating the labels fails the build rather than leaving a stale rate in front of
 users.
+
+### Reproduction record (ADR 0005 mitigation, 2026-08-04)
+
+ADR 0005's mitigable-ECE mitigation, built. Plus a mechanical ADR renumbering.
+**Nothing was retrained, re-exported or re-swept**; `dataset_digest` is untouched at
+`2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`, every recorded
+number in `data/training/` and `data/models/` is unmoved, and `MATCHER_MODEL_PATH` is
+still blank. **The flip is still DEV-99's and still needs human approval** — this work
+removes the incoherence that blocked that approval, it does not grant it.
+
+#### Two parts, deliberately in one commit
+
+**1. ADR renumbering, 0001-0004 -> 0004-0007.** dev-23's four ADRs collided by number
+with three unrelated ones on `main` (`0001-vertical-stage-flow`, `0002-roadmap-access`,
+`0003-admin-role`). Renamed with `git mv`; 228 prose citations rewritten across 33
+tracked files in a single pass, so the 0004->0007 step could not cascade into the
+0003->0006 one. Verified afterwards: no dangling `ADR 000[1-3]` or filename reference
+in tracked files, and every markdown link label agrees with its target.
+
+The recorded outputs under `data/training/` and `data/models/` were rewritten too,
+because a citation pointing at a renumbered ADR is wrong rather than historical. That
+they contain **only** citation changes is checked, not asserted:
+
+```bash
+git diff -U0 -- data/training/ data/models/ | grep -E "^[+-]" | grep -v "ADR 000"
+```
+
+returns nothing. `DEV_JOURNAL.md` and `docs/ENGINEERING_JOURNAL_HE.md` were left alone
+(untracked, not this session's work), so their citations are now stale.
+
+**2. The mitigation.** `Matcher` gained a `deployment` member, parsed at load by the
+shared `parse_deployment`; an unrecognised `status` **fails the load** rather than
+defaulting permissive, and an absent block means unrestricted so the incumbent
+`matcher_logistic_v2.json` is unaffected. `_formula_scored` was extracted from
+`_match_formula` so a career the model ranked but the formula would have dropped still
+gets priced. For a `ranking_only` artifact, `matchPercent` / `score` /
+`score_breakdown` are the formula's, `reasons` stay model-derived, and the model's own
+probability is kept as `score_breakdown.model_probability`.
+
+#### The ADR amendment, and the defect the review caught
+
+The human call on the non-monotonic display was **order the selected set by the
+displayed percentage**, which narrows a `ranking_only` model from the ranking source to
+the *selection* source. Recorded in `docs/adr/0005-gate-1-is-a-ship-floor.md` and
+`CONTEXT.md`.
+
+The first implementation ordered by `score` and was **wrong**, which `/code-review`
+caught. `score` is `round(final, 3)` and `matchPercent` is `round(final * 100)`, so two
+careers can tie at three decimals and still straddle a half-percent boundary — 0.49520
+and 0.49468 are both `score` 0.495 but display 50 and 49 — and the id tie-break could
+then print the 49 above the 50. Measured over 4000 seeded answer sets honouring
+`show_if` (seed 20260804):
+
+| path | non-monotonic before | after |
+|---|---|---|
+| `ranking_only` (`matcher_nn_v1`) | **1 / 4000** | 0 / 4000 |
+| formula (currently served) | 0 / 4000 | 0 / 4000 |
+
+Both paths now sort through `_display_order`, which keys on `matchPercent` first
+(`round` is monotonic, so this makes the invariant true by construction). The formula
+path's **served order is unchanged** — 0 of 4000 draws reorder under the new key — so
+this closes a latent tie there rather than moving production output. The boundary case
+itself is pinned by a unit test on the key function, because a fixture reproducing it
+would be pinning the fixture rather than the rule.
+
+Suites: `matching` 148 (146 + 2 xfailed) -> **159 passed, 0 xfailed**. The two
+`xfail(strict=True)` tests XPASSed on landing and their markers were removed, as they
+instructed; the second is now asserted in its **positive** form (equality with the
+formula's percentage), which DEV-99 recorded as not yet expressible. `questionnaire` 19,
+`roadmap` 30, `auth` 31, `history` 81 and `data/scripts/tests` (118 training venv /
+7 passed + 12 skipped backend venv) all unchanged.

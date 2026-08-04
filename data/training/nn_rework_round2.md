@@ -6,8 +6,8 @@
 > below measures fidelity to a hand-authored bonus table. A second round of search
 > does not make the labels less circular, and this one does not claim to.
 
-DEV-95, plan `docs/dev-23-nn-rework-plan.md` Step 2.7. Ship Floor from ADR 0002, the
-disqualification clause from ADR 0003. Vocabulary is `CONTEXT.md`'s.
+DEV-95, plan `docs/dev-23-nn-rework-plan.md` Step 2.7. Ship Floor from ADR 0005, the
+disqualification clause from ADR 0006. Vocabulary is `CONTEXT.md`'s.
 
 Generated: 2026-07-30T16:37:40Z
 Dataset: 232 rows, feature `features-v4`, digest `2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`.
@@ -24,7 +24,7 @@ Experiment seeds: [42, 43, 44, 45, 46] -- identical to Round 1's.
    selections reproduced**.
 2. **The best genuinely non-linear Variant is `C3_seed_ensemble`** at mean inner-CV
    top-2 0.7991 +/- 0.0236.
-   That is the substitution ADR 0003 owed and Round 1 could not name. Its cost, paired
+   That is the substitution ADR 0006 owed and Round 1 could not name. Its cost, paired
    per contest: the disqualified Residual Matcher scored on average
    +0.0280 above the best non-linear Variant on the selection metric,
    with the two level in 2 of 25 contests.
@@ -45,7 +45,7 @@ Experiment seeds: [42, 43, 44, 45, 46] -- identical to Round 1's.
    5 (mean 0.716 +/- 0.011) and
    raw ECE in 1 of 5.
 
-**Verdict: `D5_ensemble_dropout_0.5_wd_1e-2` clears the hard stability floor but FAILS the mitigable ECE floor, so it may ship as the RANKING source with displayed percentages falling back to the formula's (ADR 0002).**
+**Verdict: `D5_ensemble_dropout_0.5_wd_1e-2` clears the hard stability floor but FAILS the mitigable ECE floor, so it may ship as the RANKING source with displayed percentages falling back to the formula's (ADR 0005).**
 
 **THERE IS NO ROUND 3.** The budget was fixed in advance (plan Step 2.7) precisely so
 that "keep tuning until it wins" is unavailable, and it is now spent.
@@ -83,7 +83,7 @@ recorded history (see docs/dev-23-nn-rework-plan.md Step 1).
 
 ## Why the Residual Matcher is not in this contest
 
-ADR 0003 pre-registered that `alpha = 0` in >= 3 of 5 outer folds is "no non-linear
+ADR 0006 pre-registered that `alpha = 0` in >= 3 of 5 outer folds is "no non-linear
 signal found" and **disqualifies the Residual Matcher from being the shipped neural
 model**. Round 1 fired that rule in 4 of 5 seeds. A contest selects the model that
 ships; entering a candidate that may not ship would produce a selection nobody could
@@ -145,7 +145,7 @@ Variant that was second in every fold and for one that was last in every fold.
 
 ### The cost of the substitution, paired per contest
 
-ADR 0003 requires the cost of replacing the disqualified winner to be reported
+ADR 0006 requires the cost of replacing the disqualified winner to be reported
 explicitly. Measured on the selection metric, in the same contests:
 
 - mean margin of the contest winner over the best genuinely non-linear Variant:
@@ -169,14 +169,14 @@ indicators line up row for row.
   10000 resamples of 232 profile ids. The CI
   INCLUDES zero.
 - Per-seed deltas: +0.0000, -0.0431, -0.0043, +0.0000, -0.0302.
-- Read as: obeying ADR 0003's disqualification costs
+- Read as: obeying ADR 0006's disqualification costs
   3.6 profiles out of 232
   against the model Round 1 would have
   shipped.
 
 **This is not the two rounds presented as a series.** It is the price of a candidate
 set that excludes the Residual Matcher, measured against one that included it -- which
-is precisely what ADR 0003 asks to be reported explicitly, and it is the reason the
+is precisely what ADR 0006 asks to be reported explicitly, and it is the reason the
 "not a continuation" warning above forbids reading the `sweep_nn` columns as one model
 improving rather than forbidding this comparison.
 
@@ -187,11 +187,11 @@ literally that instruction no longer parses: **the round-1 best is the Residual
 Matcher at `alpha = 0`, which is logistic regression** -- bit-identical to it, at a `C`
 inherited from the same selection call `logistic_tuned` uses. Refining around it would
 mean either tuning logistic regression, which is not a neural matcher and is not what
-this step exists for, or widening the `alpha` grid, which ADR 0003 explicitly calls a
+this step exists for, or widening the `alpha` grid, which ADR 0006 explicitly calls a
 protocol change rather than a tuning tweak.
 
 **The reading adopted here, stated rather than applied silently: refine around the
-best genuinely non-linear Variant** -- `C3_seed_ensemble` -- because ADR 0003's
+best genuinely non-linear Variant** -- `C3_seed_ensemble` -- because ADR 0006's
 disqualification clause makes that the model which actually ships. "The round-1 best"
 is read as "the best of the models still eligible to be the deliverable", which is the
 only reading under which a refinement round has a purpose.
@@ -314,7 +314,7 @@ make that attribution at all, because it recorded only which Variant won.
 ## Per-seed results
 
 Each row is a complete nested run on the same folds for all three models. **The ECE
-columns are CROSS-FITTED** (ADR 0004) -- a different quantity from the raw ECE the
+columns are CROSS-FITTED** (ADR 0007) -- a different quantity from the raw ECE the
 Ship Floor gates on. Do not read across the two tables.
 
 | seed | top-2 selected | top-2 logistic | top-2 gbt | x-fit ECE selected | x-fit ECE logistic | x-fit ECE gbt |
@@ -348,7 +348,7 @@ the per-seed table above is reported separately rather than summarised into it.
   resamples of 232 profile ids.
 - The CI INCLUDES zero.
 - Materiality marker (Step 2.5, |delta| >= 0.02): **not cleared**
-  (|delta| = 0.0181). A reporting standard, not a gate: under ADR 0001
+  (|delta| = 0.0181). A reporting standard, not a gate: under ADR 0004
   the neural matcher ships either way, so this sizes the gap rather than authorising
   anything.
 - Per-seed deltas: -0.0172, -0.0474, -0.0043, +0.0000, -0.0216.
@@ -364,7 +364,7 @@ the per-seed table above is reported separately rather than summarised into it.
   resamples of 232 profile ids.
 - The CI EXCLUDES zero.
 - Materiality marker (Step 2.5, |delta| >= 0.02): **cleared**
-  (|delta| = 0.0440). A reporting standard, not a gate: under ADR 0001
+  (|delta| = 0.0440). A reporting standard, not a gate: under ADR 0004
   the neural matcher ships either way, so this sizes the gap rather than authorising
   anything.
 - Per-seed deltas: -0.0603, -0.0560, -0.0431, -0.0129, -0.0474.
@@ -373,7 +373,7 @@ the per-seed table above is reported separately rather than summarised into it.
 - Read as: the Round-2 selected model is behind `gbt_tuned` by
   10.2 profiles out of 232.
 
-## FINAL Ship Floor verdict (Step 2.7 / ADR 0002)
+## FINAL Ship Floor verdict (Step 2.7 / ADR 0005)
 
 Evaluated on **one exact configuration** -- `D5_ensemble_dropout_0.5_wd_1e-2` -- because
 Qualified is a property of a configuration and is never inherited by a reconfigured

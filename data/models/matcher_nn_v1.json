@@ -41757,13 +41757,13 @@
     "Labels are bank-consistent, not independently validated: silver labels come from an LLM panel whose stage-2 vote follows the answer key derived from careers.json bonuses ~94% of the time it speaks. Panel-agreement metrics measure fidelity to the hand-authored bonus table, not real-world accuracy.",
     "Floor-level class representation for game-dev (5 labels) \u2014 at or below the 5-label stratified-CV minimum; treat their predictions and metrics as low-confidence.",
     "Over-represented classes: frontend (47/232 rows, 20%) (more than 2x the uniform share). class_weight='balanced' prevents amplification during training, but the label skew remains in the data.",
-    "Displayed match percentages from this model are NOT calibrated: its pooled out-of-fold ECE is 0.139, above the 0.1 ship floor. Under ADR 0002 that floor is mitigable rather than hard, so this model ships as the RANKING source only and displayed percentages should fall back to the formula's. The ordering of recommendations is gated separately, on top-2 stability (0.735 against a 0.6 floor), and clears."
+    "Displayed match percentages from this model are NOT calibrated: its pooled out-of-fold ECE is 0.139, above the 0.1 ship floor. Under ADR 0005 that floor is mitigable rather than hard, so this model ships as the RANKING source only and displayed percentages should fall back to the formula's. The ordering of recommendations is gated separately, on top-2 stability (0.735 against a 0.6 floor), and clears."
   ],
   "deployment": {
     "status": "ranking_only",
     "ranking": "this model",
     "match_percent": "FALL BACK TO THE FORMULA - this model's percentages are uncalibrated",
-    "mitigation_applied": "ADR 0002 mitigable-ECE branch: ships as the ranking source only"
+    "mitigation_applied": "ADR 0005 mitigable-ECE branch: ships as the ranking source only"
   },
   "selection": {
     "selected_variant": "D5_ensemble_dropout_0.5_wd_1e-2",

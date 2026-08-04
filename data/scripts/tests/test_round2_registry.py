@@ -2,7 +2,7 @@
 
 Two properties, both of which a plausible edit takes away silently:
 
-- **The Residual Matcher is not a Round-2 candidate.** ADR 0003's pre-registered rule
+- **The Residual Matcher is not a Round-2 candidate.** ADR 0006's pre-registered rule
   disqualified it from being the shipped neural model, and Round 2 selects the model
   that ships. Re-adding it would produce a selection nobody could honour -- and, given
   Round 1's 23-of-25, it would win.

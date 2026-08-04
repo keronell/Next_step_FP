@@ -16,14 +16,14 @@ scoring path, not by reading source. The reproducible form of each is
 
 ## The finding, which changes what DEV-99 is asking
 
-**ADR 0002's mitigation is documented in three places and implemented in none.**
+**ADR 0005's mitigation is documented in three places and implemented in none.**
 If the flag were flipped to the neural artifact today, the service would display the
 model's uncalibrated percentages — the exact thing the artifact's own caveat tells
 consumers not to do.
 
 `matcher_nn_v1` is **Ranking-Deployable**, and `CONTEXT.md` defines that state as
 permitting the ranking *"with displayed `matchPercent` falling back to the Formula's,
-per ADR 0002"*. That fallback does not exist in code. So the state the model is in is
+per ADR 0005"*. That fallback does not exist in code. So the state the model is in is
 not a state the serving path can currently honour.
 
 ### What the artifact declares
@@ -33,7 +33,7 @@ $ python -c "import json; print(json.load(open('data/models/matcher_nn_v1.json')
 {'status': 'ranking_only',
  'ranking': 'this model',
  'match_percent': "FALL BACK TO THE FORMULA - this model's percentages are uncalibrated",
- 'mitigation_applied': 'ADR 0002 mitigable-ECE branch: ships as the ranking source only'}
+ 'mitigation_applied': 'ADR 0005 mitigable-ECE branch: ships as the ranking source only'}
 ```
 
 Its fourth caveat says the same in prose, and that caveat *does* reach the response,
@@ -78,7 +78,7 @@ Same request, same candidates, two scorers. 200 randomised answer sets over the 
 
 | top-1 `matchPercent` | mean | min | max |
 |---|---|---|---|
-| formula (what ADR 0002 says to display) | 73.3 | 60 | 85 |
+| formula (what ADR 0005 says to display) | 73.3 | 60 | 85 |
 | `matcher_nn_v1` (what is displayed today) | **58.0** | 26 | 85 |
 | `matcher_logistic_v2` | 76.4 | 35 | 99 |
 
@@ -114,7 +114,7 @@ so nothing rewrites them later. See the rollback limit below.
 
 ## What the mitigation costs, designed rather than assumed
 
-The cheap reading — "one branch on `matchPercent`" — is wrong. ADR 0002 asks for the
+The cheap reading — "one branch on `matchPercent`" — is wrong. ADR 0005 asks for the
 **model to supply the ranking while the formula supplies the displayed number**, which
 means both must be computed for the same request, and they currently live on two
 mutually exclusive branches.
@@ -137,7 +137,7 @@ percentages for its own.
 2. **The displayed percentages stop being monotonic in the displayed order.** The model
    ranks A > B > C; the formula may score B above A. The UI would show *"1. A 55%,
    2. B 71%"*. `Results.jsx` animates a bar per rank and `History.jsx` prints the top
-   row's percentage as a headline. **ADR 0002 does not address this**, and it is a
+   row's percentage as a headline. **ADR 0005 does not address this**, and it is a
    product decision, not an implementation detail. The dishonest resolution — keep the
    model's order but reassign the formula's percentages sorted descending — produces
    numbers that belong to no career and should be rejected explicitly.
@@ -162,12 +162,12 @@ implementations, one extraction refactor in `matching_service`, the frontend/pro
 call on problem 2, and tests. Problem 2 is the only part that needs a human.
 
 **What I did not do, and why.** I did not implement it. Two of the four problems are
-decisions rather than code — the non-monotonic display, and whether ADR 0002's
+decisions rather than code — the non-monotonic display, and whether ADR 0005's
 mitigation is still the right one now that its consequence is visible. Choosing either
 silently would be exactly the "quietly redefine the mitigation to something easier"
 failure. If a different mitigation is preferred (suppress the percentage for
 `ranking_only` models; display a band rather than a number), **that is an amendment to
-ADR 0002 and belongs to the same human who decides the flip.**
+ADR 0005 and belongs to the same human who decides the flip.**
 
 The gap is pinned by two `xfail(strict=True)` tests in `test_flip_readiness.py` — they
 fail today, and turn into a loud `XPASS` failure the moment the mitigation lands, so
@@ -302,7 +302,7 @@ own; the fixture affects only which three careers are explained.)
 
 Ordered, with owners:
 
-1. **Decide the ADR 0002 mitigation** — implement it as written (accepting the
+1. **Decide the ADR 0005 mitigation** — implement it as written (accepting the
    non-monotonic display), or amend the ADR. **Human.** Without this the flip ships
    uncalibrated percentages regardless of who approved it.
 2. **DEV-89.** Own ticket, own branch off `main`. Merge blocker; ~71% of the model's
@@ -315,7 +315,7 @@ Ordered, with owners:
 
 Items 1 and 2 are prerequisites of item 3 being *meaningful*, not just of item 4 being
 safe. Approving a flip whose displayed percentages contradict the artifact's own caveat
-is approving something other than what ADR 0002 describes.
+is approving something other than what ADR 0005 describes.
 
 ## Recommendation
 
@@ -323,11 +323,11 @@ is approving something other than what ADR 0002 describes.
 
 The evidential case was settled by DEV-98 and it is genuinely balanced: both flipping
 and not flipping are defensible, the neural matcher wins on stability and loses on
-calibration and agreement, and ADR 0001 requires it to ship eventually. Nothing found
+calibration and agreement, and ADR 0004 requires it to ship eventually. Nothing found
 here moves that balance.
 
 What this ticket found is that the flip as currently implementable is **not the thing
-ADR 0002 authorised**. The model is Ranking-Deployable; the serving path can only
+ADR 0005 authorised**. The model is Ranking-Deployable; the serving path can only
 deploy it as if it were Deployable. Until the mitigation exists, "approve the flip" and
 "ship uncalibrated percentages" are the same action, and the approver would be agreeing
 to something the decision document explicitly says is not on offer.
@@ -335,3 +335,39 @@ to something the decision document explicitly says is not on offer.
 The three mechanical criteria DEV-99 asks about — load-failure fallback, version
 logging, rollback — are all satisfied and now tested. The blast radius is small and the
 degradation paths are sound. It is a good switch; it is wired to the wrong thing.
+
+---
+
+## Closed: the mitigation was built (2026-08-04)
+
+The gap this document reports is fixed. **The finding above is left standing as written**
+— it is the record of what was true on 2026-08-03, and rewriting it would erase the
+reason the work happened.
+
+What changed since:
+
+- `Matcher` gained a `deployment` member; both implementations parse the block at load
+  through the shared `parse_deployment`, and an unrecognised `status` is a load failure
+  rather than a permissive default.
+- `_formula_scored` was extracted from `_match_formula`, which is what made the
+  "four problems that are not incidental" tractable: problem 1 (a model-ranked career
+  with no formula percentage) is solved by scoring every candidate before truncating,
+  and problem 4 (which formula) by reusing the real one, profile branch included.
+- Problem 2 — the non-monotonic display — was **answered by a human, not by code**:
+  the model's selected set is ordered by the formula's percentage, so the top row always
+  carries the highest one. That narrows what a `ranking_only` model supplies from the
+  *ranking* to the *selection*, which is an amendment to ADR 0005 and is recorded there.
+  The "dishonest resolution" this document warned against was rejected explicitly, along
+  with a clamping variant that has the same defect more quietly.
+- Problem 3 — `score` and `matchPercent` coming apart — resolved by making both the
+  formula's, with the model's probability preserved as
+  `score_breakdown.model_probability` so the selection stays auditable.
+
+The two `xfail(strict=True)` tests did exactly their job: they turned into a loud
+`XPASS` the moment the mitigation landed, and the markers were removed as instructed.
+The second one is now stated in its **positive** form — equality with the formula's
+percentage — which this document correctly said was not yet expressible.
+
+**`MATCHER_MODEL_PATH` is still blank and the flip is still DEV-99's**, needing its own
+human approval. This work removes the incoherence that blocked that approval; it does
+not grant it.

@@ -7,7 +7,7 @@
 > does not make the labels less circular, and this one does not claim to.
 
 DEV-93, plan `docs/dev-23-nn-rework-plan.md` Steps 2.2 / 2.4 / 2.5 / 2.7. Ship
-Floor from ADR 0002. Vocabulary is `CONTEXT.md`'s.
+Floor from ADR 0005. Vocabulary is `CONTEXT.md`'s.
 
 Generated: 2026-07-29T17:02:30Z
 Dataset: 232 rows, feature `features-v4`, digest `2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`.
@@ -25,7 +25,7 @@ Round 1's result is **negative, and cleanly so**.
 2. **The pre-registered alpha=0 rule fires**, having fired in
    4 of 5 seeds: "no non-linear signal
    found". The Residual Matcher is therefore disqualified from being the shipped
-   neural model, per ADR 0003.
+   neural model, per ADR 0006.
 3. **Against `logistic_tuned` the difference is indistinguishable from zero.** delta =
    -0.0026 on top-2, CI [-0.0095, +0.0043],
    sign holding in 2 of 5 seeds.
@@ -52,7 +52,7 @@ Round 1's result is **negative, and cleanly so**.
 
 **What this does NOT say.** It does not say a neural matcher cannot clear the floor;
 Round 2 has not run. It does not say the labels are sound -- Circularity is untouched.
-And it does not authorise any decision: under ADR 0001 the neural matcher ships
+And it does not authorise any decision: under ADR 0004 the neural matcher ships
 either way, so these numbers size a gap rather than settle anything.
 
 ## !! NOT A CONTINUATION OF THE DEV-91 GATE-2 ROW !!
@@ -117,7 +117,7 @@ models share outer folds, so the per-profile indicators are genuinely paired.
 
 ### The Residual Matcher's advantage in this contest, stated properly
 
-ADR 0003 pre-registered `alpha` as an inner-CV-selected hyperparameter, so before
+ADR 0006 pre-registered `alpha` as an inner-CV-selected hyperparameter, so before
 the 14-way contest the Residual Matcher resolves `(alpha, C)` on the
 outer-training partition -- `alpha` by argmax over
 4 values, on top of a `C` itself chosen by argmax over
@@ -140,7 +140,7 @@ the training partition, which costs the contest its fairness between Variants bu
 not the outer estimate its validity.
 
 It is left in place rather than fixed because removing it means selecting `alpha` at
-a third nesting level, which ADR 0003 explicitly considered and declined as not
+a third nesting level, which ADR 0006 explicitly considered and declined as not
 earning its complexity. **What the bias does not do is change the direction of the
 finding**, and that is worth being precise about: the Residual Matcher won mostly
 *at `alpha = 0`*, so the extra freedom it enjoyed was the freedom to switch its
@@ -154,7 +154,7 @@ Across all 5 seeds x 5 outer folds = 25 selections:
 
 | Variant | axis | times selected | specification |
 |---|---|---|---|
-| C4_residual_matcher | protocol | 23 | frozen logistic branch plus a gated MLP correction; alpha selected by inner CV, C inherited from the fold's tuned-logistic selection (ADR 0003) |
+| C4_residual_matcher | protocol | 23 | frozen logistic branch plus a gated MLP correction; alpha selected by inner CV, C inherited from the fold's tuned-logistic selection (ADR 0006) |
 | C3_seed_ensemble | protocol | 2 | 5 members differing only in seed, averaged in probability; a separate Variant, never fused into the Residual Matcher |
 | A1_84_16_16 | capacity | 0 | one hidden layer of 16 -- the smallest net that still has a hidden layer |
 | A2_84_32_16 | capacity | 0 | one hidden layer of 32 |
@@ -234,7 +234,7 @@ Each row is a complete nested run. `mean +/- sd` is meaningful for the two
 comparators too, not only for the selected Variant, because the seed varies the fold
 partition for all three.
 
-**The ECE columns here are CROSS-FITTED** (ADR 0004), which is a different quantity
+**The ECE columns here are CROSS-FITTED** (ADR 0007), which is a different quantity
 from the raw ECE the Ship Floor gates on. Do not read across the two tables.
 
 | seed | top-2 selected | top-2 logistic | top-2 gbt | x-fit ECE selected | x-fit ECE logistic | x-fit ECE gbt |
@@ -267,7 +267,7 @@ the per-seed table above is reported separately rather than summarised into them
 - The CI INCLUDES zero.
 - Materiality marker (Step 2.5, |delta| >= 0.02): **not cleared**
   (|delta| = 0.0026). This is a reporting standard, not a gate: under
-  ADR 0001 the neural matcher ships either way, so nothing here authorises a
+  ADR 0004 the neural matcher ships either way, so nothing here authorises a
   decision -- it sizes the gap.
 - Per-seed deltas: -0.0172, -0.0043, +0.0000, +0.0000, +0.0086.
   The pooled sign holds in **2 of 5** seeds,
@@ -283,7 +283,7 @@ the per-seed table above is reported separately rather than summarised into them
 - The CI INCLUDES zero.
 - Materiality marker (Step 2.5, |delta| >= 0.02): **cleared**
   (|delta| = 0.0284). This is a reporting standard, not a gate: under
-  ADR 0001 the neural matcher ships either way, so nothing here authorises a
+  ADR 0004 the neural matcher ships either way, so nothing here authorises a
   decision -- it sizes the gap.
 - Per-seed deltas: -0.0603, -0.0129, -0.0388, -0.0129, -0.0172.
   The pooled sign holds in **5 of 5** seeds,
@@ -291,7 +291,7 @@ the per-seed table above is reported separately rather than summarised into them
 - Read as: the sweep NN is behind `gbt_tuned` by
   6.6 profiles out of 232.
 
-## Ship Floor verdict (Step 2.7 / ADR 0002)
+## Ship Floor verdict (Step 2.7 / ADR 0005)
 
 Evaluated on **one exact configuration** -- the modal Variant `C4_residual_matcher`
 -- because Qualified is a property of a configuration and is never inherited by a
@@ -387,9 +387,9 @@ convenient is not a pre-registered rule. Inner CV resolved an alpha for it in ev
 outer fold, including folds where a different Variant went on to win the contest,
 so the record below has no holes in it.
 
-The rule, from ADR 0003, fixed before any alpha was selected on this data:
+The rule, from ADR 0006, fixed before any alpha was selected on this data:
 
-> alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0003, pre-registered)
+> alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)
 
 | seed | per-fold alpha | folds at zero | rule |
 |---|---|---|---|
@@ -404,7 +404,7 @@ The rule, from ADR 0003, fixed before any alpha was selected on this data:
 by this rule is still reported in full; what the rule decides is whether it may be
 the shipped neural model, not whether its numbers count.
 
-**The consequence, per the plan's Step 6 and ADR 0003:** if the rule stands, the
+**The consequence, per the plan's Step 6 and ADR 0006:** if the rule stands, the
 shipped model becomes the best *genuinely non-linear* Variant, and the cost of that
 substitution must be reported explicitly. Round 1 does not make that substitution --
 choosing the replacement is Round 2's job and justifying it is the decision

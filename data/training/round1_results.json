@@ -205,7 +205,7 @@
         ],
         "n_folds_at_zero": 5,
         "no_non_linear_signal": true,
-        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0003, pre-registered)"
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
       },
       "43": {
         "per_fold_alpha": [
@@ -224,7 +224,7 @@
         ],
         "n_folds_at_zero": 4,
         "no_non_linear_signal": true,
-        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0003, pre-registered)"
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
       },
       "44": {
         "per_fold_alpha": [
@@ -243,7 +243,7 @@
         ],
         "n_folds_at_zero": 2,
         "no_non_linear_signal": false,
-        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0003, pre-registered)"
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
       },
       "45": {
         "per_fold_alpha": [
@@ -262,7 +262,7 @@
         ],
         "n_folds_at_zero": 5,
         "no_non_linear_signal": true,
-        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0003, pre-registered)"
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
       },
       "46": {
         "per_fold_alpha": [
@@ -281,7 +281,7 @@
         ],
         "n_folds_at_zero": 4,
         "no_non_linear_signal": true,
-        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0003, pre-registered)"
+        "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
       }
     },
     "seeds_where_rule_fired": [
@@ -290,7 +290,7 @@
       "45",
       "46"
     ],
-    "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0003, pre-registered)"
+    "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
   },
   "per_seed": {
     "42": {

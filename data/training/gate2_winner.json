@@ -3,7 +3,7 @@
   "deployable": "logistic_tuned",
   "deployable_reason": "gate2 winner 'gbt_tuned' has no serving path (matcher_model.py is linear-only with exact attribution \u2014 the Phase-4 explainability requirement); logistic is the Gate-1-qualified deployable selection",
   "calibration": {
-    "method": "temperature fitted per outer fold on inner-OOF predictions from that fold's training partition only (cross-fitted; ADR 0004)",
+    "method": "temperature fitted per outer fold on inner-OOF predictions from that fold's training partition only (cross-fitted; ADR 0007)",
     "reported_metric": "ece_cross_fitted",
     "tiebreak_metric": "ece_cross_fitted",
     "break_from_recorded_history": "2026-07-28 (DEV-91)",
@@ -195,7 +195,7 @@
     ],
     "n_folds_at_zero": 5,
     "no_non_linear_signal": true,
-    "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0003, pre-registered)"
+    "rule": "alpha=0 in >= 3 of 5 outer folds is 'no non-linear signal found' and disqualifies the Residual Matcher from being the shipped neural model (ADR 0006, pre-registered)"
   },
   "feature_version": "features-v4",
   "seed": 42,

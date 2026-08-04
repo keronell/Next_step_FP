@@ -44,7 +44,7 @@ from common.models.profile import UserProfile
 from common.profile_text import canonical_skills
 from app.repositories.career_repository import CareerCandidate
 from app.services import feature_builder, reason_builder
-from app.services.matcher import Matcher
+from app.services.matcher import Matcher, displays_own_percentages
 
 logger = get_logger(__name__)
 
@@ -304,6 +304,23 @@ def _match_model(
 
     has_profile, user_skills = _profile_context(profile)
     top = sorted(probs, key=lambda cid: (-probs[cid], cid))[:TOP_N]
+
+    # ADR 0005's mitigable-ECE branch. A `ranking_only` artifact selects the careers
+    # but does not put a number beside them: every figure the user sees -- the
+    # percentage, the score and the breakdown that explains it -- is the formula's,
+    # and the list is ORDERED by that percentage so the top row always carries the
+    # highest one. That ordering is an amendment to the ADR as originally written
+    # ("ships as the ranking source"): within the selected set the order is the
+    # formula's, so the model contributes the SELECTION, not the ranking. Recorded in
+    # docs/adr/0005-gate-1-is-a-ship-floor.md.
+    #
+    # `reasons` stay model-derived on purpose: they explain why this career was
+    # selected, which is the one judgement the model is still trusted to make.
+    formula_by_id: dict[str, dict] = {}
+    if not displays_own_percentages(model):
+        formula_by_id = {r["id"]: r for r in _formula_scored(answers, unique, profile)}
+        top.sort(key=_display_order(formula_by_id.get))
+
     results: list[dict] = []
     for cid in top:
         cand = by_id[cid]
@@ -312,6 +329,23 @@ def _match_model(
         if has_profile:
             matched, missing = _user_skill_signals(career, cand, user_skills)
         contributions = model.contributions(vector, cid)
+        displayed = formula_by_id.get(cid)
+        if displayed is None:
+            breakdown = {
+                "semantic_similarity": round(cand.semantic_similarity or 0.0, 3),
+                "questionnaire_fit": round(fits[cid], 3),
+                "skill_overlap": round(overlap, 3),
+            }
+        else:
+            # The breakdown has to explain the number actually on screen, so it comes
+            # from the same scorer -- including its user_skill_match component when
+            # the profile selected PROFILE_WEIGHTS. Copied rather than aliased: the
+            # source dict is still owned by `formula_by_id`.
+            breakdown = dict(displayed["score_breakdown"])
+            # What the model produced, kept because it is no longer displayed
+            # anywhere: without it the selection behind this list is unauditable
+            # from the response or the persisted history.
+            breakdown["model_probability"] = round(probs[cid], 3)
         results.append(
             {
                 "id": cid,
@@ -320,13 +354,11 @@ def _match_model(
                 "keySkills": career["keySkills"],
                 "icon": career["icon"],
                 "roadmapKey": career["roadmapKey"],
-                "matchPercent": round(probs[cid] * 100),
-                "score": round(probs[cid], 3),
-                "score_breakdown": {
-                    "semantic_similarity": round(cand.semantic_similarity or 0.0, 3),
-                    "questionnaire_fit": round(fits[cid], 3),
-                    "skill_overlap": round(overlap, 3),
-                },
+                "matchPercent": (
+                    displayed["matchPercent"] if displayed else round(probs[cid] * 100)
+                ),
+                "score": displayed["score"] if displayed else round(probs[cid], 3),
+                "score_breakdown": breakdown,
                 "reasons": reason_builder.build_reasons(
                     career, answers, contributions, matched, questions_by_id, bool(user_skills)
                 ),
@@ -342,11 +374,43 @@ def _match_model(
     return results
 
 
-def _match_formula(
+def _display_order(lookup):
+    """Sort key putting the highest DISPLAYED percentage first.
+
+    Ordering on `score` alone is not enough, and the difference is not theoretical:
+    `score` is `round(final, 3)` while `matchPercent` is `round(final * 100)`, so two
+    careers can tie at three decimals and still straddle a half-percent boundary --
+    0.49520 and 0.49468 are both `score` 0.495 but display 50 and 49. Under a
+    score-then-id key the 49 can print above the 50, which is precisely the
+    non-monotonic display ADR 0005's amendment exists to prevent.
+
+    Keying on the displayed integer first makes the invariant true by construction.
+    `score` then breaks ties within a shared percentage, and the id last keeps the
+    order deterministic.
+    """
+    def key(cid_or_rec):
+        rec = lookup(cid_or_rec)
+        return (-rec["matchPercent"], -rec["score"], rec["id"])
+
+    return key
+
+
+def _formula_scored(
     answers: dict[str, int | None],
     candidates: list[CareerCandidate],
     profile: UserProfile | None = None,
 ) -> list[dict]:
+    """Every candidate scored and shaped by the formula — unsorted, untruncated.
+
+    Split out of `_match_formula` for ADR 0005's mitigation: a `ranking_only` model
+    displays the formula's percentages, and the careers it ranks need not be the ones
+    the formula would have returned. Truncating to TOP_N before that lookup would
+    leave a model-selected career with no percentage computed anywhere, which is why
+    the sort and the slice live in the caller rather than here.
+
+    Note `fit` is normalized against the strongest fit among `candidates`, so this is
+    only meaningful over the full candidate set — pass every candidate, not a subset.
+    """
     raw_fits = {c.career["id"]: _raw_fit(c.career, answers) for c in candidates}
     max_fit = max(raw_fits.values()) or 1  # avoid divide-by-zero
 
@@ -410,5 +474,19 @@ def _match_formula(
             }
         )
 
-    scored.sort(key=lambda r: (-r["score"], r["id"]))  # deterministic tie-break
+    return scored
+
+
+def _match_formula(
+    answers: dict[str, int | None],
+    candidates: list[CareerCandidate],
+    profile: UserProfile | None = None,
+) -> list[dict]:
+    scored = _formula_scored(answers, candidates, profile)
+    # Same key as the ranking-only path: the displayed percentage leads, so the top
+    # row always carries the highest number here too. Measured at 0 of 4000 draws on
+    # this path (1 of 4000 on the ranking-only path), so this is a latent tie being
+    # closed rather than a live defect -- but the invariant should not depend on how
+    # often the tie happens to come up.
+    scored.sort(key=_display_order(lambda r: r))
     return scored[:TOP_N]

@@ -11,7 +11,7 @@ here.
 
 ## What these are for
 
-"~94% of the time it speaks" travelled this repo as a literal. It is in ADR 0001, in
+"~94% of the time it speaks" travelled this repo as a literal. It is in ADR 0004, in
 plan Step 4.1, in `evaluate_matchers.py`'s docstring, and -- the reason it matters --
 inside `caveats` in both exported artifacts, from where it reaches
 `RecommendationsResponse.model_caveats`, the persisted history and `Results.jsx`.
@@ -68,7 +68,7 @@ def test_the_consensus_filter_reproduces_the_recorded_silver_count(measurement):
 def test_the_quoted_circularity_rate_is_what_the_vote_log_actually_shows(measurement):
     rate = measurement.vote_level.follow_rate
     assert abs(rate - QUOTED_RATE) <= QUOTED_TOLERANCE, (
-        f"the vote log gives {rate:.1%}, but ADR 0001, plan Step 4.1 "
+        f"the vote log gives {rate:.1%}, but ADR 0004, plan Step 4.1 "
         f"and both artifacts' caveats all say ~{QUOTED_RATE:.0%}"
     )
 

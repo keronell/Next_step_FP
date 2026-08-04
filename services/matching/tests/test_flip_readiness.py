@@ -15,8 +15,11 @@ Each drives the REAL `main.lifespan` and then the real `/internal/match` scoring
 path, so a regression in either the loader or the fallback breaks a test rather
 than a deployment.
 
-The final block is different in kind: two `xfail(strict=True)` tests pinning a gap
-DEV-99 found rather than a behaviour it verified. See their docstrings.
+The final block was different in kind: two `xfail(strict=True)` tests pinning a gap
+DEV-99 found rather than a behaviour it verified — ADR 0005's mitigation, documented
+in three places and implemented in none. It was built on 2026-08-04, so the markers are gone
+and the block now asserts the mitigation's behaviour directly, including the
+monotonic-display invariant the ADR amendment added.
 """
 import json
 import logging
@@ -25,7 +28,7 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 
-from app.services.matcher import load_matcher
+from app.services.matcher import displays_own_percentages, load_matcher
 from app.services.matching_service import FORMULA_VERSION, match
 
 from tests.conftest import make_candidates, tiny_artifact
@@ -214,36 +217,31 @@ def test_rollback_does_not_reach_recommendations_already_persisted():
     assert all(isinstance(r["matchPercent"], int) for r in persisted)
 
 
-# ------------------------------------------- the gap DEV-99 found: ADR 0002's mitigation
+# ------------------------------------------ ADR 0005's mitigation, now implemented
 # `matcher_nn_v1.json` declares deployment.status "ranking_only" and
 # deployment.match_percent "FALL BACK TO THE FORMULA - this model's percentages are
-# uncalibrated". ADR 0002 defines that mitigation as the thing which makes a model
+# uncalibrated". ADR 0005 defines that mitigation as the thing which makes a model
 # failing the ECE half shippable at all.
 #
-# Nothing in the serving path reads it. The two tests below are strict xfails: they
-# fail today (which is the finding) and will fail LOUDER as XPASS the moment the
-# mitigation lands, at which point whoever implemented it deletes the markers. They
-# are the record that the gap was known, not an accepted state.
+# DEV-99 found it documented in three places and implemented in none, and pinned the
+# gap with two strict xfails. The mitigation has since landed, so those markers are
+# gone and the same two properties are asserted directly. The second one is now
+# stated in its POSITIVE form -- equality with the formula's percentage -- which
+# DEV-99 could not write because `_match_formula` returned only its own TOP_N; the
+# `_formula_scored` extraction is what made it expressible.
 #
-# Deliberately NOT written as an assertion of the current behaviour: pinning
-# `matchPercent == round(probability * 100)` as correct would make the defect a
-# specification, and the next reader would have no way to tell.
-NEEDS_MITIGATION = pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "ADR 0002's mitigation is documented in the artifact, the ADR and CONTEXT.md, "
-        "and implemented nowhere - DEV-99 finding. Remove this marker when it lands."
-    ),
-)
+# The ordering assertion below is the ADR AMENDMENT, not the ADR as written: within
+# the model's selected set the display order is the formula's, so the top row always
+# carries the highest percentage. See docs/adr/0005-gate-1-is-a-ship-floor.md.
 
 
 def test_the_shipped_artifact_still_declares_ranking_only():
-    """The artifact's half of the contract, asserted OUTSIDE the xfail below.
+    """The artifact's half of the contract, asserted separately from the behaviour.
 
-    It belongs outside deliberately: inside a strict xfail, an exporter that stopped
-    emitting `deployment` would raise KeyError, pytest would record that as the
-    expected failure, and the regression would stay green — the marker would hide
-    exactly the change that matters most.
+    Kept as its own test deliberately: if an exporter stopped emitting `deployment`,
+    every behavioural test below would still pass — an unrestricted artifact displays
+    its own percentages quite legitimately — and the silent loss of the restriction is
+    exactly the regression that matters most.
     """
     if not NN_ARTIFACT.exists():
         pytest.skip("matcher_nn_v1.json not present - run data/scripts/export_nn_model.py")
@@ -252,55 +250,124 @@ def test_the_shipped_artifact_still_declares_ranking_only():
     assert "FORMULA" in deployment["match_percent"]
 
 
-@NEEDS_MITIGATION
-def test_the_serving_path_can_see_a_ranking_only_declaration():
-    """The root cause. `Matcher` declares feature_names/version/caveats and no
-    `deployment`, so both implementations drop the block on load and the scoring code
-    has no way to ask whether this artifact is allowed to display its percentages.
-    Every possible mitigation needs this first.
-    """
-    if not NN_ARTIFACT.exists():
-        pytest.skip("matcher_nn_v1.json not present - run data/scripts/export_nn_model.py")
-    matcher = load_matcher(NN_ARTIFACT)
-    assert getattr(matcher, "deployment", None) is not None
-
-
-@NEEDS_MITIGATION
-def test_a_ranking_only_model_does_not_display_its_own_probability():
-    """The consequence. `matching_service._match_model` sets
-    `matchPercent = round(probs[cid] * 100)` unconditionally, so today the displayed
-    percentage IS the uncalibrated probability the caveat warns about — the model's
-    pooled OOF ECE is 0.139 against a 0.10 floor.
-
-    The invariant asserted is the negative one ADR 0002 actually requires: the number
-    on screen is not derived from this model's probability. Asserting the positive
-    form (equality with the formula's percentage) is not yet possible — `_match_formula`
-    returns only its own TOP_N, so the formula's score for a career the model ranked
-    but the formula did not is not computed anywhere. That refactor is part of the
-    cost, and it is why this is not a one-line fix.
-
-    Compared against the model's UNROUNDED probability, not against the response's
-    `score`. `score` is `round(prob, 3)` while `matchPercent` is `round(prob * 100)`,
-    so the two already disagree for a few percent of recommendations purely by
-    rounding — an invariant built on `score` would fail and pass for reasons that
-    have nothing to do with the mitigation.
-    """
-    if not NN_ARTIFACT.exists():
-        pytest.skip("matcher_nn_v1.json not present - run data/scripts/export_nn_model.py")
+def model_probabilities(matcher) -> dict[str, float]:
+    """The matcher's own probabilities for ANSWERS on the shared fixture."""
     from app.services import feature_builder
 
-    matcher = load_matcher(NN_ARTIFACT)
     cands = make_candidates()
-    careers = [c.career for c in cands]
-    probs = matcher.predict_proba(
+    return matcher.predict_proba(
         feature_builder.build_feature_vector(
             ANSWERS,
-            careers,
+            [c.career for c in cands],
             {c.career["id"]: c.semantic_similarity for c in cands},
             {c.career["id"]: c.market_skills for c in cands},
         )
     )
 
+
+def test_the_serving_path_can_see_a_ranking_only_declaration():
+    """The root cause DEV-99 identified: `Matcher` had no `deployment` member, so both
+    implementations dropped the block on load and the scoring code had no way to ask
+    whether this artifact may display its percentages. Every mitigation needs it first.
+    """
+    if not NN_ARTIFACT.exists():
+        pytest.skip("matcher_nn_v1.json not present - run data/scripts/export_nn_model.py")
+    matcher = load_matcher(NN_ARTIFACT)
+    assert getattr(matcher, "deployment", None) is not None
+    assert not displays_own_percentages(matcher)
+
+
+def test_a_ranking_only_model_displays_the_formulas_percentage():
+    """The positive form of what ADR 0005 requires: the number on screen IS the
+    formula's, not merely different from the model's.
+
+    DEV-99 could only assert the negative ("!= the model's probability"), which passes
+    for any wrong number at all — a hardcoded 50 would satisfy it. Equality is the real
+    invariant and it became expressible once `_formula_scored` could price a career the
+    formula's own TOP_N would have dropped.
+
+    The model's probability is checked to still be *recorded* rather than discarded:
+    it is what selected these three careers, and nothing else on screen carries it.
+    """
+    if not NN_ARTIFACT.exists():
+        pytest.skip("matcher_nn_v1.json not present - run data/scripts/export_nn_model.py")
+    from app.services.matching_service import _formula_scored
+
+    matcher = load_matcher(NN_ARTIFACT)
+    probs = model_probabilities(matcher)
+    formula = {r["id"]: r for r in _formula_scored(ANSWERS, make_candidates())}
+
     recs = served(matcher)
     assert recs
-    assert all(r["matchPercent"] != round(probs[r["id"]] * 100) for r in recs)
+    for r in recs:
+        assert r["matchPercent"] == formula[r["id"]]["matchPercent"]
+        assert r["score"] == formula[r["id"]]["score"]
+        assert r["score_breakdown"]["model_probability"] == round(probs[r["id"]], 3)
+
+
+def test_a_ranking_only_models_top_row_carries_the_highest_percentage():
+    """The ADR AMENDMENT: displayed order follows the displayed percentage.
+
+    ADR 0005 as written made the model "the ranking source" with the formula supplying
+    only the number, which lets the UI print a lower percentage above a higher one --
+    `Results.jsx` animates a bar per rank and `History.jsx` headlines the top row. The
+    amendment resolves that by ordering the model's SELECTED set by the formula's
+    percentage, so the model contributes selection rather than ranking.
+
+    Asserted on the percentage rather than on `score`, because the percentage is what a
+    user sees and the two round differently.
+    """
+    if not NN_ARTIFACT.exists():
+        pytest.skip("matcher_nn_v1.json not present - run data/scripts/export_nn_model.py")
+    recs = served(matcher := load_matcher(NN_ARTIFACT))
+    assert len(recs) > 1, "need at least two rows for an ordering claim to mean anything"
+    percents = [r["matchPercent"] for r in recs]
+    assert percents == sorted(percents, reverse=True), (
+        f"displayed percentages are not monotonic down the list: {percents}"
+    )
+    # And the selection is still the model's: these are its top-N by probability,
+    # which is the half of the contract the amendment keeps.
+    probs = model_probabilities(matcher)
+    assert set(r["id"] for r in recs) == set(
+        sorted(probs, key=lambda c: (-probs[c], c))[: len(recs)]
+    )
+
+
+def test_an_unrestricted_artifact_still_displays_its_own_probability():
+    """The incumbent must not move. `matcher_logistic_v2.json` carries no `deployment`
+    block and is Deployable, so silence has to keep meaning "unrestricted" — if this
+    fails, landing the mitigation changed the output of the model that would actually
+    ship first, which is the one regression this work must not cause.
+    """
+    if not LINEAR_ARTIFACT.exists():
+        pytest.skip("matcher_logistic_v2.json not present")
+    matcher = load_matcher(LINEAR_ARTIFACT)
+    assert displays_own_percentages(matcher)
+    probs = model_probabilities(matcher)
+    recs = served(matcher)
+    assert recs
+    assert all(r["matchPercent"] == round(probs[r["id"]] * 100) for r in recs)
+    assert all(r["score_breakdown"].get("model_probability") is None for r in recs)
+
+
+def test_display_order_prefers_the_shown_percentage_over_the_rounded_score():
+    """The tie a fixture will almost never produce, pinned directly.
+
+    `score` is round(final, 3) and `matchPercent` is round(final * 100), so two
+    careers can tie at three decimals and still straddle a half-percent boundary.
+    Ordering on `score` then id lets the 49 print above the 50 — observed once in
+    4000 randomised draws on the ranking-only path, which is exactly often enough to
+    reach a user and far too rare for a fixture test to catch by luck.
+
+    Asserted on the key function rather than through `match()` because constructing
+    real candidates that land on the boundary would pin the fixture, not the rule.
+    """
+    from app.services.matching_service import _display_order
+
+    lower_percent_earlier_id = {"id": "aaa", "score": 0.495, "matchPercent": 49}
+    higher_percent_later_id = {"id": "zzz", "score": 0.495, "matchPercent": 50}
+    ordered = sorted(
+        [lower_percent_earlier_id, higher_percent_later_id],
+        key=_display_order(lambda r: r),
+    )
+    assert [r["matchPercent"] for r in ordered] == [50, 49]

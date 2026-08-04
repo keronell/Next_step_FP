@@ -99,12 +99,16 @@ ranking and the displayed percentages.
 **Ranking-Deployable**:
 Servable, and revalidated after export to clear the **hard** half of the Ship Floor
 (top-2 stability) while failing the **mitigable** half (ECE). Permits serving the
-*ranking only*, with displayed `matchPercent` falling back to the Formula's, per
-[ADR 0002](./docs/adr/0002-gate-1-is-a-ship-floor.md). Its machine-readable form is
-the artifact's `deployment.status: "ranking_only"`.
+*selection only*: such a model picks which careers appear, while `matchPercent`,
+`score` and `score_breakdown` all fall back to the Formula's — **and the list is
+ordered by that percentage**, so the top row always carries the highest number. Per
+[ADR 0005](./docs/adr/0005-gate-1-is-a-ship-floor.md), as amended 2026-08-04: the
+original wording made such a model the *ranking* source, which is what produced a
+non-monotonic display. Its machine-readable form is the artifact's
+`deployment.status: "ranking_only"` — a name now slightly wider than what it grants.
 Such a model is **not Qualified** — Gate 1 is calibrated *and* stable — and therefore
 **not Deployable**; this is a separate terminus, never a weaker Deployable, and it can
-never make a model the Incumbent. ADR 0002 splits the Ship Floor, not the state; this
+never make a model the Incumbent. ADR 0005 splits the Ship Floor, not the state; this
 term is what closes that gap (DEV-98).
 _Avoid_: partly deployable, deployable with caveats, conditionally deployable
 

@@ -42,7 +42,7 @@ about how that standing MOVES with n.
 
 ## What this measures, and what it is for
 
-**The curve is evidence, not a gate.** Under ADR 0001 the neural matcher ships either
+**The curve is evidence, not a gate.** Under ADR 0004 the neural matcher ships either
 way. What this sizes is whether more labels would close the gap to the alternatives --
 a direct input to whether funding a bigger dataset is worth it, and the most
 actionable output of DEV-23. It is not a re-selection and it cannot become one.

@@ -9,7 +9,7 @@ requirement clarification that reframed it; ready to execute
 
 DEV-23 asks to replace the weighted formula with a neural network as the
 production-serving path. **Shipping a neural matcher is a hard requirement of the
-project.** That is recorded in [ADR 0001](./adr/0001-neural-matcher-is-a-project-requirement.md)
+project.** That is recorded in [ADR 0004](./adr/0004-neural-matcher-is-a-project-requirement.md)
 and it is the single most important fact about this plan, because it changes what
 the work is for.
 
@@ -50,7 +50,7 @@ Vocabulary used precisely throughout — *Qualified*, *Selected*, *Servable*,
 *Deployable*, *Ranking-Deployable*, *Ship Floor*, *Incumbent*, *Residual Matcher* — is
 defined in [`CONTEXT.md`](../CONTEXT.md). These were used interchangeably in rev 2 and
 that is what produced its circular deployability wording. *Ranking-Deployable* is new
-in DEV-98: ADR 0002 splits the Ship Floor into a hard and a mitigable half but does not
+in DEV-98: ADR 0005 splits the Ship Floor into a hard and a mitigable half but does not
 split the *state*, so a model that is stable and not calibrated had no name.
 
 ---
@@ -173,14 +173,14 @@ explainability.)
 > placed **after** `two_tower` in `main()` — `two_tower` seeds from process-global
 > torch RNG rather than per fit, and running the new model last means "two_tower did
 > not move" does not depend on `NNClassifier`'s state-restoration reasoning being
-> right. It trains on **hard labels**, unlike `small_nn`: ADR 0003's paired
+> right. It trains on **hard labels**, unlike `small_nn`: ADR 0006's paired
 > comparison against `logistic_tuned` only holds while both optimise the same
 > targets. `gate2_winner.json` now carries `residual_alpha_verdict`, the per-fold
 > alpha record the ≥3-of-5 rule reads.
 
 **`logits = frozen_logistic_logits + α · MLP(x)`**, with `α` a hyperparameter
 selected by inner CV from `{0, 0.25, 0.5, 1.0}`. Full rationale in
-[ADR 0003](./adr/0003-residual-matcher-freezes-its-linear-branch.md).
+[ADR 0006](./adr/0006-residual-matcher-freezes-its-linear-branch.md).
 
 Rev 2 proposed training both branches jointly, warm-started at the logistic
 solution with split weight-decay groups, and claimed this made the model
@@ -441,10 +441,10 @@ any interpretive weight beyond that.
 > 1. **"≤6 refinements around the round-1 best" stopped parsing, and was
 >    reinterpreted openly.** The round-1 best is the Residual Matcher at `α = 0`,
 >    which is bit-identical to logistic regression; refining around it means either
->    tuning logistic regression or widening the `α` grid, and ADR 0003 calls the
+>    tuning logistic regression or widening the `α` grid, and ADR 0006 calls the
 >    latter a protocol change rather than a tuning tweak. Round 2 reads "the round-1
 >    best" as **the best of the models still eligible to be the deliverable** — the
->    best genuinely non-linear Variant — because ADR 0003's disqualification clause
+>    best genuinely non-linear Variant — because ADR 0006's disqualification clause
 >    makes that the model which actually ships.
 > 2. **Round 1 could not name that Variant, because the evidence had been thrown
 >    away.** `select_by_inner_cv` returned the argmax and discarded the other
@@ -453,7 +453,7 @@ any interpretive weight beyond that.
 >    (`select_by_inner_cv(..., scores_out=)`) and re-ran the contest; all 25 Round-1
 >    selections reproduced.
 > 3. **The Residual Matcher does not compete in round 2.** A contest selects the
->    model that ships, and ADR 0003 has ruled that it may not be that model. Its
+>    model that ships, and ADR 0006 has ruled that it may not be that model. Its
 >    round-1 numbers stand and its per-contest counterfactual score is reported as
 >    the substitution cost the ADR requires.
 >
@@ -468,7 +468,7 @@ any interpretive weight beyond that.
 Rev 2's kill criteria assumed abandoning the NN was possible. It is not, so
 "budget kill, no round 3" is not a criterion but a dead end with nothing behind it.
 What replaces it is a floor, split into a hard half and a mitigable half — full
-reasoning in [ADR 0002](./adr/0002-gate-1-is-a-ship-floor.md).
+reasoning in [ADR 0005](./adr/0005-gate-1-is-a-ship-floor.md).
 
 - **Top-2 stability ≥ 0.60 — hard, unmitigable.** An unstable model gives
   different recommendations to the same user depending on which resample trained
@@ -590,7 +590,7 @@ No NN work addresses this and none is attempted.
 pooled OOF predictions and the metrics loop scored ECE on those same predictions.
 Rev 2 filed this under "prototype-grade, a gold slice is the fix". **A gold slice
 would not fix it** — you would reproduce the same bug on better labels. Full record
-in [ADR 0004](./adr/0004-temperature-is-cross-fitted.md).
+in [ADR 0007](./adr/0007-temperature-is-cross-fitted.md).
 
 The bias is not uniform across models: a worse-calibrated model gains more from
 fitting T on its own evaluation data, and that quantity is the Gate-2 tiebreaker,
@@ -825,8 +825,8 @@ already has the sklearn-vs-stdlib analogue, adding it if not.
 > - **`MATCHER_MODEL_PATH` is untouched.** Production runs the formula.
 >
 > **The vocabulary gap this step exposed, and how it was closed.** The outcome table
-> below and ADR 0002 together describe a model that may serve the ranking while failing
-> ECE — a condition `CONTEXT.md`'s four states could not express, because ADR 0002
+> below and ADR 0005 together describe a model that may serve the ranking while failing
+> ECE — a condition `CONTEXT.md`'s four states could not express, because ADR 0005
 > splits the Ship *Floor* and not the *state*. DEV-97 flagged it rather than stretching
 > "Deployable". DEV-98 resolves it by **adding one state**, `Ranking-Deployable`,
 > instead of amending `Qualified` or `Deployable` — amending either would retroactively

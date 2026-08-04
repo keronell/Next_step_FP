@@ -129,9 +129,9 @@ def probabilities(matcher: NeuralMatcher, X, careers) -> np.ndarray:
     return np.array([[matcher.predict_proba(list(row))[c] for c in careers] for row in X])
 
 
-# ------------------------------------------------- the split ship floor (ADR 0002)
+# ------------------------------------------------- the split ship floor (ADR 0005)
 def test_a_stability_failure_refuses_to_write():
-    """The hard half. ADR 0002 gives it no mitigation, so there is no branch in
+    """The hard half. ADR 0005 gives it no mitigation, so there is no branch in
     which an unstable model reaches an artifact."""
     decision = ex.gate1_decision(ece=0.02, stability=0.55, max_ece=0.10, min_stability=0.60)
     assert decision["may_write"] is False

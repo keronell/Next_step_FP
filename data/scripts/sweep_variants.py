@@ -40,7 +40,7 @@ N_BOOTSTRAP = 10_000
 # Each experiment seed is a COMPLETE nested run, varying both the fold partition and
 # the initialisation. Seeds sit outside selection: inner CV runs single-seed.
 EXPERIMENT_SEEDS = (42, 43, 44, 45, 46)
-# Step 2.5's materiality marker, not a gate. Under a hard requirement (ADR 0001)
+# Step 2.5's materiality marker, not a gate. Under a hard requirement (ADR 0004)
 # nothing authorises a decision; this sizes the gap.
 MATERIALITY_DELTA = 0.02
 
@@ -114,7 +114,7 @@ def _variants() -> dict[str, Variant]:
                 {}),
         Variant("C4_residual_matcher", "protocol", "residual",
                 "frozen logistic branch plus a gated MLP correction; alpha selected by "
-                "inner CV, C inherited from the fold's tuned-logistic selection (ADR 0003)",
+                "inner CV, C inherited from the fold's tuned-logistic selection (ADR 0006)",
                 {}),
     ]
     return {v.name: v for v in specs}
@@ -137,7 +137,7 @@ def build_variant(variant: Variant, random_state: int, config=None):
             raise ValueError(
                 f"{variant.name} needs its per-fold (alpha, C) from "
                 "train_models.select_residual_config — alpha is selected by inner CV, "
-                "not defaulted (ADR 0003)"
+                "not defaulted (ADR 0006)"
             )
         alpha, C = config
         return ResidualMatcher(
@@ -159,7 +159,7 @@ def select_variant(X, y, tr, random_state: int, variants=None, scores_out=None):
     CV that was already there.
 
     The Residual Matcher's `(alpha, C)` is resolved first, on `tr` alone, because
-    ADR 0003 pre-registered alpha as an inner-CV-selected hyperparameter.
+    ADR 0006 pre-registered alpha as an inner-CV-selected hyperparameter.
 
     **That resolution runs on the same inner splits that then rank all 14** — same
     `tr`, same `random_state`, so the same `StratifiedKFold`. The Residual Matcher
@@ -171,7 +171,7 @@ def select_variant(X, y, tr, random_state: int, variants=None, scores_out=None):
     must be read with that in mind. This is NOT Leakage in `CONTEXT.md`'s sense — no
     held-out row is touched, and `test_variant_selection.py` pins that — it is
     selection optimism inside the training partition. Left in place because removing
-    it means selecting alpha at a third nesting level, which ADR 0003 considered and
+    it means selecting alpha at a third nesting level, which ADR 0006 considered and
     declined; reported in full in `nn_rework.md` rather than described as merely
     "one extra search".
 
@@ -185,7 +185,7 @@ def select_variant(X, y, tr, random_state: int, variants=None, scores_out=None):
 
     `scores_out` is an optional dict that receives `{variant_name: inner-CV top-2}`
     for **all** of them, winner and losers alike (DEV-95). Round 1 kept only the
-    argmax, and when ADR 0003's rule disqualified the winner its own output could not
+    argmax, and when ADR 0006's rule disqualified the winner its own output could not
     name the replacement the rule owes — the ranking among the Variants that were
     never selected had been computed 25 times and discarded each time. It is an
     out-parameter for the reason `train_models.select_by_inner_cv` documents: the
@@ -362,7 +362,7 @@ def sweep_leg(X, y, n_classes, experiment_seed: int, variants=None,
     leg["per_fold_variant"] = per_fold_variants
     # {residual variant name: [(alpha, C) per outer fold]} — complete, so the
     # pre-registered rule reads what inner CV actually chose in all 5 folds. Empty
-    # when the registry holds no residual Variant, which is Round 2's case: ADR 0003
+    # when the registry holds no residual Variant, which is Round 2's case: ADR 0006
     # disqualified it, so it no longer competes for a place that it may not take.
     leg["per_fold_residual_config"] = {
         name: [list(fold[name]) for fold in per_fold_residual]
@@ -477,7 +477,7 @@ def _save_checkpoint(state: dict) -> None:
 
 # ------------------------------------------------------------- ship floor (2.7)
 def evaluate_ship_floor(X, y, n_classes, variant: Variant, config, random_state: int) -> dict:
-    """Score ONE exact configuration against the Ship Floor of ADR 0002.
+    """Score ONE exact configuration against the Ship Floor of ADR 0005.
 
     Qualified is a property of one exact configuration and is never inherited by a
     reconfigured model (`CONTEXT.md`), so this is deliberately not run on "the
@@ -531,7 +531,7 @@ def ship_floor_across_seeds(X, y, n_classes, variant: Variant, config, seeds) ->
     convention is one fixed partition, and quietly switching the gated number to a
     5-seed mean would be moving a threshold after seeing the data.
 
-    It exists because the stability floor is **hard and unmitigable** (ADR 0002) --
+    It exists because the stability floor is **hard and unmitigable** (ADR 0005) --
     failing it escalates as a project-level finding rather than degrading -- while
     every other number in this deliverable is a 5-seed measurement. A hard threshold
     resting on one draw of the fold partition, in a ticket whose premise is that
@@ -692,7 +692,7 @@ def _report(r: dict, seeds: dict, meta: dict, n_rows: int) -> str:
 - The CI {"EXCLUDES" if c['ci_excludes_zero'] else "INCLUDES"} zero.
 - Materiality marker (Step 2.5, |delta| >= {MATERIALITY_DELTA}): **{"cleared" if c['clears_materiality'] else "not cleared"}**
   (|delta| = {abs(c['delta']):.4f}). This is a reporting standard, not a gate: under
-  ADR 0001 the neural matcher ships either way, so nothing here authorises a
+  ADR 0004 the neural matcher ships either way, so nothing here authorises a
   decision -- it sizes the gap.
 - Per-seed deltas: {", ".join(f"{d:+.4f}" for d in c['per_seed_delta'])}.
   The pooled sign holds in **{c['seeds_agreeing_with_pooled_sign']} of {len(seeds)}** seeds,
@@ -722,7 +722,7 @@ convenient is not a pre-registered rule. Inner CV resolved an alpha for it in ev
 outer fold, including folds where a different Variant went on to win the contest,
 so the record below has no holes in it.
 
-The rule, from ADR 0003, fixed before any alpha was selected on this data:
+The rule, from ADR 0006, fixed before any alpha was selected on this data:
 
 > {av['rule']}
 
@@ -735,7 +735,7 @@ The rule, from ADR 0003, fixed before any alpha was selected on this data:
 by this rule is still reported in full; what the rule decides is whether it may be
 the shipped neural model, not whether its numbers count.
 
-**The consequence, per the plan's Step 6 and ADR 0003:** if the rule stands, the
+**The consequence, per the plan's Step 6 and ADR 0006:** if the rule stands, the
 shipped model becomes the best *genuinely non-linear* Variant, and the cost of that
 substitution must be reported explicitly. Round 1 does not make that substitution --
 choosing the replacement is Round 2's job and justifying it is the decision
@@ -758,7 +758,7 @@ ranked lower.{
 > does not make the labels less circular, and this one does not claim to.
 
 DEV-93, plan `docs/dev-23-nn-rework-plan.md` Steps 2.2 / 2.4 / 2.5 / 2.7. Ship
-Floor from ADR 0002. Vocabulary is `CONTEXT.md`'s.
+Floor from ADR 0005. Vocabulary is `CONTEXT.md`'s.
 
 Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 Dataset: {n_rows} rows, feature `{meta["feature_version"]}`, digest `{r["dataset_digest"]}`.
@@ -776,7 +776,7 @@ Round 1's result is {headline}.
 2. **The pre-registered alpha=0 rule {rule_verdict}**, having fired in
    {len(av['seeds_where_rule_fired'])} of {len(seeds)} seeds: "no non-linear signal
    found". The Residual Matcher is therefore disqualified from being the shipped
-   neural model, per ADR 0003.
+   neural model, per ADR 0006.
 3. **Against `logistic_tuned` the difference {log_verdict}.** delta =
    {log_c['delta']:+.4f} on top-2, CI [{log_c['ci_low']:+.4f}, {log_c['ci_high']:+.4f}],
    sign holding in {log_c['seeds_agreeing_with_pooled_sign']} of {len(seeds)} seeds.
@@ -803,7 +803,7 @@ Round 1's result is {headline}.
 
 **What this does NOT say.** It does not say a neural matcher cannot clear the floor;
 Round 2 has not run. It does not say the labels are sound -- Circularity is untouched.
-And it does not authorise any decision: under ADR 0001 the neural matcher ships
+And it does not authorise any decision: under ADR 0004 the neural matcher ships
 either way, so these numbers size a gap rather than settle anything.
 
 ## !! NOT A CONTINUATION OF THE DEV-91 GATE-2 ROW !!
@@ -847,7 +847,7 @@ models share outer folds, so the per-profile indicators are genuinely paired.
 
 ### The Residual Matcher's advantage in this contest, stated properly
 
-ADR 0003 pre-registered `alpha` as an inner-CV-selected hyperparameter, so before
+ADR 0006 pre-registered `alpha` as an inner-CV-selected hyperparameter, so before
 the {len(VARIANTS)}-way contest the Residual Matcher resolves `(alpha, C)` on the
 outer-training partition -- `alpha` by argmax over
 {len(tm.RESIDUAL_ALPHA_GRID)} values, on top of a `C` itself chosen by argmax over
@@ -870,7 +870,7 @@ the training partition, which costs the contest its fairness between Variants bu
 not the outer estimate its validity.
 
 It is left in place rather than fixed because removing it means selecting `alpha` at
-a third nesting level, which ADR 0003 explicitly considered and declined as not
+a third nesting level, which ADR 0006 explicitly considered and declined as not
 earning its complexity. **What the bias does not do is change the direction of the
 finding**, and that is worth being precise about: the Residual Matcher won mostly
 *at `alpha = 0`*, so the extra freedom it enjoyed was the freedom to switch its
@@ -947,7 +947,7 @@ Each row is a complete nested run. `mean +/- sd` is meaningful for the two
 comparators too, not only for the selected Variant, because the seed varies the fold
 partition for all three.
 
-**The ECE columns here are CROSS-FITTED** (ADR 0004), which is a different quantity
+**The ECE columns here are CROSS-FITTED** (ADR 0007), which is a different quantity
 from the raw ECE the Ship Floor gates on. Do not read across the two tables.
 
 | seed | top-2 selected | top-2 logistic | top-2 gbt | x-fit ECE selected | x-fit ECE logistic | x-fit ECE gbt |
@@ -972,7 +972,7 @@ the per-seed table above is reported separately rather than summarised into them
 
 {effect("gbt_tuned")}
 
-## Ship Floor verdict (Step 2.7 / ADR 0002)
+## Ship Floor verdict (Step 2.7 / ADR 0005)
 
 Evaluated on **one exact configuration** -- the modal Variant `{floor['configuration']}`
 -- because Qualified is a property of a configuration and is never inherited by a
@@ -1047,7 +1047,7 @@ conclusion neither number supports.
 **Verdict: {
     "the modal Variant clears both halves of the Ship Floor"
     if both_clear else
-    ("the modal Variant FAILS the hard stability floor. Per ADR 0002 this escalates "
+    ("the modal Variant FAILS the hard stability floor. Per ADR 0005 this escalates "
      "as a project-level finding -- 'this dataset cannot support a stable 16-class "
      "neural matcher at n=232' -- rather than shipping something arbitrary"
      if not floor["stability_clears"] else

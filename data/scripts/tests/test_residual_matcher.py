@@ -1,4 +1,4 @@
-"""The Residual Matcher's contract (plan Step 2.3, ADR 0003, DEV-92).
+"""The Residual Matcher's contract (plan Step 2.3, ADR 0006, DEV-92).
 
 `logits = frozen_logistic_logits + alpha * MLP(x)`, summed before the softmax, with
 `alpha` a hyperparameter selected by inner CV rather than a learned scalar. Three
@@ -9,7 +9,7 @@ silently, so each is pinned by a test that fails loudly:
   sklearn's `predict_proba`, not merely close. This is the ticket's standalone
   acceptance check. "Close" is precisely the tolerance under which a residual that
   quietly perturbs the base would still pass, and the whole selection safeguard in
-  ADR 0003 is that inner CV can always retreat to the Incumbent exactly.
+  ADR 0006 is that inner CV can always retreat to the Incumbent exactly.
 - **The frozen base is refit on whichever partition the MLP trains on** — the
   inner-training subset when inside inner CV, never the whole outer-training
   partition. The plan calls this the single easiest thing to get subtly wrong, and
@@ -90,7 +90,7 @@ def test_at_alpha_zero_it_reproduces_the_incumbents_predictions_exactly():
     identity against the model the residual is supposed to collapse to, not against
     a lookalike rebuilt in the test. Bit-identical, because `np.allclose` would
     still pass for a residual that perturbs the base by a hair — and a safeguard
-    that only approximately retreats to the Incumbent is not the safeguard ADR 0003
+    that only approximately retreats to the Incumbent is not the safeguard ADR 0006
     describes.
 
     It has teeth against the obvious alternative implementation — taking
@@ -133,7 +133,7 @@ def test_taking_log_probabilities_as_the_base_logits_would_lose_the_identity():
     `softmax(log(p))` is `p` mathematically — softmax is shift-invariant, so
     log-probabilities are as valid a set of base logits as decision values. The
     exponential round-trip is what costs the last bits. This test is the evidence
-    for ADR 0003's "Observed on implementation" note, and it fails the day some
+    for ADR 0006's "Observed on implementation" note, and it fails the day some
     sklearn or numpy change makes the round-trip exact, at which point that note
     should be rewritten rather than quietly left standing.
     """
@@ -167,7 +167,7 @@ def test_at_alpha_zero_the_loss_carries_no_gradient_into_the_mlp():
 
 
 def test_the_alpha_grid_is_the_pre_registered_one():
-    """ADR 0003 fixes the grid at {0, 0.25, 0.5, 1.0}. Widening it later is a
+    """ADR 0006 fixes the grid at {0, 0.25, 0.5, 1.0}. Widening it later is a
     protocol change, not a tuning tweak, so it should not pass unremarked."""
     assert RESIDUAL_ALPHA_GRID == (0.0, 0.25, 0.5, 1.0)
 
@@ -200,7 +200,7 @@ def test_the_frozen_base_is_refit_on_whichever_partition_the_mlp_trains_on():
 
 
 def test_the_base_ignores_random_state_so_it_is_a_function_of_C_and_the_partition():
-    """Why the paired comparison in ADR 0003 is exact: the frozen branch is the
+    """Why the paired comparison in ADR 0006 is exact: the frozen branch is the
     Incumbent's fit on that partition, and the experiment seed the sweep varies
     reaches only the MLP. lbfgs does not consume `random_state`; if a future solver
     change made it do so, the base would drift with the seed and "exactly the
@@ -288,7 +288,7 @@ def test_selection_inherits_the_folds_C_and_records_one_alpha_per_outer_fold():
     """Both selection rules at once, through the driver every model goes through.
 
     `C` is inherited from that outer fold's tuned-logistic selection rather than
-    re-selected at a third nesting level (ADR 0003) — asserted against
+    re-selected at a third nesting level (ADR 0006) — asserted against
     `select_by_inner_cv` directly, so it is the same value `logistic_tuned` would
     use on that partition and the comparison is exactly paired. `alpha` comes from
     the fixed grid, and `cross_fitted_oof` records the choice per fold, which is

@@ -158,7 +158,7 @@ def test_the_shipped_neural_artifacts_caveats_reach_the_recommendations(client_w
             assert r["model_caveats"] == matcher.caveats
             assert r["model_version"] == matcher.version
         # Named rather than merely non-empty: "some caveats arrived" would still pass
-        # if the ADR 0002 mitigation were the one that went missing.
+        # if the ADR 0005 mitigation were the one that went missing.
         assert any("NOT calibrated" in c for c in recs[0]["model_caveats"])
         assert any("bank-consistent" in c for c in recs[0]["model_caveats"])
     finally:

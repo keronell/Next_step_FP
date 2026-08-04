@@ -22,7 +22,7 @@ the two recorded numbers does.
 
 ## Gate 1 is one gate with two halves, and they are not equally negotiable
 
-ADR 0002 splits the ship floor deliberately, and this exporter honours the split
+ADR 0005 splits the ship floor deliberately, and this exporter honours the split
 rather than the flat reading of DEV-97's acceptance criterion:
 
 - **Top-2 stability >= 0.60 is hard and unmitigable.** Failing it means the same
@@ -47,9 +47,9 @@ earned.
 `temperature` here is a **deployment** constant: `fit_temperature` on pooled OOF
 probabilities from the exact configuration serialized below. That is the first of
 the two same-pool uses `train_models.temperature_scale`'s docstring still calls
-honest, and it is consistent with ADR 0004, which removes same-pool fitting from
+honest, and it is consistent with ADR 0007, which removes same-pool fitting from
 *reported* metrics rather than from the choice of one shipped constant. It is
-**not** the per-outer-fold cross-fitted temperature that ADR 0004 requires for a
+**not** the per-outer-fold cross-fitted temperature that ADR 0007 requires for a
 reported ECE; that one stays per-fold and is not touched here.
 
 Those OOF probabilities are **ensemble-averaged** — `SeedEnsemble.predict_proba`,
@@ -152,7 +152,7 @@ def build_estimator(spec: dict):
 # ------------------------------------------------------------- Gate-1 decision
 def gate1_decision(ece: float, stability: float, max_ece: float,
                    min_stability: float) -> dict:
-    """Which half of ADR 0002's split ship floor this configuration earned.
+    """Which half of ADR 0005's split ship floor this configuration earned.
 
     Pure, so the branch that decides whether a model may ship is testable without a
     three-minute fit. `status` is a string and never a bare boolean: a consumer who
@@ -189,7 +189,7 @@ def calibration_caveat(decision: dict) -> list[str]:
     return [
         "Displayed match percentages from this model are NOT calibrated: its pooled "
         f"out-of-fold ECE is {decision['ece']:.3f}, above the {decision['ece_floor']} "
-        "ship floor. Under ADR 0002 that floor is mitigable rather than hard, so this "
+        "ship floor. Under ADR 0005 that floor is mitigable rather than hard, so this "
         "model ships as the RANKING source only and displayed percentages should fall "
         "back to the formula's. The ordering of recommendations is gated separately, "
         f"on top-2 stability ({decision['top2_stability']:.3f} against a "
@@ -452,7 +452,7 @@ def main() -> None:
     if not decision["may_write"]:
         raise ExportError(
             f"exported configuration violates the HARD half of the Gate-1 ship floor: "
-            f"top-2 stability {stability:.4f} < {em.GATE1_MIN_TOP2_STABILITY}. ADR 0002 "
+            f"top-2 stability {stability:.4f} < {em.GATE1_MIN_TOP2_STABILITY}. ADR 0005 "
             "gives this half no mitigation - an unstable model gives different "
             "recommendations to the same user depending on which resample trained it, "
             "and the ranking is the product. This escalates as a project-level finding "
@@ -502,7 +502,7 @@ def main() -> None:
             ),
             "mitigation_applied": (
                 None if decision["ece_clears"]
-                else "ADR 0002 mitigable-ECE branch: ships as the ranking source only"
+                else "ADR 0005 mitigable-ECE branch: ships as the ranking source only"
             ),
         },
         "selection": {

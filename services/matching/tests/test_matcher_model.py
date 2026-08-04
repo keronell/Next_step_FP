@@ -150,3 +150,42 @@ def test_negative_contributions_never_surface():
     contributions = {"frontend_fit": -1.0, "frontend_sem": -0.5, "q2": -2.0}
     reasons = build_reasons(frontend, {"q2": 1}, contributions, [], QUESTIONS)
     assert reasons == ["A direction worth exploring based on your responses"]
+
+
+# ------------------------------------------------- deployment block (ADR 0005)
+def test_deployment_absent_means_unrestricted():
+    """Silence must keep meaning today's behaviour.
+
+    `matcher_logistic_v2.json` carries no `deployment` block and is Deployable, so a
+    default of "restricted" would change the served output of the incumbent artifact
+    the moment this parsing landed.
+    """
+    assert MatcherModel(tiny_artifact()).deployment is None
+
+
+def test_deployment_ranking_only_is_kept():
+    artifact = tiny_artifact(deployment={"status": "ranking_only", "ranking": "this model"})
+    assert MatcherModel(artifact).deployment["status"] == "ranking_only"
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"status": "rankingonly"},   # the typo that must not grant permission
+        {"status": "RANKING_ONLY"},  # status matching is exact, not case-folded
+        {"status": None},
+        {},                          # a block with no status decides nothing
+        "ranking_only",              # a bare string, not the object the schema says
+        [],
+    ],
+)
+def test_unrecognised_deployment_fails_at_load(bad):
+    """Fail closed, at load, so the formula fallback engages.
+
+    The permissive alternative -- treat anything unrecognised as unrestricted -- would
+    let a single typo silently hand an uncalibrated model permission to display its own
+    percentages, which is the exact harm ADR 0005's mitigation exists to prevent. A
+    load failure is loud and lands on the safe side.
+    """
+    with pytest.raises(MatcherModelError):
+        MatcherModel(tiny_artifact(deployment=bad))

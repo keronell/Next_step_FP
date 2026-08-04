@@ -10,7 +10,7 @@ quotes, so a reader can re-derive them instead of trusting a literal.
 Two questions, deliberately in one script because both size the same decision:
 
 1. `percent-scale` — for the SAME request, what `matchPercent` does each scorer put on
-   screen? This sizes what ADR 0002's unimplemented mitigation would substitute.
+   screen? This sizes what ADR 0005's mitigation substitutes (built 2026-08-04).
 2. `attribution` — of the positive question-feature attribution `matcher_nn_v1`
    actually produces, what share can `reason_builder` phrase? This sizes DEV-89 on the
    artifact that would ship, rather than by feature count.
@@ -69,7 +69,7 @@ def percent_scale(n: int) -> None:
     cands = make_candidates()
     sets = answer_sets(n)
 
-    rows = [("formula (ADR 0002 says display this)", None)]
+    rows = [("formula (ADR 0005 says display this)", None)]
     for name in ("matcher_logistic_v2", "matcher_nn_v1"):
         path = MODELS / f"{name}.json"
         if path.exists():

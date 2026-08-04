@@ -23,6 +23,43 @@ class MatcherModelError(RuntimeError):
     """Artifact missing, malformed, or incompatible with the current features."""
 
 
+#: `deployment.status` values the serving path knows how to honour.
+DEPLOYABLE = "deployable"
+RANKING_ONLY = "ranking_only"
+KNOWN_DEPLOYMENT_STATUSES = frozenset({DEPLOYABLE, RANKING_ONLY})
+
+
+def parse_deployment(artifact: dict) -> dict | None:
+    """The artifact's `deployment` block, validated at LOAD time (ADR 0005).
+
+    Shared by both implementations so the two cannot drift on what a restriction
+    means. Two decisions worth stating:
+
+    ABSENT MEANS NO RESTRICTION. `matcher_logistic_v2.json` carries no `deployment`
+    block and is Deployable, so silence has to keep meaning today's behaviour --
+    otherwise landing this would change the incumbent's served output, which is
+    exactly what this change must not do.
+
+    AN UNRECOGNISED STATUS IS A LOAD FAILURE, not a default-to-permissive. A typo
+    like "rankingonly" must not silently grant an uncalibrated model permission to
+    display its own percentages; failing here engages the formula fallback, which is
+    the safe direction. This is the same fail-at-load contract `caveats` and
+    `temperature` already follow.
+    """
+    deployment = artifact.get("deployment")
+    if deployment is None:
+        return None
+    if not isinstance(deployment, dict):
+        raise MatcherModelError("artifact deployment must be an object")
+    status = deployment.get("status")
+    if status not in KNOWN_DEPLOYMENT_STATUSES:
+        raise MatcherModelError(
+            f"unsupported deployment.status {status!r} — known: "
+            f"{', '.join(sorted(KNOWN_DEPLOYMENT_STATUSES))}"
+        )
+    return deployment
+
+
 class MatcherModel:
     def __init__(self, artifact: dict):
         self.feature_names: list[str] = artifact["feature_names"]
@@ -57,6 +94,8 @@ class MatcherModel:
                 f"artifact temperature must be finite and > 0, got {temperature!r}"
             )
         self.temperature: float = float(temperature)
+        #: Serving restrictions declared by the artifact; None = unrestricted.
+        self.deployment: dict | None = parse_deployment(artifact)
 
         n_f, n_c = len(self.feature_names), len(self.careers)
         if artifact.get("feature_version") != FEATURE_VERSION:

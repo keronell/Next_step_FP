@@ -72,7 +72,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from app.services.feature_builder import FEATURE_VERSION
-from app.services.matcher_model import MatcherModelError
+from app.services.matcher_model import MatcherModelError, parse_deployment
 from common.logging import get_logger
 
 logger = get_logger(__name__)
@@ -149,6 +149,9 @@ class NeuralMatcher:
                 f"artifact temperature must be finite and > 0, got {temperature!r}"
             )
         self.temperature: float = float(temperature)
+        #: Serving restrictions declared by the artifact; None = unrestricted.
+        # matcher_nn_v1 declares "ranking_only" -- ADR 0005's mitigable-ECE branch.
+        self.deployment: dict | None = parse_deployment(artifact)
 
         if artifact.get("feature_version") != FEATURE_VERSION:
             raise MatcherModelError(

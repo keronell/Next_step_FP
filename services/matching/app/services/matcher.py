@@ -19,10 +19,14 @@ import json
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from app.services.matcher_model import MatcherModel, MatcherModelError
+from app.services.matcher_model import (
+    RANKING_ONLY,
+    MatcherModel,
+    MatcherModelError,
+)
 from app.services.matcher_nn import NeuralMatcher
 
-__all__ = ["Matcher", "MatcherModelError", "load_matcher"]
+__all__ = ["Matcher", "MatcherModelError", "displays_own_percentages", "load_matcher"]
 
 
 @runtime_checkable
@@ -40,6 +44,10 @@ class Matcher(Protocol):
     version: str
     #: Training-data warnings, carried through to the response and persisted history.
     caveats: list[str]
+    #: Serving restrictions the artifact declares, or None for unrestricted. Read
+    #: through `displays_own_percentages()` rather than directly — the mapping from
+    #: a status string to a serving decision belongs in one place.
+    deployment: dict | None
 
     def predict_proba(self, vector: list[float]) -> dict[str, float]:
         """Career id -> probability, summing to 1."""
@@ -49,6 +57,19 @@ class Matcher(Protocol):
         """Feature name -> signed contribution to `career_id`'s logit, centered
         across classes and on the same scale as the logits behind predict_proba."""
         ...
+
+
+def displays_own_percentages(matcher: Matcher) -> bool:
+    """May this artifact's own probabilities reach the screen as `matchPercent`?
+
+    False only for a `ranking_only` artifact — ADR 0005's mitigable-ECE branch, where
+    the model is trusted to pick the careers but not to put a number beside them.
+    `getattr` rather than attribute access because the protocol is structural: a
+    third-party matcher predating this member must degrade to "unrestricted", which
+    is the pre-existing behaviour, rather than raising mid-request.
+    """
+    deployment = getattr(matcher, "deployment", None)
+    return not (isinstance(deployment, dict) and deployment.get("status") == RANKING_ONLY)
 
 
 # Artifact `model_type` -> implementation. New families register here; the NN

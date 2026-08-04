@@ -9,7 +9,7 @@ Trains three challengers against the Phase 2 baselines, same outer 5-fold protoc
                    + early stopping
     two_tower      user tower MLP -> 32-dim; career tower = linear map of the mean
                    panel archetype answers; softmax over scaled cosine similarities
-    residual_matcher  nn_model.ResidualMatcher (DEV-92, ADR 0003): frozen logistic
+    residual_matcher  nn_model.ResidualMatcher (DEV-92, ADR 0006): frozen logistic
                    branch plus alpha-gated MLP correction, alpha selected by inner CV
                    and C inherited from that fold's tuned-logistic selection. Hard
                    labels, unlike small_nn — the paired comparison against
@@ -28,7 +28,7 @@ Gate 2: winner by pooled out-of-fold top-2 agreement, tie-broken by ECE after
 temperature scaling. FRAMING: all metrics are agreement with the synthetic LLM
 panel (silver labels), not expert-validated accuracy.
 
-CALIBRATION IS CROSS-FITTED (2026-07-28, DEV-91, ADR 0004). The temperature used
+CALIBRATION IS CROSS-FITTED (2026-07-28, DEV-91, ADR 0007). The temperature used
 for the reported and gating ECE is fitted per outer fold on inner out-of-fold
 predictions drawn only from that fold's TRAINING partition, and then applied to
 that fold's held-out rows. It previously came from one fit on the pooled OOF that
@@ -83,7 +83,7 @@ TOP2_VOTE_WEIGHT = 0.4  # a persona's second choice counts this much of a first 
 
 # When the cross-fitted-temperature re-baseline landed. Printed in the report so a
 # reader holding an older model_selection.md can tell at a glance whether its
-# calibration numbers are comparable to the one in front of them. See ADR 0004.
+# calibration numbers are comparable to the one in front of them. See ADR 0007.
 BREAK_DATE = "2026-07-28 (DEV-91)"
 
 # The recorded Gate-2 numbers this run breaks from, so the regenerated report can
@@ -104,7 +104,7 @@ _QID_RE = re.compile(r"q\d+$")
 
 GBT_GRID = list(product([200, 400], [0.03, 0.07], [7, 15], [3, 10]))
 LOGISTIC_C_GRID = [0.05, 0.25, 1.0, 4.0]
-# Pre-registered in ADR 0003 and fixed. Widening it later is a protocol change, not
+# Pre-registered in ADR 0006 and fixed. Widening it later is a protocol change, not
 # a tuning tweak: alpha=0 is the retreat-to-the-Incumbent point the whole design
 # rests on, and the >=3-of-5 disqualification rule below is stated against this grid.
 RESIDUAL_ALPHA_GRID = (0.0, 0.25, 0.5, 1.0)
@@ -220,7 +220,7 @@ def fit_temperature(probs: np.ndarray, y: np.ndarray) -> float:
 def temperature_scale(probs: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, float]:
     """Fit a temperature on `probs` and apply it to `probs`.
 
-    Fitting and scoring on the same pool, which is precisely the defect ADR 0004
+    Fitting and scoring on the same pool, which is precisely the defect ADR 0007
     records — so this is NOT how the reported ECE is computed any more. Two honest
     uses remain:
 
@@ -316,7 +316,7 @@ def top2_of(model, Xv, yv) -> float:
 def fit_logistic(C, Xtr, ytr):
     """The Incumbent's estimator. Constructed by `nn_model.frozen_logistic` rather than here, so
     the Residual Matcher's frozen branch is the same estimator by construction and
-    not by a comment claiming it is — ADR 0003's paired comparison depends on that
+    not by a comment claiming it is — ADR 0006's paired comparison depends on that
     and nothing else enforces it."""
     return frozen_logistic(C, SEED).fit(Xtr, ytr)
 
@@ -413,7 +413,7 @@ def select_residual_config(X, y, tr, random_state=SEED, **mlp_kwargs):
     data, so reusing it inside inner splits of the same partition never touches the
     outer test set — and it makes the frozen base exactly the Incumbent's
     configuration on this partition, which is what turns "does the residual add
-    anything?" into an exactly paired comparison (ADR 0003). Selecting `C` at a
+    anything?" into an exactly paired comparison (ADR 0006). Selecting `C` at a
     third level is the purist option and does not earn its complexity.
 
     `alpha` is then a grid-argmax on inner-CV top-2, like every other nested
@@ -441,7 +441,7 @@ def select_residual_config(X, y, tr, random_state=SEED, **mlp_kwargs):
     )
 
 
-# Pre-registered in ADR 0003, before any alpha was selected on this data.
+# Pre-registered in ADR 0006, before any alpha was selected on this data.
 ALPHA_ZERO_DISQUALIFIES_AT = 3
 
 
@@ -451,7 +451,7 @@ def alpha_zero_verdict(chosen) -> dict:
     `alpha = 0` selected in >= 3 of 5 outer folds is reported as **"no non-linear
     signal found"** and disqualifies the Residual Matcher from being the shipped
     neural model — shipping it would be shipping logistic regression in a costume
-    while the project requires a neural network (ADR 0001). The rule lives here, in
+    while the project requires a neural network (ADR 0004). The rule lives here, in
     one function, so the sweep reads it rather than restating it: a pre-registered
     threshold that gets paraphrased at the point of use is a threshold that can move
     after somebody has seen the data.
@@ -478,7 +478,7 @@ def alpha_zero_verdict(chosen) -> dict:
         "rule": (
             f"alpha=0 in >= {ALPHA_ZERO_DISQUALIFIES_AT} of {N_FOLDS} outer folds is "
             "'no non-linear signal found' and disqualifies the Residual Matcher from "
-            "being the shipped neural model (ADR 0003, pre-registered)"
+            "being the shipped neural model (ADR 0006, pre-registered)"
         ),
     }
 
@@ -611,7 +611,7 @@ def main() -> None:
     print("3d: residual matcher (frozen logistic + gated MLP) ...")
     oof_res, oof_res_cal, t_res, res_configs = cross_fitted_oof(
         X, y, n_classes,
-        # Hard labels, unlike small_nn. ADR 0003's whole argument is that the frozen
+        # Hard labels, unlike small_nn. ADR 0006's whole argument is that the frozen
         # base is exactly the Incumbent's configuration on the same partition, which
         # makes "does the residual add anything?" an exactly paired comparison
         # against `logistic_tuned` — and that pairing only holds while both optimise
@@ -767,7 +767,7 @@ def main() -> None:
 > **All metrics are agreement with the synthetic LLM panel (silver labels), not
 > expert-validated accuracy.** Calibration is now **cross-fitted**: the temperature
 > is fitted per outer fold on inner out-of-fold predictions drawn only from that
-> fold's training partition, never from the rows it goes on to score (ADR 0004).
+> fold's training partition, never from the rows it goes on to score (ADR 0007).
 > Circularity is a separate, untouched defect — better labels would not have fixed
 > this one, and this fix does not make the labels less circular.
 
@@ -917,7 +917,7 @@ can outweigh the first, and here it does: cross-fitted ECE is *lower* for
 {len(ece_improved)} of {len(results)}
 ({", ".join(f"`{n}`" for n in ece_improved) or "none"}), and cross-fitted NLL is
 lower for {nll_lower_cross} of {len(results)}. So the honest claim is only this: **the old number was never a
-held-out estimate.** Not that it was necessarily flattering. ADR 0004's word
+held-out estimate.** Not that it was necessarily flattering. ADR 0007's word
 "optimistic" is right about the mechanism and overstated as a prediction about
 either metric, and is annotated accordingly.
 
@@ -965,12 +965,12 @@ Chosen hyperparameters per outer fold:
 ## Residual Matcher: the pre-registered alpha=0 rule
 
 `alpha` is a hyperparameter selected by inner CV from {list(RESIDUAL_ALPHA_GRID)}, and at
-`alpha = 0` the model is *exactly* logistic regression. ADR 0003 pre-registered,
+`alpha = 0` the model is *exactly* logistic regression. ADR 0006 pre-registered,
 before any alpha was selected on this data, that **alpha=0 in >= {ALPHA_ZERO_DISQUALIFIES_AT}
 of {N_FOLDS} outer folds is reported as "no non-linear signal found"** and disqualifies the
 Residual Matcher from being the shipped neural model — shipping it would be
 shipping logistic regression in a costume while the project requires a neural
-network (ADR 0001).
+network (ADR 0004).
 
 Per-fold alpha: {residual_verdict["per_fold_alpha"]} — {residual_verdict["n_folds_at_zero"]} of {N_FOLDS} at zero.
 **Verdict: {"NO NON-LINEAR SIGNAL FOUND — disqualified from being the shipped neural model" if residual_verdict["no_non_linear_signal"] else "the rule did not fire; a non-zero residual was selected in a majority of folds"}.**
@@ -1038,7 +1038,7 @@ Notes:
         "calibration": {
             "method": (
                 "temperature fitted per outer fold on inner-OOF predictions from that "
-                "fold's training partition only (cross-fitted; ADR 0004)"
+                "fold's training partition only (cross-fitted; ADR 0007)"
             ),
             "reported_metric": "ece_cross_fitted",
             "tiebreak_metric": "ece_cross_fitted",

@@ -3,7 +3,7 @@
 > **All metrics are agreement with the synthetic LLM panel (silver labels), not
 > expert-validated accuracy.** Calibration is now **cross-fitted**: the temperature
 > is fitted per outer fold on inner out-of-fold predictions drawn only from that
-> fold's training partition, never from the rows it goes on to score (ADR 0004).
+> fold's training partition, never from the rows it goes on to score (ADR 0007).
 > Circularity is a separate, untouched defect — better labels would not have fixed
 > this one, and this fix does not make the labels less circular.
 
@@ -171,7 +171,7 @@ can outweigh the first, and here it does: cross-fitted ECE is *lower* for
 4 of 5
 (`gbt_tuned`, `logistic_tuned`, `two_tower`, `residual_matcher`), and cross-fitted NLL is
 lower for 2 of 5. So the honest claim is only this: **the old number was never a
-held-out estimate.** Not that it was necessarily flattering. ADR 0004's word
+held-out estimate.** Not that it was necessarily flattering. ADR 0007's word
 "optimistic" is right about the mechanism and overstated as a prediction about
 either metric, and is annotated accordingly.
 
@@ -219,12 +219,12 @@ Chosen hyperparameters per outer fold:
 ## Residual Matcher: the pre-registered alpha=0 rule
 
 `alpha` is a hyperparameter selected by inner CV from [0.0, 0.25, 0.5, 1.0], and at
-`alpha = 0` the model is *exactly* logistic regression. ADR 0003 pre-registered,
+`alpha = 0` the model is *exactly* logistic regression. ADR 0006 pre-registered,
 before any alpha was selected on this data, that **alpha=0 in >= 3
 of 5 outer folds is reported as "no non-linear signal found"** and disqualifies the
 Residual Matcher from being the shipped neural model — shipping it would be
 shipping logistic regression in a costume while the project requires a neural
-network (ADR 0001).
+network (ADR 0004).
 
 Per-fold alpha: [0.0, 0.0, 0.0, 0.0, 0.0] — 5 of 5 at zero.
 **Verdict: NO NON-LINEAR SIGNAL FOUND — disqualified from being the shipped neural model.**

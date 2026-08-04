@@ -2,7 +2,7 @@
 
 DEV-98. Plan [`dev-23-nn-rework-plan.md`](./dev-23-nn-rework-plan.md) Steps 4 and 6.
 Vocabulary is [`CONTEXT.md`](../CONTEXT.md)'s. Decisions are ADRs
-[0001](./adr/0001-neural-matcher-is-a-project-requirement.md)–[0004](./adr/0004-temperature-is-cross-fitted.md).
+[0004](./adr/0004-neural-matcher-is-a-project-requirement.md)–[0007](./adr/0007-temperature-is-cross-fitted.md).
 
 Every number below is read back from a results file in `data/training/` or from the
 artifact itself; none is transcribed from an earlier document. Sources are named at
@@ -20,7 +20,7 @@ Switching away from the formula trades a transparent hand-authored rule for a mo
 that has learned that same rule, **with no independent evidence that either serves
 users better**.
 
-**The neural matcher ships because the project requires it** (ADR 0001), not because
+**The neural matcher ships because the project requires it** (ADR 0004), not because
 it won anything. It did not win. Its honest standing against the alternatives is
 reported in full below, with paired confidence intervals, and the requirement is
 named as the reason it serves.
@@ -92,21 +92,21 @@ exposed a fifth condition that none of them names.
 - Therefore it is **not Deployable**, since Deployable is defined as "Qualified,
   Servable, and revalidated".
 
-But ADR 0002 says a model failing the ECE half "may still ship as the *ranking*
+But ADR 0005 says a model failing the ECE half "may still ship as the *ranking*
 source, with displayed percentages falling back to the formula's" — a real, intended
-condition. **ADR 0002 splits the ship *floor*; it does not split the *state*.**
+condition. **ADR 0005 splits the ship *floor*; it does not split the *state*.**
 DEV-97 hit this, refused to resolve it by stretching "Deployable", and handed it here.
 
 **Resolution: one new state is added to `CONTEXT.md`, `Ranking-Deployable`**, rather
 than amending `Qualified` or `Deployable`. Amending either would retroactively change
 what every earlier record meant by those words, which is the exact failure `CONTEXT.md`
-exists to prevent. The new term is defined against the halves ADR 0002 already
+exists to prevent. The new term is defined against the halves ADR 0005 already
 distinguishes, and its machine-readable form is the `deployment.status: "ranking_only"`
 string the artifact already carries — so the vocabulary word and the artifact field
 are one concept, not two.
 
 **The accurate sentence, and the only one this document asserts about deployability:**
-*`matcher_nn_v1` is Ranking-Deployable. It may serve the ranking under ADR 0002's
+*`matcher_nn_v1` is Ranking-Deployable. It may serve the ranking under ADR 0005's
 mitigation, with displayed percentages falling back to the formula's. It is not
 Deployable.*
 
@@ -128,7 +128,7 @@ Neither is *served*: `MATCHER_MODEL_PATH` is blank and production runs the formu
 
 ---
 
-## 3. The ship floor (ADR 0002)
+## 3. The ship floor (ADR 0005)
 
 Revalidated by the exporter on the **exact exported configuration**, at Gate 1's
 convention of one fixed partition (seed 42), after `assert_deterministic` passed.
@@ -190,7 +190,7 @@ reported separately rather than summarised into them. Source: `nn_rework_round2.
 | vs `gbt_tuned` (the Gate-2 winner) | **−0.0440** | [−0.0750, −0.0138] | **yes** | **cleared** | 5 of 5 seeds | 10.2 of 232 behind |
 
 The materiality marker is a **reporting standard, not a gate** (plan Step 2.5): under
-ADR 0001 the neural matcher ships either way, so it sizes the gap rather than
+ADR 0004 the neural matcher ships either way, so it sizes the gap rather than
 authorising anything.
 
 ### Seed variance, reported rather than summarised
@@ -251,7 +251,7 @@ This is the comparison the DEV-99 approver actually needs.
 | parameters served | one weight matrix | five networks |
 
 **The neural matcher is worse calibrated than the model it would replace, by a factor
-of four, and consistently so.** Since ADR 0002's mitigation routes displayed
+of four, and consistently so.** Since ADR 0005's mitigation routes displayed
 percentages back to the formula, switching would not improve the displayed
 percentages — it would leave them exactly as they are today, by design.
 
@@ -288,7 +288,7 @@ Source: `gate2_winner.json`, `model_selection.md`.
 | `two_tower` | 0.763 | 0.062 | 0.081 | 0.086 |
 | `residual_matcher` | 0.849 | 0.103 | 0.061 | 0.103 |
 
-ADR 0004's own prediction was directionally wrong and is worth repeating here because
+ADR 0007's own prediction was directionally wrong and is worth repeating here because
 the intuition is so natural: fitting T on the evaluation pool is a *fitted minimum*,
 not a measurement — but cross-fitting applies five per-fold constants, which can
 absorb fold-specific miscalibration a single global constant cannot. On this data
@@ -298,7 +298,7 @@ that the old number was never a held-out estimate, not that it flattered.
 `residual_matcher` is numerically identical to `logistic_tuned` because its `alpha`
 was 0 in all five folds, at which point it *is* logistic regression — see §5.4.
 
-### 5.4 Round 1 against Round 2 — and the price of ADR 0003
+### 5.4 Round 1 against Round 2 — and the price of ADR 0006
 
 | | Round 1 (DEV-93) | Round 2 (DEV-95) |
 |---|---|---|
@@ -310,7 +310,7 @@ was 0 in all five folds, at which point it *is* logistic regression — see §5.
 | ECE across 5 seeds | clears **4 of 5** | clears **1 of 5** |
 
 Round 1's result was negative and cleanly so: the twelve pure-MLP Variants were
-selected **zero times between them**, and the pre-registered ADR 0003 rule ("α = 0 in
+selected **zero times between them**, and the pre-registered ADR 0006 rule ("α = 0 in
 ≥ 3 of 5 outer folds is *no non-linear signal found*") fired in four of five seeds,
 disqualifying the Residual Matcher from being the shipped neural model.
 
@@ -320,12 +320,12 @@ line up row for row):
 
 > δ (Round-2 selected − Round-1 selected) = **−0.0155**, 95% paired-bootstrap CI
 > [−0.0388, +0.0060] over 10,000 resamples of 232 profile ids. **The CI includes
-> zero.** Read as: obeying ADR 0003 costs 3.6 profiles out of 232 against the model
+> zero.** Read as: obeying ADR 0006 costs 3.6 profiles out of 232 against the model
 > Round 1 would have shipped.
 
 This is *not* the two rounds presented as a series — the candidate sets differ. It is
 the price of a candidate set that excludes the Residual Matcher, which is precisely
-what ADR 0003 asks to be reported explicitly.
+what ADR 0006 asks to be reported explicitly.
 
 ### 5.5 The plan's Step 6 outcome table, against what happened
 
@@ -456,7 +456,7 @@ any agreement metric here mean recommendation quality.
 
 **Two independent defects, and only one of them needs better labels.** Circularity is a
 construct-validity problem: the metric measures the wrong thing. The calibration
-fitting bug (ADR 0004) was a *statistical* problem: the metric was computed wrongly.
+fitting bug (ADR 0007) was a *statistical* problem: the metric was computed wrongly.
 DEV-91 fixed the second and it never needed better labels — a Gold Slice would have
 reproduced the same bug on better data. `CONTEXT.md` reserves **Leakage** for a third,
 distinct thing, and none of the three is a synonym for the others.
@@ -579,7 +579,7 @@ the IG passes for the top-N explained careers.
   `matcher_logistic_v1.json`, which is `features-v1`, correctly refused on load, and
   never reaches the services anyway — compose reads the root `.env`.)
 - **The honest grounds for switching**, restated after DEV-95 corrected them: the
-  ADR 0001 project requirement, better recommendation stability (0.735 vs 0.6375 — the
+  ADR 0004 project requirement, better recommendation stability (0.735 vs 0.6375 — the
   one thing the neural matcher clearly wins), and maintainability. **Not calibration**
   (it is four times worse, and the mitigation routes percentages back to the formula
   anyway) and **not accuracy** (behind on the same silver labels).
@@ -592,7 +592,7 @@ the IG passes for the top-N explained careers.
 ---
 
 **Added by DEV-99 (2026-08-03). Nothing above is changed.** DEV-99 went looking for the
-mechanism behind §3's mitigation and did not find one: **ADR 0002's fallback of displayed
+mechanism behind §3's mitigation and did not find one: **ADR 0005's fallback of displayed
 percentages to the formula's is documented in the artifact, the ADR and `CONTEXT.md`, and
 implemented nowhere.** The `Matcher` protocol has no `deployment` member, so the serving
 code cannot see `deployment.status`, and `matching_service.py:323` displays the model's

@@ -1,7 +1,7 @@
 """The inner-CV contest records what every grid point scored, not only the winner.
 
 DEV-93 computed a 14-way inner-CV contest 25 times over and kept the argmax alone.
-ADR 0003's disqualification clause then fired -- "the shipped model becomes the best
+ADR 0006's disqualification clause then fired -- "the shipped model becomes the best
 genuinely non-linear Variant" -- and the evidence needed to name that replacement had
 already been thrown away. This module pins the out-channel that keeps it.
 
@@ -82,7 +82,7 @@ def test_the_score_of_every_grid_point_is_recorded_in_grid_order():
 
 def test_the_recorded_scores_describe_the_contest_that_produced_the_pick():
     """An out-channel filled from a second, differently-configured run of the contest
-    would be worse than no channel at all: the substitution ADR 0003 owes is chosen by
+    would be worse than no channel at all: the substitution ADR 0006 owes is chosen by
     reading these numbers, so the winner must be their argmax and not merely near it."""
     X, y = make_dataset()
     tr = np.arange(0, 100)
@@ -148,7 +148,7 @@ def real_dataset(n=120, d=10, n_classes=4, seed=0):
 
 
 def test_the_contest_reports_what_each_variant_scored_not_only_which_one_won():
-    """The evidence ADR 0003's substitution needs: every Variant's inner-CV score on
+    """The evidence ADR 0006's substitution needs: every Variant's inner-CV score on
     the fold, so "the best genuinely non-linear Variant" is a number to read rather
     than an inference from a selection count of zero."""
     X, y = real_dataset()
