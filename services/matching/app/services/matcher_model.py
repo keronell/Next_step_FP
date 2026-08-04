@@ -34,6 +34,33 @@ RANKING_ONLY = "ranking_only"
 KNOWN_DEPLOYMENT_STATUSES = frozenset({RANKING_AND_PERCENTAGES, RANKING_ONLY})
 
 
+def parse_temperature(artifact: dict) -> float:
+    """The artifact's calibration temperature, validated at LOAD time.
+
+    Shared by both implementations, which previously carried identical copies of
+    this block. The conversion to float happens BEFORE `math.isfinite`, which is the
+    whole point: `isfinite` on a Python int too large for a C double raises
+    `OverflowError`, not `MatcherModelError` — and `load_matcher` re-raised only
+    `KeyError`/`TypeError` while the lifespan catches only `MatcherModelError`. A
+    syntactically valid artifact carrying `"temperature": 1e400`-as-digits therefore
+    took matching-service's startup down instead of engaging the formula fallback
+    that CLAUDE.md promises. Every rejection here is a `MatcherModelError`.
+    """
+    value = artifact.get("temperature", 1.0)
+    # bool is an int subclass; True would otherwise sail through as 1.0.
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise MatcherModelError("artifact temperature must be a number")
+    try:
+        value = float(value)
+    except (OverflowError, ValueError) as exc:
+        raise MatcherModelError(f"artifact temperature is out of range: {exc}") from exc
+    if not math.isfinite(value) or value <= 0:
+        raise MatcherModelError(
+            f"artifact temperature must be finite and > 0, got {value!r}"
+        )
+    return value
+
+
 def parse_deployment(artifact: dict) -> dict | None:
     """The artifact's `deployment` block, validated at LOAD time (ADR 0005).
 
@@ -97,14 +124,7 @@ class MatcherModel:
         # Validated at LOAD time for the same reason caveats are: a bad value
         # must engage the formula fallback, not produce garbage percentages
         # mid-request. T<=0 would flip or explode the ranking.
-        temperature = artifact.get("temperature", 1.0)
-        if not isinstance(temperature, (int, float)) or isinstance(temperature, bool):
-            raise MatcherModelError("artifact temperature must be a number")
-        if not math.isfinite(temperature) or temperature <= 0:
-            raise MatcherModelError(
-                f"artifact temperature must be finite and > 0, got {temperature!r}"
-            )
-        self.temperature: float = float(temperature)
+        self.temperature: float = parse_temperature(artifact)
         #: Serving restrictions declared by the artifact; None = unrestricted.
         self.deployment: dict | None = parse_deployment(artifact)
 

@@ -72,7 +72,11 @@ from dataclasses import dataclass
 import numpy as np
 
 from app.services.feature_builder import FEATURE_VERSION
-from app.services.matcher_model import MatcherModelError, parse_deployment
+from app.services.matcher_model import (
+    MatcherModelError,
+    parse_deployment,
+    parse_temperature,
+)
 from common.logging import get_logger
 
 logger = get_logger(__name__)
@@ -141,14 +145,7 @@ class NeuralMatcher:
         # Same load-time validation as the linear path, and for the same reason: a
         # bad value must engage the formula fallback rather than produce garbage
         # percentages mid-request.
-        temperature = artifact.get("temperature", 1.0)
-        if not isinstance(temperature, (int, float)) or isinstance(temperature, bool):
-            raise MatcherModelError("artifact temperature must be a number")
-        if not math.isfinite(temperature) or temperature <= 0:
-            raise MatcherModelError(
-                f"artifact temperature must be finite and > 0, got {temperature!r}"
-            )
-        self.temperature: float = float(temperature)
+        self.temperature: float = parse_temperature(artifact)
         #: Serving restrictions declared by the artifact; None = unrestricted.
         # matcher_nn_v1 declares "ranking_only" -- ADR 0005's mitigable-ECE branch.
         self.deployment: dict | None = parse_deployment(artifact)

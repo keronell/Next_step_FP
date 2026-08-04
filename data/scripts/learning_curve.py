@@ -1326,7 +1326,16 @@ def rebuild_report() -> None:
     # module's constants. `--stage report` on a tree whose constants have since been
     # edited must describe the run that produced the numbers, not the code in front of
     # it -- the same reason `environment` is preserved and not recomputed.
-    for key in ("curve_folds", "curve_inner_splits", "class_floor",
+    #
+    # `experiment_seeds` and `val_fraction` were missing from this list, so a run
+    # whose constants had since been edited was relabelled with the NEW seeds and
+    # validation split while keeping the OLD per-seed measurements -- a protocol the
+    # numbers were never measured under. Every key `_analysis()` reads from a module
+    # global belongs here; the ones it derives from `labels` deliberately do not,
+    # because those are re-derived from data the digest guard above has already
+    # pinned to the recorded build.
+    for key in ("experiment_seeds", "val_fraction",
+                "curve_folds", "curve_inner_splits", "class_floor",
                 "gbt_grid_size", "logistic_grid_size", "gate_folds",
                 "gate_inner_splits"):
         if key in results:

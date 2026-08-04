@@ -95,18 +95,60 @@ def _load_checkpoint(path: Path, digest: str) -> dict:
     file is separate from Round 1's, which must not be touched -- Round 1's numbers
     are a recorded measurement, not a draft.
     """
+    fingerprint = _protocol_fingerprint()
+    fresh = {"dataset_digest": digest, "protocol_fingerprint": fingerprint, "seeds": {}}
     if not path.exists():
-        return {"dataset_digest": digest, "seeds": {}}
+        return fresh
     saved = json.loads(path.read_text(encoding="utf-8"))
     if saved.get("dataset_digest") != digest:
         print("checkpoint was written against a different dataset build - discarding")
-        return {"dataset_digest": digest, "seeds": {}}
+        return fresh
+    # The digest pins the DATA. Completed seeds are fits, and a fit is only reusable
+    # if the code, the registry and the packages that produced it are also unchanged.
+    # Resuming across any of those mixes old and new fits into one output, stamps the
+    # CURRENT environment onto cached results, and can carry a stale
+    # round_1_reproduction through the drift guard on results nothing re-derived.
+    # Discarding costs a recompute; not discarding costs a silently blended record.
+    if saved.get("protocol_fingerprint") != fingerprint:
+        print(
+            "checkpoint was written under a different protocol or environment "
+            "(registry, seeds, or package versions changed) - discarding rather than "
+            "mixing old fits with new ones"
+        )
+        return fresh
     if saved.get("seeds"):
         print(f"resuming: seeds {sorted(saved['seeds'])} already complete")
     return saved
 
 
+def _protocol_fingerprint() -> str:
+    """What a resumed checkpoint must match, beyond the dataset digest.
+
+    Covers the Variant registry (names AND full specifications, so a changed default
+    in `nn_model.py` is caught rather than a changed name only), the experiment
+    seeds, and the package/interpreter manifest. Hashed rather than stored whole so
+    the checkpoint stays small; the mismatch message names the categories, and the
+    committed results file records the environment in full for anyone diffing.
+    """
+    import hashlib
+
+    from env_manifest import environment_manifest
+
+    registry = round2_registry()
+    payload = {
+        "registry": {
+            name: full_specification(variant)
+            for name, variant in sorted(registry.items())
+        },
+        "experiment_seeds": list(EXPERIMENT_SEEDS),
+        "environment": environment_manifest(),
+    }
+    blob = json.dumps(payload, sort_keys=True, default=repr)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
 def _save_checkpoint(path: Path, state: dict) -> None:
+    state.setdefault("protocol_fingerprint", _protocol_fingerprint())
     path.write_text(json.dumps(state), encoding="utf-8")
 
 
@@ -1466,11 +1508,47 @@ def rebuild_report() -> None:
     of one derivation.
     """
     import train_models as tm
+    from dataset_guards import dataset_digest
 
     df, _X, _y, _soft, _careers, _arch, meta = tm.load_data()
     results = json.loads(OUT_JSON.read_text(encoding="utf-8"))
-    board = results["per_seed_fold_scoreboard"]
+
+    # "Results-only" is the contract, but three live inputs leak in below: `meta`
+    # (feature version), `len(df)` (row count) and the Variant registry (which
+    # decides ranking and tie-break interpretation). Any of them moving would rewrite
+    # recorded metrics to describe a run that never happened, while keeping the old
+    # numbers and digest. Validate each against what the results file recorded.
+    digest = dataset_digest(df, meta["feature_names"])
+    mismatches = []
+    if digest != results.get("dataset_digest"):
+        mismatches.append(
+            f"  dataset_digest: results {results.get('dataset_digest')} != current {digest}"
+        )
+    if len(df) != results.get("n_profiles"):
+        mismatches.append(
+            f"  n_profiles: results {results.get('n_profiles')} != current {len(df)}"
+        )
     registry = round2_registry()
+    if len(registry) != results.get("registry_size"):
+        mismatches.append(
+            f"  registry_size: results {results.get('registry_size')} != "
+            f"current {len(registry)}"
+        )
+    if mismatches:
+        raise SystemExit(
+            "round2_results.json was produced against different inputs:\n"
+            + "\n".join(mismatches)
+            + "\n`--stage report` re-derives the Variant ranking and tie-break "
+            "incidence from the LIVE registry and re-renders the row count and "
+            "feature version from the CURRENT dataframe, so rebuilding now would "
+            "describe a run that never happened. Re-run `--stage round2`, or check "
+            "out the tree the results were produced on.\n"
+            "Note: a registry whose SIZE is unchanged but whose specifications moved "
+            "is not detectable from what this file records - the checkpoint's "
+            "protocol fingerprint is what guards that for runs from here on."
+        )
+
+    board = results["per_seed_fold_scoreboard"]
     results["variant_ranking"] = rank_variants(board, registry)
     results["tie_break_incidence"] = tie_break_incidence(board, registry)
     OUT_JSON.write_text(json.dumps(results, indent=2), encoding="utf-8")

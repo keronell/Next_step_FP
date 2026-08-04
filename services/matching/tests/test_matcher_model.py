@@ -241,3 +241,59 @@ def test_unrecognised_deployment_fails_at_load(bad):
     """
     with pytest.raises(MatcherModelError):
         MatcherModel(tiny_artifact(deployment=bad))
+
+
+# ------------------------------------------------- temperature (shared parsing)
+@pytest.mark.parametrize(
+    "bad",
+    [
+        10**400,        # valid JSON integer, too large for a C double
+        -(10**400),
+        float("nan"),   # json.loads accepts NaN/Infinity by default
+        float("inf"),
+        0,              # would divide the logits by zero
+        -1.0,
+        True,           # bool is an int subclass and must not read as 1.0
+        "0.8",
+        None,
+    ],
+)
+def test_unusable_temperature_fails_as_a_matcher_error(bad):
+    """Every rejection must be a MatcherModelError, not just most of them.
+
+    `main.py`'s lifespan catches MatcherModelError and nothing else, so a rejection
+    raised as any other type takes service startup DOWN instead of falling back to
+    the formula. A large-integer temperature used to escape as OverflowError out of
+    `math.isfinite` -- syntactically valid JSON that aborted the service.
+    """
+    with pytest.raises(MatcherModelError):
+        MatcherModel(tiny_artifact(temperature=bad))
+
+
+def test_the_dispatch_seam_never_lets_a_foreign_exception_escape():
+    """`load_matcher`'s contract is that EVERY failure arrives as MatcherModelError.
+
+    Asserted against a constructor that raises something the seam has no reason to
+    anticipate, because the guarantee is what the lifespan relies on -- not the
+    completeness of any particular except-tuple.
+    """
+    import json as _json
+    import tempfile
+    from pathlib import Path as _Path
+
+    import app.services.matcher as matcher_module
+
+    class Exploding:
+        def __init__(self, artifact):
+            raise RuntimeError("something the seam never predicted")
+
+    original = dict(matcher_module._IMPLEMENTATIONS)
+    matcher_module._IMPLEMENTATIONS["exploding"] = Exploding
+    try:
+        p = _Path(tempfile.mkdtemp()) / "a.json"
+        p.write_text(_json.dumps(tiny_artifact(model_type="exploding")), encoding="utf-8")
+        with pytest.raises(MatcherModelError):
+            matcher_module.load_matcher(p)
+    finally:
+        matcher_module._IMPLEMENTATIONS.clear()
+        matcher_module._IMPLEMENTATIONS.update(original)

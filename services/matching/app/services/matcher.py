@@ -25,6 +25,9 @@ from app.services.matcher_model import (
     MatcherModelError,
 )
 from app.services.matcher_nn import NeuralMatcher
+from common.logging import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = ["Matcher", "MatcherModelError", "displays_own_percentages", "load_matcher"]
 
@@ -105,5 +108,22 @@ def load_matcher(path: str | Path) -> Matcher:
 
     try:
         return implementation(artifact)
-    except (KeyError, TypeError) as exc:
-        raise MatcherModelError(f"malformed model artifact {p}: {exc}") from exc
+    except MatcherModelError:
+        raise
+    except Exception as exc:
+        # Deliberately broad. `main.py`'s lifespan catches MatcherModelError and
+        # nothing else, so ANY other exception escaping here takes service startup
+        # down instead of engaging the formula fallback CLAUDE.md promises — and the
+        # artifact is untrusted input, so the set of ways it can go wrong is not
+        # knowable from here. This was not hypothetical: a large-integer
+        # `temperature` raised OverflowError out of `math.isfinite`, which the old
+        # (KeyError, TypeError) tuple did not cover. `parse_temperature` now rejects
+        # that at its source; this stays as the guarantee rather than the fix.
+        #
+        # Logged with a traceback because the cost of the breadth is that a BUG IN
+        # OUR OWN CODE also arrives here and would otherwise be reported as a
+        # malformed artifact — which is exactly what happened while this was being
+        # written, when a missing import surfaced as "malformed model artifact".
+        # The fallback is still the right behaviour; being told why is the fix.
+        logger.exception("unexpected error loading matcher artifact %s", p)
+        raise MatcherModelError(f"malformed model artifact {p}: {exc!r}") from exc
