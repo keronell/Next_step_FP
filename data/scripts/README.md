@@ -1670,3 +1670,88 @@ instructed; the second is now asserted in its **positive** form (equality with t
 formula's percentage), which DEV-99 recorded as not yet expressible. `questionnaire` 19,
 `roadmap` 30, `auth` 31, `history` 81 and `data/scripts/tests` (118 training venv /
 7 passed + 12 skipped backend venv) all unchanged.
+
+### Reproduction record (DEV-89, 2026-08-04)
+
+q11-q18 attribution rendering. **Nothing was retrained, re-exported or re-swept**;
+`dataset_digest` is untouched at
+`2bdd5ec99d6a49a2a19c40163cf7a69d560453e3095bc6b4241c6065f18a4b27`, no file under
+`data/training/` or `data/models/` was written, and `MATCHER_MODEL_PATH` was not
+flipped. This ticket ships on its own branch off `main`, independent of DEV-23.
+
+Deliverable: `services/matching/app/services/reason_builder.py` (phrases for q11-q18),
+`services/matching/tests/test_reason_coverage.py`,
+`services/matching/tests/reason_diagnostics.py`, and
+`services/matching/tests/data/question_phrases_snapshot.json`.
+
+#### The defect
+
+`reason_builder.py`'s `QUESTION_PHRASES` covered q1-q10 **and was also the iteration
+set** (`for qid in QUESTION_PHRASES`), so with an 18-question bank the attributions
+for q11-q18 were computed by the matcher and then discarded before reaching users --
+16 of 36 question features, 44% of the question-feature surface, and precisely the
+pure discriminators (zero questionnaire weight, signal carried entirely by per-option
+bonuses) a learned model leans on hardest.
+
+#### The measurement, computed rather than quoted
+
+```bash
+cd services/matching && ../../backend/venv/Scripts/python tests/reason_diagnostics.py --seeds
+cd services/matching && ../../backend/venv/Scripts/python tests/reason_diagnostics.py --fixture conftest
+```
+
+Artifact `matcher_logistic_v2.json` (`features-v4`, the only artifact the current
+layout accepts), 200 answer sets x top-3 careers = 600 explanations, seed 20260803,
+`show_if` honored so exactly one of q14-q17 is answered per respondent.
+
+Renderable share of **explainable** attribution mass -- own-career `fit`/`sem`/`skill`
+plus all question features, cross-career coefficients excluded as
+honest-but-unreadable:
+
+| phrase mapping | mean | min | < 0.99 | explanations |
+|---|---|---|---|---|
+| current (q1-q18) | **1.000** | **1.000** | 0 | 600 |
+| pre-DEV-89 (q1-q10) | 0.572 | 0.000 | 592 | 600 |
+
+**This denominator is WIDER than the question-only reading reported alongside DEV-99
+(0.293) and the two are not interchangeable.** The AC's universe includes the three
+own-career signals, which `reason_builder.py:57-66` does emit sentences for.
+
+Stable at 1.000 across seeds 1-4 (pre-DEV-89: 0.554 / 0.566 / 0.561 / 0.571), under
+the sparse `conftest` fixture (pre-DEV-89: 0.731), and with `show_if` ignored so all
+18 are answered.
+
+#### Judgement calls, each counted rather than argued
+
+1. **Positive mass only** -- `reason_builder` renders only above `MIN_CONTRIBUTION`,
+   so negative attribution is unrenderable for every feature in the bank or out of it.
+2. **Renderable means "has a rendering path"**, not "survives the `MAX_REASONS` /
+   `MAX_QUESTION_REASONS` budget" -- under a "survives" reading the >= 0.99 bar is
+   unreachable by construction. Renderability is **probed by driving `build_reasons`**,
+   not by reading `QUESTION_PHRASES`, so a phrased-but-unrenderable question (a
+   `questions_by_id` miss, an out-of-range answer) still counts as lost.
+3. **Answered questions only** -- an unseen question has no option to quote. Excluded
+   mass: 0.106 (skill-rich fixture) / 0.277 (sparse `conftest`).
+4. **The `skill` signal needs names to list** -- dropped from the universe when
+   `matched_skills` is empty. Excluded mass: 0.000 / 0.001, and **symmetric** between
+   the current and pre-DEV-89 mappings (0.001 vs 0.001), so it does not flatter the
+   "before" gap.
+
+Disclosure: `chromadb` is not installed in `backend/venv`, so `semantic_similarity` is
+canned (same constraint DEV-99 disclosed). The default fixture gives every career
+market demand for its own key skills; `--fixture conftest` runs the sparse fixture so
+the size of that thumb is visible in the table above.
+
+#### The safety property
+
+DEV-89 changes reasons, **not scores**. Verified over 400 comparisons (200 answer sets
+x formula path and model path): career ordering, `matchPercent` and `score` are
+identical under the pre- and post-DEV-89 mappings, while the rendered reasons differ --
+the top reason for the first answer set becomes a q15 sentence, one of the previously
+discarded discriminators.
+
+Suite: `services/matching` 90 -> **112 passed** (22 new). `questionnaire` 18,
+`roadmap` 27, `history` 88 unchanged. `services/auth` has **3 pre-existing failures on
+`main`** (`ModuleNotFoundError: No module named 'supabase_...'` in
+`tests/test_admin_routes.py`), unrelated to this ticket and unchanged by it.
+
