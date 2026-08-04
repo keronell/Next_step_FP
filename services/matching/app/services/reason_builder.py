@@ -15,6 +15,14 @@ model behavior but read as nonsense to users, so they never surface here.
 from __future__ import annotations
 
 # Human descriptor per question, phrased to follow "your ...".
+#
+# This dict is ALSO the iteration set below (`for qid in QUESTION_PHRASES`), so a
+# question missing here is not merely unphrased — its attribution is discarded
+# before it can become a reason. That is what DEV-89 fixed: q11-q18 were absent
+# while the bank had grown to 18, dropping 44% of the question-feature surface,
+# and precisely the pure-discriminator half a learned model leans on hardest.
+# `test_reason_coverage.py` is what keeps the two in step; it fails loudly when a
+# question is added to the bank without a phrase here.
 QUESTION_PHRASES = {
     "q1": "comfort with writing code",
     "q2": "what excites you most",
@@ -26,6 +34,14 @@ QUESTION_PHRASES = {
     "q8": "how you respond when a project goes sideways",
     "q9": "your draw to visual design",
     "q10": "what success means to you",
+    "q11": "which side of a busy online store appeals to you",
+    "q12": "where you would start on a new app idea",
+    "q13": "the part of your own work you show off",
+    "q14": "what you would build for fun",
+    "q15": "the role you would take on an app team",
+    "q16": "the kind of data work you find satisfying",
+    "q17": "how you would want to handle a site outage",
+    "q18": "the finishing touch you enjoy most",
 }
 
 MAX_REASONS = 4
