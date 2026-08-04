@@ -217,9 +217,25 @@ though `common/config.py` defines it for every service. For `matching`,
 `docker-compose.yml`'s `environment:` key overrides `env_file:` and interpolates
 the **repo-root** `.env` instead, which needs a *container* path
 (`/store/models/...`; `data/models` is mounted read-only at `/store/models`).
-Verify with `docker compose config` rather than by reading. It is blank in both
-today — production runs the formula; flipping it is DEV-99 and is human-gated
-(`docs/dev-23-flip-readiness.md`).
+Verify with `docker compose config` rather than by reading. The repo-root `.env`
+sets it to `/store/models/matcher_nn_v1.json` — DEV-99 flipped it on 2026-08-04
+after human approval, so the neural matcher serves. It supplies the **selection**
+only: every displayed percentage is still the formula's, per ADR 0005's
+mitigable-ECE branch. `backend/.env` still points at the stale `matcher_logistic_v1`,
+which is refused on load and never reaches `matching` anyway.
+
+**Rollback:** blank that one line and restart `matching` + `matching-dapr` together
+(shared netns). No code redeploy. It does not rewrite already-persisted submissions,
+which keep the `model_version`/`model_caveats` they were scored with.
+
+**Changing the flag can require a rebuild, not just a restart.** An image built
+before the DEV-88 dispatch seam has no `matcher.py`, so the neural artifact is
+refused with `malformed model artifact ...: 'coef'` — the linear loader's error,
+which reads like a bad artifact and is really a stale build. Use
+`docker compose up -d --build matching matching-dapr` and confirm the
+`Learned matcher loaded: matcher-nn-v1` line in `docker compose logs matching`.
+Evidence and the decision: `docs/dev-23-flip-readiness.md`,
+`docs/dev-23-nn-decision.md`.
 
 ## Tech stack
 

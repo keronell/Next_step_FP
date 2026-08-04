@@ -121,3 +121,27 @@ This changes no gate, no threshold and no recorded measurement. `MATCHER_MODEL_P
 remains blank — **the flip itself is still DEV-99's and still needs its own approval.**
 What changes is that approving it no longer means shipping the uncalibrated percentages
 this ADR's mitigation exists to prevent.
+
+## Exercised: the mitigation is live (2026-08-04)
+
+DEV-99's approval was given and `MATCHER_MODEL_PATH` now points at
+`matcher_nn_v1.json`, so this ADR's mitigable-ECE branch is no longer hypothetical —
+it is the served path. Verified against the running stack rather than argued:
+
+- `matchPercent`, `score` and `score_breakdown` on every recommendation are the
+  formula's; `score_breakdown.model_probability` carries the model's own number.
+- The displayed list is descending in `matchPercent`, so the amendment above holds in
+  production, not only in tests.
+- The observed effect of the flip is a changed **selection**. On a fixed all-zero
+  answer set the formula and the model agree on the top two rows and their numbers
+  (71%, 67%) and differ only in the third — Mobile Developer under the formula,
+  Product Manager under the model. That is the intended shape of this ADR's
+  mitigation: the model changes *which* careers are shortlisted, and the formula
+  prices and orders them.
+
+One correction to how this ADR's mitigation reads from inside the artifact: the fourth
+caveat still said displayed percentages *"should fall back to the formula's"*, an
+instruction addressed to code that had not existed when it was written and by then did.
+DEV-99 reworded it to describe what the serving path does, and to say **SELECTION**
+rather than RANKING, matching the amendment above. The gate, the floors and the
+measured 0.139 / 0.735 are untouched.

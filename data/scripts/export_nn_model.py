@@ -183,6 +183,13 @@ def calibration_caveat(decision: dict) -> list[str]:
     `caveats` travel inside the artifact to the recommendations response, the
     persisted history and the results UI, so this is what stops a served percentage
     from silently claiming a calibration the model does not have.
+
+    It *describes* the serving behaviour rather than instructing a consumer to
+    implement it. Until DEV-99 the text read "displayed percentages should fall back
+    to the formula's", which was an instruction to code that did not exist; since the
+    ADR 0005 mitigation landed they do fall back, and a caveat telling the user what
+    ought to happen would contradict what does. The word is SELECTION, not RANKING,
+    for the same reason: the formula orders the selected set.
     """
     if decision["ece_clears"]:
         return []
@@ -190,10 +197,13 @@ def calibration_caveat(decision: dict) -> list[str]:
         "Displayed match percentages from this model are NOT calibrated: its pooled "
         f"out-of-fold ECE is {decision['ece']:.3f}, above the {decision['ece_floor']} "
         "ship floor. Under ADR 0005 that floor is mitigable rather than hard, so this "
-        "model ships as the RANKING source only and displayed percentages should fall "
-        "back to the formula's. The ordering of recommendations is gated separately, "
-        f"on top-2 stability ({decision['top2_stability']:.3f} against a "
-        f"{decision['stability_floor']} floor), and clears."
+        "model ships as the SELECTION source only: it chooses which careers appear, "
+        "and every number shown beside them (the percentage, the score and its "
+        "breakdown) is the deterministic formula's, which also sets their order. This "
+        "model's own probability is preserved as score_breakdown.model_probability. "
+        "The selection is gated separately, on top-2 stability "
+        f"({decision['top2_stability']:.3f} against a {decision['stability_floor']} "
+        "floor), and clears."
     ]
 
 

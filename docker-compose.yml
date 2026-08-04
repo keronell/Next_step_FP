@@ -50,9 +50,11 @@ services:
       DAPR_ENABLED: "true"
       CHROMA_PATH: /store/chroma
       CORS_ORIGINS: http://localhost:3000,http://localhost:5173
-      # Compose scope: set in the repo-root .env with a CONTAINER path, e.g.
-      # /store/models/matcher_logistic_v2.json (blank = formula). backend/.env's
-      # value is a host path for the `dapr run` flow — deliberately not passed.
+      # Compose scope: set in the repo-root .env with a CONTAINER path. DEV-99 set
+      # it to /store/models/matcher_nn_v1.json; blank = formula, which is also the
+      # rollback. The default stays blank on purpose — hardcoding it here would put
+      # the flip beyond the reach of blanking one .env line. backend/.env's value is
+      # a host path for the `dapr run` flow — deliberately not passed.
       MATCHER_MODEL_PATH: ${MATCHER_MODEL_PATH:-}
     volumes:
       # Writable: chromadb.PersistentClient runs migrations + WAL writes on open,

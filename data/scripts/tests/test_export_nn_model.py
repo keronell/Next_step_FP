@@ -169,8 +169,16 @@ def test_the_calibration_caveat_appears_only_when_ece_fails():
     failing = ex.calibration_caveat(ex.gate1_decision(0.1392, 0.7346, 0.10, 0.60))
     assert len(failing) == 1
     assert "NOT calibrated" in failing[0]
-    # The mitigation has to name what to do, not merely that something is wrong.
-    assert "FALL BACK" in failing[0].upper()
+    # The mitigation has to name where the displayed numbers actually come from, not
+    # merely that something is wrong. Until DEV-99 this asserted the imperative
+    # "FALL BACK", which was correct while the fallback was an instruction to code
+    # that did not exist; the ADR 0005 mitigation now implements it, so the caveat
+    # describes the behaviour and a consumer-facing instruction would contradict it.
+    assert "formula" in failing[0]
+    # And it names which half of the split floor it earned, in the vocabulary the
+    # serving path uses: the formula orders the selected set, so the model supplies
+    # the SELECTION rather than the ranking.
+    assert "SELECTION" in failing[0]
     assert ex.calibration_caveat(ex.gate1_decision(0.03, 0.75, 0.10, 0.60)) == []
 
 
