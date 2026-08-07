@@ -1,9 +1,22 @@
+<div align="center">
+  <img src="docs/assets/logo.png" alt="NextStep" width="380">
+</div>
+
 # NextStep Career Matcher
 
 A career-discovery platform: a personalized assessment matches users to one of
 **16 tech careers** with explainable, job-market-backed recommendations, then
 generates a personal learning roadmap enriched with the skills employers
 actually ask for.
+
+## Demo
+
+[![NextStep walkthrough — match results through to the roadmap](docs/assets/demo.gif)](docs/assets/demo.mp4)
+
+Ranked matches carry a percentage and the reasons behind it; picking one opens a
+roadmap whose nodes are tagged with how often real job ads demand that skill, and
+ticking a node advances your progress. The clip above is a 14s excerpt —
+the **[full walkthrough (35s) ▶](docs/assets/demo.mp4)** also covers the questionnaire.
 
 The backend is **five microservices glued by [Dapr](https://dapr.io)** (service
 invocation, pub/sub, state store) behind an nginx API gateway; the frontend is a
