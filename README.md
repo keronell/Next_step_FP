@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/logo.png" alt="NextStep" width="380">
+  <img src="docs/assets/logo.png" alt="NextStep" width="420">
 </div>
 
 # NextStep Career Matcher
@@ -9,33 +9,57 @@ A career-discovery platform: a personalized assessment matches users to one of
 generates a personal learning roadmap enriched with the skills employers
 actually ask for.
 
-## Demo
+[![NextStep walkthrough — User flow, from short quiz to the role selection and the roadmap](docs/assets/demo.gif)](docs/assets/demo.mp4)
 
-[![NextStep walkthrough — match results through to the roadmap](docs/assets/demo.gif)](docs/assets/demo.mp4)
+   
+**[Full walkthrough (35s) ▶](docs/assets/demo.mp4)** 
 
-Ranked matches carry a percentage and the reasons behind it; picking one opens a
-roadmap whose nodes are tagged with how often real job ads demand that skill, and
-ticking a node advances your progress. The clip above is a 14s excerpt —
-the **[full walkthrough (35s) ▶](docs/assets/demo.mp4)** also covers the questionnaire.
+## User flow
 
-The backend is **five microservices glued by [Dapr](https://dapr.io)** (service
-invocation, pub/sub, state store) behind an nginx API gateway; the frontend is a
-single-page React app that works even when the backend is down (offline
-fallback). Full architecture: [`docs/architecture.md`](docs/architecture.md) ·
-Dapr building blocks & state schema: [`docs/dapr.md`](docs/dapr.md).
+1. **Create an account** — email, password and a username, handled by Supabase
+   GoTrue. Signing up also claims any assessment you already took anonymously in
+   the same browser, so nothing is lost by trying the quiz first.
+2. **Answer the questionnaire** — about 15 questions in 3–5 minutes, on skills,
+   work style and personality fit. The bank holds 18: the career-family
+   follow-ups branch on your earlier answers, so you only see the relevant ones.
+3. **Add a profile** *(optional)* — your experience, projects and the skills you
+   already have. Skip it and the result is identical to not having the step at
+   all; fill it in and those skills both re-weight the score and make the
+   "skills you have / still need" lists mean what they say.
+4. **Get ranked matches** — the top 3 of 16 careers, each with a match
+   percentage, the specific reasons behind it, and the skills you hold versus
+   the ones you are missing.
+5. **Choose a career** — your pick is recorded and unlocks that career's roadmap.
+   A roadmap opens only for a career you hold a recommendation for: the same
+   evidence that personalizes it is what authorizes it.
+6. **Work the roadmap** — a visual skill graph where every node carries how often
+   real job ads demand it. Tick nodes off as you learn them; progress is saved
+   per user and is still there when you come back.
 
-```
-React SPA (:3000)
-   │
-   ▼
-nginx gateway (:8000)
-   ├── questionnaire ── Dapr invoke ──▶ matching   (ChromaDB job-ad RAG + scoring)
-   │        └── Dapr pub/sub (Redis) ──▶ history   (submissions in the Dapr state store)
-   ├── roadmap  ── invoke ─▶ matching (market skills)
-   └── auth     (Supabase GoTrue + usernames; other services verify via invoke)
 
-infra: redis (state + broker) · consul (sidecar discovery) · 5 daprd sidecars
-```
+
+## Architecture
+
+![NextStep architecture — React SPA through the nginx gateway to five Dapr-glued services, backed by Supabase, ChromaDB and Redis, with an offline job-ad pipeline](docs/assets/architecture.png)
+
+
+## Tech stack
+
+- **Python 3.12 + FastAPI + Pydantic** — all five backend services
+- **React 18 + Vite + Tailwind** — SPA, works offline when the backend is down
+- **Dapr 1.17.5** — service invocation, Redis pub/sub, state store
+- **Redis 7** — pub/sub broker and state (submissions, roadmap progress)
+- **Consul 1.20** — service discovery for the Dapr sidecars
+- **nginx 1.27** — API gateway, the single entry point on `:8000`
+- **Supabase** — GoTrue auth, user profiles, job-posting reads
+- **ChromaDB** — vector store over ~1850 scraped job ads
+- **sentence-transformers** (`all-MiniLM-L6-v2`) — embeddings for semantic matching
+- **PyTorch** — neural matcher, currently ranking-only (see ADR 0005)
+- **scikit-learn** — logistic matcher and probability calibration
+- **LightGBM** — benchmarked comparator, not shipped
+- **Ollama + Qwen2.5 7B** — LLM panel that generates the silver training labels
+- **python-jobspy + feedparser** — job-ad scraping for the offline pipeline
+- **Docker Compose** — the whole stack, 13 containers, one command
 
 How a submission flows:
 
