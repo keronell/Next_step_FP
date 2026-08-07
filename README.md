@@ -45,21 +45,31 @@ actually ask for.
 
 ## Tech stack
 
+**Services**
+
 - **Python 3.12 + FastAPI + Pydantic** — all five backend services
-- **React 18 + Vite + Tailwind** — SPA, works offline when the backend is down
-- **Dapr 1.17.5** — service invocation, Redis pub/sub, state store
+- **Dapr 1.17.5** — service invocation, Redis pub/sub, state store (etag CAS)
 - **Redis 7** — pub/sub broker and state (submissions, roadmap progress)
 - **Consul 1.20** — service discovery for the Dapr sidecars
 - **nginx 1.27** — API gateway, the single entry point on `:8000`
 - **Supabase** — GoTrue auth, user profiles, job-posting reads
+- **Docker Compose** — the whole stack, 13 containers, one command
+
+**Frontend**
+
+- **React 18 + Vite** — SPA, works offline when the backend is down
+- **Tailwind CSS** — styling
+- **framer-motion + lucide-react** — animation and icons
+
+**Data pipeline**
+
 - **ChromaDB** — vector store over ~1850 scraped job ads
 - **sentence-transformers** (`all-MiniLM-L6-v2`) — embeddings for semantic matching
+- **python-jobspy + feedparser + httpx** — job-ad scrapers in `data/scripts/`
+- **Ollama + Qwen2.5 7B** — LLM panel that generates the silver training labels
 - **PyTorch** — neural matcher, currently ranking-only (see ADR 0005)
 - **scikit-learn** — logistic matcher and probability calibration
 - **LightGBM** — benchmarked comparator, not shipped
-- **Ollama + Qwen2.5 7B** — LLM panel that generates the silver training labels
-- **python-jobspy + feedparser** — job-ad scraping for the offline pipeline
-- **Docker Compose** — the whole stack, 13 containers, one command
 
 How a submission flows:
 
@@ -273,17 +283,6 @@ which reads like a bad artifact and is really a stale build. Use
 `Learned matcher loaded: matcher-nn-v1` line in `docker compose logs matching`.
 Evidence and the decision: `docs/dev-23-flip-readiness.md`,
 `docs/dev-23-nn-decision.md`.
-
-## Tech stack
-
-**Services:** FastAPI, Dapr 1.17 (invocation · pub/sub · state store, etag CAS),
-Redis, Consul, nginx, ChromaDB + sentence-transformers (`all-MiniLM-L6-v2`),
-Supabase (GoTrue auth + Postgres `job_postings`), pytest, Docker Compose.
-
-**Frontend:** React 18, Vite, Tailwind CSS, framer-motion, lucide-react.
-
-**Data pipeline:** `data/scripts/` — job-ad scrapers (httpx / RSS / jobspy),
-skill extraction, RAG builder, matcher-training scripts.
 
 ## Project structure
 
