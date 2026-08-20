@@ -4,6 +4,7 @@ These assert against the protocol rather than against MatcherModel, which is wha
 let the NN adapter (DEV-94) join as a second family without touching them. Its own
 dispatch and conformance cases live in `test_matcher_nn.py`.
 """
+import os
 from pathlib import Path
 
 import pytest
@@ -48,6 +49,36 @@ def test_missing_file_raises_the_catchable_error(tmp_path):
     # instead of falling back to the formula.
     with pytest.raises(MatcherModelError):
         load_matcher(tmp_path / "nope.json")
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0,
+    # Short-circuits before os.geteuid, which does not exist on Windows and would
+    # otherwise raise at import and break collection for this whole module.
+    reason="POSIX directory permissions, and root ignores them",
+)
+def test_unsearchable_parent_raises_the_catchable_error(tmp_path):
+    # A Path.exists() pre-check does NOT return False here - it raises
+    # PermissionError, which the lifespan does not catch. Regression guard for
+    # the probe being reintroduced ahead of the try.
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    artifact = locked / "m.json"
+    artifact.write_text("{}", encoding="utf-8")
+    locked.chmod(0o000)
+    try:
+        with pytest.raises(MatcherModelError):
+            load_matcher(artifact)
+    finally:
+        locked.chmod(0o755)
+
+
+def test_unconvertible_path_raises_the_catchable_error():
+    # read_text() raises a bare ValueError on an embedded NUL where the old
+    # exists() probe just returned False. Still has to reach the lifespan as
+    # MatcherModelError, or startup dies instead of falling back.
+    with pytest.raises(MatcherModelError):
+        load_matcher("model\x00.json")
 
 
 def test_malformed_json_raises_the_catchable_error(tmp_path):

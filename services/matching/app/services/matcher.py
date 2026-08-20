@@ -89,12 +89,24 @@ def load_matcher(path: str | Path) -> Matcher:
     missing, malformed, unknown family, or built for another feature layout.
     """
     p = Path(path)
-    if not p.exists():
-        raise MatcherModelError(f"model artifact not found: {p}")
+    # Read straight through rather than probing with p.exists() first: exists()
+    # itself raises PermissionError when a parent directory is unsearchable (it
+    # only swallows ENOENT/ENOTDIR/EBADF/ELOOP), which would escape this function
+    # untranslated. One syscall, and every failure lands in the handlers below.
     try:
         artifact = json.loads(p.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise MatcherModelError(f"malformed model artifact {p}: {exc}") from exc
+    except FileNotFoundError as exc:
+        raise MatcherModelError(f"model artifact not found: {p}") from exc
+    # OSError covers the path existing but not being readable as a file — a
+    # directory (IsADirectoryError), a permissions problem, a dangling mount.
+    # ValueError covers the rest in one name: JSONDecodeError and UnicodeDecodeError
+    # for the contents, and the path-conversion failures read_text() raises where
+    # exists() merely returned False (an embedded NUL, an unpaired surrogate from a
+    # surrogateescape-decoded env var). The lifespan catches MatcherModelError and
+    # nothing else, so anything escaping here takes startup down instead of falling
+    # back to the formula.
+    except (ValueError, OSError) as exc:
+        raise MatcherModelError(f"unreadable model artifact {p}: {exc}") from exc
     if not isinstance(artifact, dict):
         raise MatcherModelError(f"model artifact {p} is not a JSON object")
 
