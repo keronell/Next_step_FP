@@ -43,6 +43,145 @@ actually ask for.
 ![NextStep architecture — React SPA through the nginx gateway to five Dapr-glued services, backed by Supabase, ChromaDB and Redis, with an offline job-ad pipeline](docs/assets/architecture.png)
 
 
+## Code map
+
+Four things to read first, in the order a request touches them.
+
+### RAG / vector search
+
+Job ads are embedded **offline**: [build_rag.py](data/scripts/build_rag.py) turns each
+scraped ad into one text blob (`build_document`) and upserts it into a persisted
+ChromaDB collection `job_ads` (`get_client`, cosine space, `all-MiniLM-L6-v2`). At
+request time nothing is re-ingested — [rag_service.py](services/matching/app/services/rag_service.py)
+opens the collection and loads the model **once** in the matching-service lifespan,
+then encodes the user's profile text and runs one metadata-filtered query per career
+field.
+
+```python
+# RagService.query_field — services/matching/app/services/rag_service.py
+result = self._collection.query(
+    query_embeddings=[embedding], n_results=k,
+    where={"field": field}, include=["metadatas", "distances"],
+)
+sims = [max(0.0, min(1.0, 1.0 - d)) for d in distances]  # cosine distance -> similarity
+```
+
+Look at: `RagService.create` / `encode` / `query_field`, and the caller
+[career_repository.py](services/matching/app/repositories/career_repository.py) —
+`CareerRepository.get_candidates` embeds the profile once and fans out over the 16
+careers. The query string itself is built by
+[profile.py](services/matching/app/services/profile.py) `build_profile()`, which turns
+the chosen answer options into `"I am …"` sentences; an optional self-input profile is
+appended to it by [profile_text.py](services/common/profile_text.py)
+(`profile_sentences`), and contributes nothing when skipped. Store
+missing or empty ⇒ `RagUnavailableError` ⇒ 503, and the SPA shows its offline estimate.
+
+### Supabase
+
+Supabase is used for **auth and three tables only** (`user_profiles`,
+`user_profile_data`, `job_postings`) — the app's operational data
+(submissions, roadmap progress) lives in the Dapr/Redis state store.
+[supabase_client.py](services/common/supabase_client.py) builds two lazily-cached
+clients, deliberately **not** the same instance. The split is about *user sessions*,
+not about tables vs auth: `get_supabase_client()` stays service-role forever, so it
+serves both `.table()` calls and GoTrue **admin** calls (`auth_service._get_admin_client`
+— create_user, sign_out, list, delete). What must never touch it is a user-session
+method (`sign_in_with_password`, `get_user`), because supabase-py then overwrites the
+client's Authorization header with that user's JWT — downgrading it to `authenticated`
+and re-enabling RLS on every later call. Those live on `get_auth_client()`.
+
+```python
+# services/common/supabase_client.py
+@lru_cache
+def get_supabase_client(): ...   # service-role: .table() + GoTrue admin
+@lru_cache
+def get_auth_client(): ...       # GoTrue user sessions only
+```
+
+Callers and tables:
+
+- [auth_service.py](services/auth/app/services/auth_service.py) — GoTrue
+  register/login/logout/me + `user_profiles` (usernames, `role`)
+- [profile_service.py](services/auth/app/services/profile_service.py) —
+  `user_profile_data`, one jsonb row per user (`get_profile` / `save_profile`)
+- [job_postings_service.py](services/matching/app/services/job_postings_service.py) —
+  read-only `skill_counts(field, limit)` over `job_postings`, degrades to an empty
+  `Counter` when Supabase is off
+
+Schema lives in [backend/migrations/](backend/migrations/) (`001_job_postings.sql` …
+`006_user_role.sql`). Every path here returns 503 or an empty result rather than
+crashing when `SUPABASE_*` is unset.
+
+### FastAPI services
+
+Five services, each `app/main.py` + `app/routes/` + `app/services/`, sharing wire
+contracts from [services/common/](services/common/). Every app is built by one factory
+— [app_factory.py](services/common/app_factory.py) `create_app(title, routers, lifespan=)`
+— which adds CORS, `/healthz`, and a 500 handler that keeps stack traces out of
+responses, so a service's `main.py` stays ~10 lines.
+
+```python
+# services/matching/app/main.py
+app = create_app("Matching Service", [health.router, (internal.router, "")], lifespan=lifespan)
+```
+
+| Service | Entry point | Main routes | Service layer |
+|---|---|---|---|
+| questionnaire | [main.py](services/questionnaire/app/main.py) | [questions.py](services/questionnaire/app/routes/questions.py), [questionnaire.py](services/questionnaire/app/routes/questionnaire.py) — `submit` / `select` | [persistence.py](services/questionnaire/app/services/persistence.py) (publishes to Redis), [matching_client.py](services/questionnaire/app/matching_client.py) |
+| matching | [main.py](services/matching/app/main.py) | [internal.py](services/matching/app/routes/internal.py) — `/internal/match` | [matching_service.py](services/matching/app/services/matching_service.py) `match()`, [matcher.py](services/matching/app/services/matcher.py) `load_matcher()` |
+| roadmap | [main.py](services/roadmap/app/main.py) | [roadmap.py](services/roadmap/app/routes/roadmap.py) — roadmap + progress | [roadmap_service.py](services/roadmap/app/services/roadmap_service.py), [requirements_service.py](services/roadmap/app/services/requirements_service.py) |
+| auth | [main.py](services/auth/app/main.py) | [auth.py](services/auth/app/routes/auth.py), [profile.py](services/auth/app/routes/profile.py), [admin.py](services/auth/app/routes/admin.py) | [auth_service.py](services/auth/app/services/auth_service.py), [profile_service.py](services/auth/app/services/profile_service.py) |
+| history | [main.py](services/history/app/main.py) | [history.py](services/history/app/routes/history.py), [subscriptions.py](services/history/app/routes/subscriptions.py) (`/dapr/subscribe`, `/events/*`) | [submission_store.py](services/history/app/services/submission_store.py) |
+
+Cross-service plumbing is all in `common/`: [dapr.py](services/common/dapr.py)
+(`invoke`, `publish`, `save_state` with etag CAS),
+[auth_dep.py](services/common/auth_dep.py) (`get_current_user` /
+`get_current_user_optional`, which verify the JWT by invoking auth-service),
+[models/](services/common/models/) (the Pydantic wire types),
+[config.py](services/common/config.py). **Change a contract there, never per-service.**
+
+### React frontend
+
+No react-router and no Redux — [App.jsx](frontend/src/App.jsx) is one phase state
+machine (`idle → assessing → profiling → loading → results_ready`) holding `answers`,
+`profile` and `results` in `useState`. It owns the *run* — the phase, the shared
+answers/profile/results, and the reset/sign-out invalidation below — but not the pages:
+each one owns its own local state and its own reads and writes, so trace a load or a
+race to the page, not here (`Questionnaire.jsx` fetches the bank and holds the quiz,
+`Profile.jsx` the draft and its save, `Roadmap.jsx` the graph and progress, `Admin.jsx`
+the account list). Two shared pieces sit outside App:
+[AuthContext.jsx](frontend/src/contexts/AuthContext.jsx) (session in context, tokens in
+`localStorage`) and [useRoute.js](frontend/src/hooks/useRoute.js), a ~120-line path
+router — `navigate`/`popstate` plus deferred scroll and history-open targets — that the
+app reads for both `/roadmap/{id}` deep links and the `/admin` screen.
+
+Every async continuation that can outlive a run re-checks a monotonic run id before
+writing — `App.jsx` owns that decision because a child invalidating in an effect is
+always a render behind:
+
+```jsx
+// frontend/src/App.jsx
+const runIdRef = useRef(0)
+useEffect(() => { runIdRef.current += 1 }, [user])   // sign-out / account switch invalidates the run
+// ...later, after an await:
+if (cancelled || runIdRef.current !== runId) return
+```
+
+- [api.js](frontend/src/api.js) — the only place that talks to the gateway.
+  `_request()` attaches only `Content-Type` and the Bearer token — the anonymous
+  `session_id` is added per call by the endpoints that correlate on it
+  (`submitQuestionnaire`, `selectCareer`, `claimSessions`), so a new anonymous
+  endpoint has to call `getSessionId()` itself. `VITE_API_BASE_URL` defaults to
+  `http://localhost:8000`.
+- [data.js](frontend/src/data.js) — bundled `QUESTIONS` / `CAREERS` / `ROADMAPS` +
+  `computeResults()`, the **offline fallback** used when the backend is down. Keep it
+  in sync with `services/common/data/*.json`.
+- Pages: [Questionnaire.jsx](frontend/src/pages/Questionnaire.jsx) (fetches the bank,
+  falls back to `QUESTIONS`), [Profile.jsx](frontend/src/pages/Profile.jsx) (optional
+  self-input step), [Results.jsx](frontend/src/pages/Results.jsx),
+  [Roadmap.jsx](frontend/src/pages/Roadmap.jsx) (skill-graph canvas, `fetchRoadmap` +
+  `fetchRoadmapProgress`), [Admin.jsx](frontend/src/pages/Admin.jsx).
+
 ## Tech stack
 
 **Services**
