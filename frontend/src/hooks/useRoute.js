@@ -9,6 +9,7 @@
 // fires no event).
 import { useEffect, useState } from 'react'
 import { CAREERS } from '../data'
+import { RESUME_CAREER_KEY } from '../lib/resume'
 
 const NAV_EVENT = 'nextstep:navigate'
 
@@ -105,6 +106,44 @@ export function matchRoadmap(pathname) {
     return null
   }
   return CAREER_IDS.has(id) ? id : null
+}
+
+// DEV-76: send a returning user straight to their roadmap, decided BEFORE React
+// renders (main.jsx calls this above createRoot).
+//
+// The decision is a read of three synchronous facts — the URL, whether a token
+// exists, and the career cached by the last visit — so there is no window for
+// anything to happen during it. That is the whole point. The earlier design decided
+// after auth rehydration and a history fetch, and therefore had to defend a window
+// hundreds of milliseconds wide against React StrictMode replaying effects, the user
+// navigating in or out of '/', the user jumping to a section without changing the
+// URL, and the restore being superseded mid-flight. Five separate guards, each added
+// after the previous set turned out to have a hole. Deciding before any of it can
+// happen removes the window rather than guarding it.
+//
+// Trade-off, deliberately taken: with no cached career (a browser that has never
+// loaded results while signed in) there is NO jump — the user lands on the homepage
+// exactly as before, the visit populates the cache, and the next load jumps. A stale
+// cache points at an older career; RoadmapPage re-resolves eligibility on arrival,
+// so that is wrong-but-safe, never an unearned unlock.
+let bootJumped = false
+
+export function didBootJump() {
+  return bootJumped
+}
+
+export function bootRedirect() {
+  // Only from the root: any other URL is the user asking for somewhere specific.
+  if (currentPath() !== '/') return
+  // Presence, not validity — validating costs a request, which is the window we are
+  // getting rid of. An expired token is handled after the fact: App bounces home
+  // once auth resolves to nobody (see its didBootJump effect).
+  if (!localStorage.getItem('nextstep_access_token')) return
+  const careerId = localStorage.getItem(RESUME_CAREER_KEY)
+  // Same allowlist the route matcher uses, so a tampered value can't reach an API URL.
+  if (!careerId || !CAREER_IDS.has(careerId)) return
+  window.history.pushState({}, '', `/roadmap/${encodeURIComponent(careerId)}`)
+  bootJumped = true
 }
 
 // Subscribe to the current pathname, re-rendering on Back/forward (popstate) and

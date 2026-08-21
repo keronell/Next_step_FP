@@ -50,7 +50,7 @@ function recFromHistory(subs, careerId) {
   return sub ? findRec(sub.recommendations, careerId) : null
 }
 
-export default function RoadmapPage({ careerId, recommendations, onStartAssessment, onLoadResults }) {
+export default function RoadmapPage({ careerId, recommendations, onStartAssessment, onLoadResults, onHistoryChanged }) {
   const { user, authLoading } = useAuth()
   const [authModalOpen, setAuthModalOpen] = useState(false)
 
@@ -183,6 +183,9 @@ export default function RoadmapPage({ careerId, recommendations, onStartAssessme
         // in-place instead of navigating (elsewhere in the app it has nowhere to
         // expand to, so Header falls back to routing here).
         onHistoryLoadResults={onLoadResults}
+        // DEV-75/DEV-76: deleting a past assessment can invalidate the cached
+        // resume pointer, so the refreshed list goes back to App to recompute it.
+        onHistoryChanged={onHistoryChanged}
       />
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <main>
